@@ -1,5 +1,7 @@
 package com.forday.app.remote.di
 
+import com.app.forday.BuildConfig
+import com.forday.app.remote.api.ApiResponseCallAdapterFactory
 import com.forday.app.remote.api.interceptor.TokenInterceptor
 import dagger.Module
 import dagger.Provides
@@ -73,31 +75,31 @@ object NetworkModule {
             .addInterceptor(httpLoggingInterceptor)
             .build()
 
-//    @TokenRetrofit
-//    @Provides
-//    @Singleton
-//    fun provideTokenRetrofit(
-//        @TokenInterceptorHttpClient okHttpClient: OkHttpClient,
-//        json: Json,
-//    ): Retrofit =
-//        Retrofit.Builder()
-//            .client(okHttpClient)
-//            .baseUrl(BuildConfig.BASE_URL)
-//            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
-//            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
-//            .build()
-//
-//    @NoHeaderRetrofit
-//    @Provides
-//    @Singleton
-//    fun provideNoHeaderRetrofit(
-//        @NoHeaderHttpClient okHttpClient: OkHttpClient,
-//        json: Json,
-//    ): Retrofit =
-//        Retrofit.Builder()
-//            .client(okHttpClient)
-//            .baseUrl(BuildConfig.BASE_URL)
-//            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
-//            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
-//            .build()
+    @TokenRetrofit
+    @Provides
+    @Singleton
+    fun provideTokenRetrofit(
+        @TokenInterceptorHttpClient okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit =
+        Retrofit.Builder()
+            .client(okHttpClient)
+            .baseUrl(BuildConfig.BASE_URL)
+            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
+            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
+            .build()
+
+    @NoHeaderRetrofit
+    @Provides
+    @Singleton
+    fun provideNoHeaderRetrofit(
+        @NoHeaderHttpClient okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit =
+        Retrofit.Builder()
+            .client(okHttpClient)
+            .baseUrl(BuildConfig.BASE_URL)
+            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
+            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
+            .build()
 }
