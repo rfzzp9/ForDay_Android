@@ -1,3 +1,5 @@
+import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -21,6 +23,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "KAKAO_API_KEY", getProperty("KAKAO_API_KEY"))
+        resValue("string", "KAKAO_REDIRECT_URI", getProperty("KAKAO_REDIRECT_URI"))
     }
 
     buildTypes {
@@ -58,6 +63,21 @@ android {
             isReturnDefaultValues = true
         }
     }
+}
+
+android {
+    buildTypes {
+        debug {
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
+        }
+        release {
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
+        }
+    }
+}
+
+fun getProperty(key: String): String {
+    return gradleLocalProperties(rootDir, providers).getProperty(key)
 }
 
 dependencies {
@@ -98,10 +118,10 @@ dependencies {
     implementation(libs.coroutines.android)
 
     // Image Loading (Landscapist)
-    implementation(platform(libs.landscapist.bom))
-    implementation(libs.landscapist.coil)
-    implementation(libs.landscapist.placeholder)
-    implementation(libs.landscapist.animation)
+    implementation(libs.landscapist.glide)
+//    implementation(libs.landscapist.coil)
+//    implementation(libs.landscapist.placeholder)
+//    implementation(libs.landscapist.animation)
 
     // UI Effects
     implementation(libs.compose.shimmer)
@@ -166,4 +186,7 @@ dependencies {
     testImplementation(libs.roborazziRule)
     testImplementation(libs.roborazziCompose)
 
+    // Kakao
+    implementation(libs.kakao.user)
+    implementation(libs.kakao.share)
 }
