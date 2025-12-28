@@ -5,12 +5,16 @@ sealed interface ApiResponse<out T> {
 
     sealed interface Failure : ApiResponse<Nothing> {
 
-        data class HttpError(val code: Long, val message: String, val body: String) : Failure
+        data class HttpError(val code: Int, val message: String, val body: String) : Failure
 
         data class NetworkError(val throwable: Throwable) : Failure
 
         data class UnknownApiError(val throwable: Throwable) : Failure
 
+    }
+
+    companion object {
+        fun <R> successOf(result: R): ApiResponse<R> = Success(result)
     }
 
 }
