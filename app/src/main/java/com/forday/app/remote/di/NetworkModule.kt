@@ -1,18 +1,23 @@
 package com.forday.app.remote.di
 
 import com.app.forday.BuildConfig
-import com.forday.app.remote.api.ApiResponseCallAdapterFactory
 import com.forday.app.remote.api.interceptor.TokenInterceptor
+import com.forday.app.remote.api.service.AuthApi
+import com.forday.app.remote.api.service.FileApi
+import com.forday.app.remote.api.service.HobbyApi
+import com.forday.app.remote.api.service.RoutineApi
+import com.forday.app.remote.api.service.TokenApi
+import com.forday.app.remote.api.service.UserApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.create
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -48,6 +53,58 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideRetrofit(): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com") //TODO 여기 BASE_URL로 바꾸기
+            .addConverterFactory(GsonConverterFactory.create()) // Use your preferred converter
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFileApi(
+        @TokenRetrofit retrofit: Retrofit
+    ): FileApi {
+        return retrofit.create(FileApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserApi(
+        @TokenRetrofit retrofit: Retrofit): UserApi {
+        return retrofit.create(UserApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHobbyApi(
+        @TokenRetrofit retrofit: Retrofit
+    ): HobbyApi {
+        return retrofit.create(HobbyApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRoutineApi(
+        @TokenRetrofit retrofit: Retrofit
+    ): RoutineApi {
+        return retrofit.create(RoutineApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTokenApi(
+        @NoHeaderRetrofit retrofit: Retrofit
+    ): TokenApi = retrofit.create(TokenApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -80,13 +137,11 @@ object NetworkModule {
     @Singleton
     fun provideTokenRetrofit(
         @TokenInterceptorHttpClient okHttpClient: OkHttpClient,
-        json: Json,
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl(BuildConfig.BASE_URL)
-            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
-            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
+            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com")  //TODO 여기 BASE_URL로 바꾸기
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
 
     @NoHeaderRetrofit
@@ -94,12 +149,10 @@ object NetworkModule {
     @Singleton
     fun provideNoHeaderRetrofit(
         @NoHeaderHttpClient okHttpClient: OkHttpClient,
-        json: Json,
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl(BuildConfig.BASE_URL)
-            .addCallAdapterFactory(ApiResponseCallAdapterFactory())
-            .addConverterFactory(json.asConverterFactory(TYPE_JSON.toMediaType()))
+            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com")  //TODO 여기 BASE_URL로 바꾸기
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
 }
