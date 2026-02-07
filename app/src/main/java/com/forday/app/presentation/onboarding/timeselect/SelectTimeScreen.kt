@@ -59,6 +59,23 @@ import timber.log.Timber
 @Serializable
 enum class ScreenMode { ONBOARDING, DEFAULT }
 
+// hobbyInfoId에 따라 아이콘 리소스를 반환하는 함수
+fun getHobbyIconResource(hobbyInfoId: Int?): Int {
+    return when (hobbyInfoId) {
+        1 -> R.drawable.ic_draw
+        2 -> R.drawable.ic_health
+        3 -> R.drawable.ic_book
+        4 -> R.drawable.ic_music
+        5 -> R.drawable.ic_running
+        6 -> R.drawable.ic_cook
+        7 -> R.drawable.ic_cafe
+        8 -> R.drawable.ic_movie
+        9 -> R.drawable.ic_camera2
+        10 -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby // 기본값
+    }
+}
+
 @Composable
 fun SelectTimeScreenRoot(
     mode: ScreenMode,
@@ -76,6 +93,7 @@ fun SelectTimeScreenRoot(
     SelectTimeScreen(
         params = params,
         hobby = state.selectedHobbyName,
+        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
         selectedTime = state.selectedMinutes,
         mode = mode,
         onTimeSelected = { minutes ->
@@ -90,14 +108,14 @@ fun SelectTimeScreenRoot(
                 viewModel.modifyHobbyTime(params!!.hobbyId.toLong(), updatedMinutes)
             }
             scope.launch {
-                delay(1500L)
+                delay(400L)
                 onNext()
             }
         },
         onBack = {
             viewModel.logEvent("hobby_time_selection_back_click")
             scope.launch {
-                delay(1500L)
+                delay(400L)
                 onBack()
             }
         },
@@ -110,6 +128,7 @@ fun SelectTimeScreenRoot(
 fun SelectTimeScreen(
     params: HobbyModifyParams?,
     hobby: String?,
+    hobbyInfoId: Int?, // hobbyInfoId 파라미터 추가
     selectedTime: Int?,
     mode: ScreenMode,
     onTimeSelected: (Int) -> Unit,
@@ -208,6 +227,7 @@ fun SelectTimeScreen(
                                 hobbyName = it.hobbyName,
                                 timeLabel = timeLabel,
                                 isSelected = true,
+                                hobbyInfoId = it.hobbyId, // hobbyInfoId 전달
                                 executionCount = it.executionCount,
                                 goalDays = it.goalDays
                             )
@@ -220,7 +240,8 @@ fun SelectTimeScreen(
                             HobbyCard(
                                 hobbyName = it,
                                 timeLabel = timeLabel,
-                                isSelected = true
+                                isSelected = true,
+                                hobbyInfoId = hobbyInfoId // hobbyInfoId 전달
                             )
 //                            }
                         }
@@ -287,6 +308,7 @@ fun HobbyCard(
     hobbyName: String,
     timeLabel: String,
     isSelected: Boolean,
+    hobbyInfoId: Int? = null,
     executionCount: Int? = null,
     goalDays: Int? = null
 ) {
@@ -309,13 +331,13 @@ fun HobbyCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon
+            // Icon - hobbyInfoId에 따라 동적으로 아이콘 표시
             Box(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.book1),
+                    painter = painterResource(id = getHobbyIconResource(hobbyInfoId)),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color.Unspecified
@@ -515,6 +537,7 @@ fun TimeSelectScreenPreview() {
     ForDayTheme {
         SelectTimeScreen(
             hobby = "독서",
+            hobbyInfoId = 3, // 예시: 독서는 id 3
             selectedTime = 30,
             onTimeSelected = {},
             onNext = {},
@@ -522,7 +545,7 @@ fun TimeSelectScreenPreview() {
             mode = ScreenMode.ONBOARDING,
             params = null,
             viewModel = hiltViewModel(),
-            shouldAutoAdvance = TODO()
+            shouldAutoAdvance = false
         )
     }
 }

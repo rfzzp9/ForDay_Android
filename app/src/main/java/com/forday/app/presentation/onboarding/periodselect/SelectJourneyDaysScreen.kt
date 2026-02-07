@@ -59,6 +59,23 @@ data class JourneyOption(
     val characterIcon: Int
 )
 
+// hobbyInfoId에 따라 아이콘 리소스를 반환하는 함수
+fun getHobbyIconResource(hobbyInfoId: Int?): Int {
+    return when (hobbyInfoId) {
+        1 -> R.drawable.ic_draw
+        2 -> R.drawable.ic_health
+        3 -> R.drawable.ic_book
+        4 -> R.drawable.ic_music
+        5 -> R.drawable.ic_running
+        6 -> R.drawable.ic_cook
+        7 -> R.drawable.ic_cafe
+        8 -> R.drawable.ic_movie
+        9 -> R.drawable.ic_camera
+        10 -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby // 기본값
+    }
+}
+
 @Composable
 fun SelectJourneyDaysScreenRoot(
     params: HobbyModifyParams?,
@@ -75,6 +92,7 @@ fun SelectJourneyDaysScreenRoot(
     val scope = rememberCoroutineScope()
     SelectJourneyDaysScreen(
         hobbyName = state.selectedHobbyName,
+        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
         selectedTime = if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
             "${state.selectedMinutes!! / 60}시간"
         } else {
@@ -86,7 +104,7 @@ fun SelectJourneyDaysScreenRoot(
             viewModel.logEvent("hobby_journey_date_screen_back_click")
             viewModel.disableAutoAdvanceFromPurpose()
             scope.launch {
-                delay(1500L)
+                delay(400L)
                 onBack()
             }
         },
@@ -118,7 +136,7 @@ fun SelectJourneyDaysScreenRoot(
                         selectedPeriod = state.selectedJourneyMode
                     )
                 }
-                delay(1500L)                                     // ✅ 공통 2초 지연
+                delay(400L)                                     // ✅ 공통 2초 지연
                 if (mode == ScreenMode.DEFAULT) {
                     onNext()
                 } else {
@@ -147,6 +165,7 @@ fun SelectJourneyDaysScreen(
     params: HobbyModifyParams?,
     mode: ScreenMode,
     hobbyName: String? = "독서",
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     selectedTime: String = "30분",
     selectedFrequency: Int? = 2,
     selectedJourneyMode: JourneyMode? = null,
@@ -222,6 +241,7 @@ fun SelectJourneyDaysScreen(
 
                     HobbySummaryCard(
                         hobbyName = hobbyName,
+                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyId else hobbyInfoId, // hobbyInfoId 전달
                         selectedTime = selectedTime,
                         selectedFrequency = selectedFrequency,
                         selectedJourneyMode = currentJourneyMode
@@ -301,6 +321,7 @@ fun JourneyDaysTitleSection() {
 @Composable
 fun HobbySummaryCard(
     hobbyName: String?,
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     selectedTime: String,
     selectedFrequency: Int?,
     selectedJourneyMode: JourneyMode?
@@ -327,13 +348,13 @@ fun HobbySummaryCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Book icon
+            // Book icon - hobbyInfoId에 따라 동적으로 아이콘 표시
             Box(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.book1),
+                    painter = painterResource(id = getHobbyIconResource(hobbyInfoId)),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color.Unspecified
@@ -548,6 +569,7 @@ fun SelectJourneyDaysScreenPreview() {
             params = null,
             mode = ScreenMode.ONBOARDING,
             hobbyName = "독서",
+            hobbyInfoId = 3, // 예시: 독서는 id 3
             selectedTime = "30분",
             selectedFrequency = 2,
             selectedJourneyMode = null,

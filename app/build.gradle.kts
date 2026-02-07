@@ -1,4 +1,5 @@
-import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,16 +10,17 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.roborazzi.plugin)
+    alias(libs.plugins.google.services)
 }
 
 android {
     namespace = "com.app.forday"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.app.forday"
-        minSdk = 24
-        targetSdk = 35
+        minSdk = 28
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -35,11 +37,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))
         }
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))
         }
     }
 
@@ -65,19 +69,14 @@ android {
     }
 }
 
-android {
-    buildTypes {
-        debug {
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
-        }
-        release {
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
-        }
-    }
-}
-
 fun getProperty(key: String): String {
-    return gradleLocalProperties(rootDir, providers).getProperty(key)
+    val properties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        FileInputStream(localPropertiesFile).use(properties::load)
+    }
+    return properties.getProperty(key)
+        ?: throw IllegalStateException("'$key' not found in local.properties")
 }
 
 dependencies {
@@ -98,6 +97,12 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.navigation)
 
+    // Navigation3
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.compose.material3.adaptive.navigation3)
+
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
@@ -117,11 +122,9 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 
-    // Image Loading (Landscapist)
-    implementation(libs.landscapist.glide)
-//    implementation(libs.landscapist.coil)
-//    implementation(libs.landscapist.placeholder)
-//    implementation(libs.landscapist.animation)
+    // Image Loading
+    implementation(libs.coil.compose)
+    implementation(libs.coil.okhttp)
 
     // UI Effects
     implementation(libs.compose.shimmer)
@@ -130,6 +133,7 @@ dependencies {
     implementation(platform(libs.firebaseBom))
     implementation(libs.firebaseCrashlytics)
     implementation(libs.firebaseConfig)
+    implementation(libs.firebase.analytics)
 
     // DataStore
     implementation(libs.androidx.datastore)
@@ -189,4 +193,9 @@ dependencies {
     // Kakao
     implementation(libs.kakao.user)
     implementation(libs.kakao.share)
+
+    // Timber
+    implementation(libs.timber)
+
+    implementation(libs.lottie.compose)
 }

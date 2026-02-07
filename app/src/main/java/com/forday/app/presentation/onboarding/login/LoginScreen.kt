@@ -23,6 +23,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,18 +53,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import kotlinx.coroutines.delay
 import timber.log.Timber
 
 @Composable
 fun LoginScreenRoot(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
+    snackbarMessage: String?,
+    onSnackbarMessageConsumed: () -> Unit,
     viewModel: OnboardingViewModel
 ) {
     viewModel.logEvent("login_screen")
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current.applicationContext
     var showInstallDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // 로그인 시도 플래그
     var loginAttempted by remember { mutableStateOf(false) }
@@ -93,19 +99,35 @@ fun LoginScreenRoot(
         }
     }
 
-    LoginScreen(
-        onKakaoLogin = {
-            viewModel.logEvent("kakao_login_click")
-            loginAttempted = true  // 플래그 설정
-            viewModel.loginWithKakao(context)
-        },
-        onGuestMode = {
-            Timber.e("@@@@@@@@@@@@@@@@@@@@@@@guest_mode_click")
-            viewModel.logEvent("guest_mode_click")
-            loginAttempted = true  // ✅ 플래그 설정
-            viewModel.loginWithGuest()
-        }
-    )
+    LaunchedEffect(snackbarMessage) {
+        val message = snackbarMessage ?: return@LaunchedEffect
+        delay(300)
+        snackbarHostState.showSnackbar(message)
+        onSnackbarMessageConsumed()
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LoginScreen(
+            onKakaoLogin = {
+                viewModel.logEvent("kakao_login_click")
+                loginAttempted = true  // 플래그 설정
+                viewModel.loginWithKakao(context)
+            },
+            onGuestMode = {
+                Timber.e("@@@@@@@@@@@@@@@@@@@@@@@guest_mode_click")
+                viewModel.logEvent("guest_mode_click")
+                loginAttempted = true  // ✅ 플래그 설정
+                viewModel.loginWithGuest()
+            }
+        )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+        )
+    }
 }
 
 @Composable

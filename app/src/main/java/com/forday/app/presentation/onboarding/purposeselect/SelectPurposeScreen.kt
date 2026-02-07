@@ -61,6 +61,23 @@ data class PurposeOption(
     val isRecommended: Boolean = false
 )
 
+// hobbyInfoId에 따라 아이콘 리소스를 반환하는 함수
+fun getHobbyIconResource(hobbyInfoId: Int?): Int {
+    return when (hobbyInfoId) {
+        1 -> R.drawable.ic_draw
+        2 -> R.drawable.ic_health
+        3 -> R.drawable.ic_book
+        4 -> R.drawable.ic_music
+        5 -> R.drawable.ic_running
+        6 -> R.drawable.ic_cook
+        7 -> R.drawable.ic_cafe
+        8 -> R.drawable.ic_movie
+        9 -> R.drawable.ic_camera2
+        10 -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby // 기본값
+    }
+}
+
 @Composable
 fun SelectPurposeScreenRoot(
     onNext: () -> Unit,
@@ -74,8 +91,9 @@ fun SelectPurposeScreenRoot(
     val scope = rememberCoroutineScope()
     SelectPurposeScreen(
         hobbyName = state.selectedHobbyName,
+        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
         selectedTime =
-            if (state.selectedMinutes == 1 || state.selectedMinutes == 2) "${state.selectedMinutes}시간"
+            if (state.selectedMinutes == 60 || state.selectedMinutes == 120) "${state.selectedMinutes!!/60}시간"
             else "${state.selectedMinutes}분",
         customPurposeText = state.customPurposeText,
         selectedPurpose = state.selectedPurpose,
@@ -83,13 +101,13 @@ fun SelectPurposeScreenRoot(
             viewModel.logEvent("hobby_purpose_selection_screen_back_click")
             viewModel.disableAutoAdvanceFromFrequency()
             scope.launch {
-                delay(1500L)
+                delay(400L)
                 onBack()
             }
         },
         onNext = {
             scope.launch {
-                delay(1500L)
+                delay(400L)
                 onNext()
             }
         },
@@ -121,6 +139,7 @@ fun SelectPurposeScreenRoot(
 @Composable
 fun SelectPurposeScreen(
     hobbyName: String?,
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     selectedTime: String,
     selectedPurpose: String?,
     customPurposeText: String,
@@ -192,6 +211,7 @@ fun SelectPurposeScreen(
 
                     HobbyCard(
                         hobbyName = hobbyName,
+                        hobbyInfoId = hobbyInfoId, // hobbyInfoId 전달
                         timeLabel = selectedTime,
                         isSelected = hasSelectedPurpose,
                         selectedFrequency = selectedFrequency
@@ -277,6 +297,7 @@ fun PurposeTitleSection(hobbyName: String?) {
 @Composable
 fun HobbyCard(
     hobbyName: String?,
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     timeLabel: String,
     selectedFrequency: Int?,
     isSelected: Boolean
@@ -300,13 +321,13 @@ fun HobbyCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon
+            // Icon - hobbyInfoId에 따라 동적으로 아이콘 표시
             Box(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.book1),
+                    painter = painterResource(id = getHobbyIconResource(hobbyInfoId)),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color.Unspecified
@@ -592,8 +613,9 @@ fun SelectPurposeScreenPreview() {
     ForDayTheme {
         SelectPurposeScreen(
             onNext = {},
-            hobbyName = "",
-            selectedTime = "",
+            hobbyName = "독서",
+            hobbyInfoId = 3, // 예시: 독서는 id 3
+            selectedTime = "30분",
             customPurposeText = "",
             onBack = {},
             onShowCustomDialog = {},
@@ -604,7 +626,7 @@ fun SelectPurposeScreenPreview() {
             selectedPurpose = "",
             shouldAutoAdvance = true,
             viewModel = TODO(),
-            selectedFrequency = TODO(),
+            selectedFrequency = 2,
         )
     }
 }

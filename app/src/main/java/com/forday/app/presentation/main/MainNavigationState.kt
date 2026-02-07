@@ -21,6 +21,10 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.forday.app.core.navigation.LoadingRoutines
 import com.forday.app.core.navigation.MyPage
 import com.forday.app.core.navigation.RoutineAiRecommend
+import com.forday.app.presentation.allsettings.cancelaccount.navigation.CancelAccount
+import com.forday.app.presentation.allsettings.settings.navigation.Settings
+import com.forday.app.presentation.allsettings.privacypolicy.navigation.PrivacyPolicy
+import com.forday.app.presentation.allsettings.termsofservice.navigation.TermsOfService
 import com.forday.app.presentation.discovery.navigation.Discovery
 import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.inputhobbyroutines.navigation.InputRoutine
@@ -130,6 +134,11 @@ val serializersConfig = SavedStateConfiguration {
             subclass(RecordRoutine::class, RecordRoutine.serializer())
             subclass(Splash::class, Splash.serializer())
             subclass(Login::class, Login.serializer())
+            subclass(Settings::class, Settings.serializer())
+            subclass(TermsOfService::class, TermsOfService.serializer())
+            subclass(PrivacyPolicy::class, PrivacyPolicy.serializer())
+            subclass(CancelAccount::class, CancelAccount.serializer())
+
 
             // 온보딩 화면들
             subclass(SelectHobby::class, SelectHobby.serializer())

@@ -1,14 +1,21 @@
 package com.forday.app.presentation.record.screen
 
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
+import android.Manifest.permission.READ_MEDIA_IMAGES
+import android.Manifest.permission.READ_MEDIA_VIDEO
+import android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -40,6 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
 import com.app.forday.R
+import com.forday.app.core.designsystem.component.button.BottomButtonState
+import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.dropdown.DropdownItem
 import com.forday.app.core.designsystem.component.dropdown.RoutineDropdown
 import com.forday.app.core.designsystem.component.dropdown.VisibilityOption
@@ -62,13 +71,14 @@ fun RecordRoutineScreenRoot(
     onComplete: (Long) -> Unit,
     modifyData: RoutineRecordDetailUiModel?,
     modifyMode: Boolean,
-    viewModel: RecordRoutineViewModel = hiltViewModel(),
+    viewModel: RecordRoutineViewModel,
     onClose: () -> Unit
 ) {
     viewModel.logEvent("record_routine_screen")
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     Timber.e("@@@@@@@@########## "+modifyData?.recordId)
+
     fun getStickerFileName(iconRes: Int): String {
         return when (iconRes) {
             R.drawable.ic_sticker_smile -> "smile.jpg"
@@ -109,6 +119,76 @@ fun RecordRoutineScreenRoot(
     var existingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var removedExistingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
 
+    // ✅ 권한 관련 상태 추가
+    var shouldOpenGallery by remember { mutableStateOf(false) }
+
+    // ✅ 1. 권한 요청 Launcher
+    val requestPermissions = rememberLauncherForActivityResult(RequestMultiplePermissions()) { results ->
+        Timber.d("Permission results: $results")
+        val allGranted = results.values.all { it }
+        if (allGranted) {
+            Timber.d("All permissions granted - opening gallery")
+            shouldOpenGallery = true
+        } else {
+            Timber.w("Permission denied by user")
+            // TODO: 토스트 메시지 표시 (예: "갤러리 접근 권한이 필요합니다")
+        }
+    }
+
+    // ✅ 2. 권한 체크 함수
+    fun hasRequiredPermissions(): Boolean {
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+                // Android 14+ : READ_MEDIA_IMAGES 또는 READ_MEDIA_VISUAL_USER_SELECTED 중 하나만 있어도 OK
+                ContextCompat.checkSelfPermission(context, READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(context, READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                // Android 13
+                ContextCompat.checkSelfPermission(context, READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+            }
+            else -> {
+                // Android 12 이하
+                ContextCompat.checkSelfPermission(context, READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+    }
+
+    // ✅ 3. 권한 체크 및 요청 함수
+    fun checkAndRequestPermissions() {
+        Timber.d("Checking permissions for Android API ${Build.VERSION.SDK_INT}")
+
+        // 이미 권한이 있으면 바로 갤러리 열기
+        if (hasRequiredPermissions()) {
+            Timber.d("Permissions already granted - opening gallery directly")
+            shouldOpenGallery = true
+            return
+        }
+
+        // 권한이 없으면 요청
+        Timber.d("Requesting permissions...")
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+                // Android 14 (API 34) 이상
+                requestPermissions.launch(arrayOf(
+                    READ_MEDIA_IMAGES,
+                    READ_MEDIA_VIDEO,
+                    READ_MEDIA_VISUAL_USER_SELECTED
+                ))
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                // Android 13 (API 33)
+                requestPermissions.launch(arrayOf(
+                    READ_MEDIA_IMAGES,
+                    READ_MEDIA_VIDEO
+                ))
+            }
+            else -> {
+                // Android 12 (API 32) 이하
+                requestPermissions.launch(arrayOf(READ_EXTERNAL_STORAGE))
+            }
+        }
+    }
 
     // ✅ 수정모드 초기화: memo, visibility, sticker, existingImageUrls
     LaunchedEffect(modifyMode, modifyData) {
@@ -146,7 +226,7 @@ fun RecordRoutineScreenRoot(
     fun startImageUpload(newUris: List<Uri>) {
         if (newUris.isEmpty()) return
 
-        val remainingSlots = 1 - totalImageCount  // ✅ 전체 이미지 수 기준
+        val remainingSlots = 1 - totalImageCount
         val imagesToAdd = newUris.take(remainingSlots)
         selectedImages = selectedImages + imagesToAdd
 
@@ -170,22 +250,42 @@ fun RecordRoutineScreenRoot(
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()  // 단일 선택
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         Timber.d("Photo Picker callback - selected: $uri")
         if (uri != null) {
-            startImageUpload(listOf(uri))  // listOf로 감싸서 기존 로직 재사용
+            startImageUpload(listOf(uri))
         }
+        shouldOpenGallery = false
     }
 
     val legacyGalleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         result.data?.let { intent ->
-            val uri = intent.data  // ✅ 단일 Uri만 사용
+            val uri = intent.data
             if (uri != null) {
                 Timber.d("Legacy Gallery callback - selected: $uri")
                 startImageUpload(listOf(uri))
+            }
+        }
+        shouldOpenGallery = false
+    }
+
+    // ✅ 3. 권한 승인 후 갤러리 열기
+    LaunchedEffect(shouldOpenGallery) {
+        if (shouldOpenGallery) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13 이상: Photo Picker 사용
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            } else {
+                // Android 12 이하: 기존 갤러리 Intent 사용
+                val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                    type = "image/*"
+                }
+                legacyGalleryLauncher.launch(intent)
             }
         }
     }
@@ -194,7 +294,6 @@ fun RecordRoutineScreenRoot(
     LaunchedEffect(state.recordDetail.routineList) {
         if (state.recordDetail.routineList.isNotEmpty()) {
             if (modifyMode && modifyData != null) {
-                // 수정모드: routineId로 매칭 → 실패 시 content 이름으로 fallback 매칭
                 var idx = state.recordDetail.routineList.indexOfFirst { it.routineId == modifyData.routineId }
                 if (idx == -1) {
                     idx = state.recordDetail.routineList.indexOfFirst { it.content == modifyData.content }
@@ -202,7 +301,6 @@ fun RecordRoutineScreenRoot(
                 Timber.d("modifyData.routineId=${modifyData.routineId}, matched idx=$idx, list=${state.recordDetail.routineList.map { "${it.routineId}:${it.content}" }}")
                 selectedRoutineIndex = if (idx != -1) idx else 0
             } else {
-                // 신규모드: 기존 로직 유지
                 if (selectedRoutineIndex == null) selectedRoutineIndex = 0
             }
         }
@@ -243,14 +341,14 @@ fun RecordRoutineScreenRoot(
         }
     }
 
-    // ✅ 수정모드: modifyPosting 결과 관찰 → 성공 시 onComplete 호출 (null이면 skip)
+    // ✅ 수정모드: modifyPosting 결과 관찰 → 성공 시 onComplete 호출
     LaunchedEffect(state.modifyPostingUiModel) {
         val result = state.modifyPostingUiModel ?: return@LaunchedEffect
 
         val recordIdForNavigation =
             state.recordDetail.routineRecordId.takeIf { it > 0 }
                 ?: modifyData?.recordId
-                ?: result.activityId  // (비상 상황 대비)
+                ?: result.activityId
 
         onComplete(recordIdForNavigation.toLong())
         Timber.e("@@@@@@@@########## "+recordIdForNavigation.toLong())
@@ -283,23 +381,15 @@ fun RecordRoutineScreenRoot(
             showPrivacyDropdown = false
         },
         selectedImages = selectedImages,
-        existingImageUrls = activeExistingImageUrls,  // ✅ 남은 기존 이미지만 전달
+        existingImageUrls = activeExistingImageUrls,
         onExistingImageRemove = { url ->
             removedExistingImageUrls = removedExistingImageUrls + url
         },
         onPhotoClick = {
             if (totalImageCount < 1) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)  // ✅ 동일
-                    )
-                } else {
-                    val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
-                        type = "image/*"
-                        // ✅ EXTRA_ALLOW_MULTIPLE 제거 (단일 선택)
-                    }
-                    legacyGalleryLauncher.launch(intent)
-                }
+                // ✅ 갤러리 열기 전 권한 체크 및 요청
+                Timber.d("Photo button clicked - checking permissions")
+                checkAndRequestPermissions()
             }
         },
         onImageRemove = { uri ->
@@ -326,11 +416,10 @@ fun RecordRoutineScreenRoot(
         isUploading = isUploading,
         modifyData = modifyData,
         uploadComplete = uploadComplete,
-        modifyMode = modifyMode,  // ✅ 버튼 텍스트 / 타이틀 분기용
+        modifyMode = modifyMode,
         onComplete = {
             Timber.d("Complete button clicked, modifyMode: $modifyMode")
 
-            // 새 이미지가 있는데 업로드 안 완료면 차단 (신규/수정 공통)
             if (selectedImages.isNotEmpty() && !uploadComplete) {
                 if (isUploading) {
                     Timber.d("Upload still in progress, please wait")
@@ -339,6 +428,7 @@ fun RecordRoutineScreenRoot(
                 }
                 return@RecordRoutineScreen
             }
+
             val routineId = selectedRoutineIndex?.let { index ->
                 state.recordDetail.routineList.getOrNull(index)?.routineId?.toLong()
             } ?: if (modifyMode && modifyData != null) {
@@ -351,7 +441,6 @@ fun RecordRoutineScreenRoot(
             val stickerFileName = selectedSticker?.let { getStickerFileName(it.iconRes) } ?: ""
             val visibilityValue = selectedVisibility.name
 
-            // ✅ 수정모드이면 기존 이미지 + 새 업로드 이미지 합침, 신규모드이면 새 업로드 이미지만
             val imageUrls = if (modifyMode) {
                 val newUploadedUrls = if (selectedImages.isNotEmpty()) {
                     state.imageUploadState?.images?.map { it.fileUrl } ?: emptyList()
@@ -364,7 +453,6 @@ fun RecordRoutineScreenRoot(
             }
 
             if (modifyMode && modifyData != null) {
-                // ✅ 수정모드: modifyPosting 호출
                 Timber.d("Calling modifyPosting - recordId: ${modifyData.recordId}, routineId: $routineId, sticker: $stickerFileName, memo: $memoText, imageUrl: $imageUrls, visibility: $visibilityValue")
                 val recordIdForRequest =
                     state.recordDetail.routineRecordId.takeIf { it > 0 } ?: modifyData.recordId
@@ -378,7 +466,6 @@ fun RecordRoutineScreenRoot(
                     visibility = visibilityValue
                 )
             } else {
-                // ✅ 신규모드: writeRoutine 호출
                 Timber.d("Calling writeRoutine - routineId: $routineId, sticker: $stickerFileName, memo: $memoText, imageUrl: $imageUrls, visibility: $visibilityValue")
 
                 viewModel.writeRoutine(
@@ -412,22 +499,22 @@ fun RecordRoutineScreen(
     onPrivacyClick: () -> Unit = {},
     onVisibilitySelected: (VisibilityOption) -> Unit = {},
     selectedImages: List<Uri> = emptyList(),
-    existingImageUrls: List<String> = emptyList(),          // ✅ 추가: 기존 이미지 URL 목록
-    onExistingImageRemove: (String) -> Unit = {},           // ✅ 추가: 기존 이미지 삭제 콜백
+    existingImageUrls: List<String> = emptyList(),
+    onExistingImageRemove: (String) -> Unit = {},
     onPhotoClick: () -> Unit = {},
     onImageRemove: (Uri) -> Unit = {},
     isUploading: Boolean = false,
     uploadComplete: Boolean = false,
-    modifyMode: Boolean = false,                            // ✅ 추가: 수정모드 여부
+    modifyMode: Boolean = false,
     onComplete: () -> Unit,
     onClose: () -> Unit = {},
     modifier: Modifier = Modifier,
     modifyData: RoutineRecordDetailUiModel?
 ) {
-    val softwareKeyboardController = LocalSoftwareKeyboardController.current  // ✅ 추가
+    val softwareKeyboardController = LocalSoftwareKeyboardController.current
 
     val selectedActivity = if (modifyMode && modifyData != null && selectedRoutineIndex == null) {
-        modifyData.content  // ✅ 리스트 로드 전에도 수정모드 활동명 표시
+        modifyData.content
     } else {
         selectedRoutineIndex?.let {
             routineList.getOrNull(it)?.content
@@ -447,14 +534,13 @@ fun RecordRoutineScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .clickable(  // ✅ 추가
+                .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
                     softwareKeyboardController?.hide()
                 }
         ) {
-            // ✅ 업로드 중일 때 로딩 오버레이 표시
             if (isUploading) {
                 Box(
                     modifier = Modifier
@@ -535,8 +621,8 @@ fun RecordRoutineScreen(
                         text = memoText,
                         onTextChange = onMemoChange,
                         selectedImages = selectedImages,
-                        existingImageUrls = existingImageUrls,          // ✅ 전달
-                        onExistingImageRemove = onExistingImageRemove,  // ✅ 전달
+                        existingImageUrls = existingImageUrls,
+                        onExistingImageRemove = onExistingImageRemove,
                         onPhotoClick = onPhotoClick,
                         onImageRemove = onImageRemove,
                         uploadComplete = uploadComplete
@@ -600,17 +686,20 @@ fun RecordRoutineScreen(
                     )
                 }
             }
-
-            CompleteButton(
-                enabled = (selectedRoutineIndex != null || (modifyMode && modifyData != null))
-                        && stickers.any { it.isSelected }
-                        && !isUploading
-                        && (selectedImages.isEmpty() || uploadComplete),
+            BottomNextButton(
+                text = if (modifyMode) "수정완료" else "작성완료",
+                state = if ((selectedRoutineIndex != null || (modifyMode && modifyData != null))
+                    && stickers.any { it.isSelected }
+                    && !isUploading
+                    && (selectedImages.isEmpty() || uploadComplete)) {
+                    BottomButtonState.ENABLED
+                } else {
+                    BottomButtonState.DISABLED
+                },
                 onClick = onComplete,
-                modifyMode = modifyMode,  // ✅ 버튼 텍스트 분기용
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(top = 16.dp)
             )
         }
     }
@@ -619,7 +708,7 @@ fun RecordRoutineScreen(
 @Composable
 private fun RecordActivityTopBar(
     onClose: () -> Unit,
-    modifyMode: Boolean = false  // ✅ 추가
+    modifyMode: Boolean = false
 ) {
     Box(
         modifier = Modifier
@@ -641,7 +730,7 @@ private fun RecordActivityTopBar(
         }
 
         Text(
-            text = if (modifyMode) "활동 수정" else "내 활동 남기기",  // ✅ 모드에 따라 분기
+            text = if (modifyMode) "활동 수정" else "내 활동 남기기",
             modifier = Modifier.align(Alignment.Center),
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
@@ -735,13 +824,12 @@ private fun MemoInputField(
     text: String,
     onTextChange: (String) -> Unit,
     selectedImages: List<Uri>,
-    existingImageUrls: List<String> = emptyList(),          // ✅ 추가
-    onExistingImageRemove: (String) -> Unit = {},           // ✅ 추가
+    existingImageUrls: List<String> = emptyList(),
+    onExistingImageRemove: (String) -> Unit = {},
     onPhotoClick: () -> Unit,
     onImageRemove: (Uri) -> Unit,
     uploadComplete: Boolean = false
 ) {
-    // ✅ 전체 이미지 수 (기존 + 새로운)
     val totalImageCount = existingImageUrls.size + selectedImages.size
 
     Surface(
@@ -781,13 +869,11 @@ private fun MemoInputField(
                 )
             )
 
-            // ✅ 이미지가 하나라도 있으면 Row 표시
             if (totalImageCount > 0) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // ✅ 기존 이미지 (서버 URL) → AsyncImage로 표시
                     existingImageUrls.forEach { url ->
                         Box(
                             modifier = Modifier.size(60.dp)
@@ -816,7 +902,6 @@ private fun MemoInputField(
                         }
                     }
 
-                    // ✅ 새로운 이미지 (로컬 Uri) → 기존 코드 유지
                     selectedImages.forEach { uri ->
                         Box(
                             modifier = Modifier.size(60.dp)
@@ -829,8 +914,6 @@ private fun MemoInputField(
                                     .background(Color.LightGray, RoundedCornerShape(8.dp)),
                                 contentScale = ContentScale.Crop
                             )
-
-                            // ✅ 초록색 체크 아이콘 제거
 
                             Image(
                                 painter = painterResource(id = R.drawable.close_image),
@@ -858,14 +941,14 @@ private fun MemoInputField(
                     onClick = onPhotoClick,
                     modifier = Modifier.size(48.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = if (totalImageCount >= 1) Color(0xFFE5E5E5) else Color.White,  // ✅ 전체 수 기준
+                    color = if (totalImageCount >= 1) Color(0xFFE5E5E5) else Color.White,
                     border = BorderStroke(1.dp, Color(0xFFE5E5E5))
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (totalImageCount == 0) {  // ✅ 전체 수 기준
+                        if (totalImageCount == 0) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_camera),
                                 contentDescription = "사진 추가",
@@ -874,7 +957,7 @@ private fun MemoInputField(
                             )
                         } else {
                             Text(
-                                text = "$totalImageCount/1",  // ✅ 전체 수 표시
+                                text = "$totalImageCount/1",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = if (totalImageCount >= 1) Color(0xFFB5B5B5) else Color(0xFF7A7A7A)
@@ -941,7 +1024,7 @@ private fun PrivacySelector(
 private fun CompleteButton(
     enabled: Boolean,
     onClick: () -> Unit,
-    modifyMode: Boolean = false,  // ✅ 추가
+    modifyMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -976,7 +1059,7 @@ private fun CompleteButton(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = if (modifyMode) "수정완료" else "작성완료",  // ✅ 모드에 따라 분기
+                text = if (modifyMode) "수정완료" else "작성완료",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )

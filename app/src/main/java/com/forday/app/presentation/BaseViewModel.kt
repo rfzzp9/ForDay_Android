@@ -19,13 +19,6 @@ open class BaseViewModel<SIDE_EFFECT>: ViewModel() {
     protected val _sideEffectChannel = Channel<SIDE_EFFECT>(Channel.BUFFERED)
     val sideEffect = _sideEffectChannel.receiveAsFlow()
 
-    protected fun CoroutineExceptionHandler(block: suspend (CoroutineContext, Throwable) -> Unit): CoroutineExceptionHandler =
-        kotlinx.coroutines.CoroutineExceptionHandler { coroutineContext, throwable ->
-            viewModelScope.launch {
-                block(coroutineContext, throwable)
-            }
-        }
-
     @Suppress("FunctionName")
     protected inline fun <reified T: Any> MutableUiStateFlow(block: () -> T): MutableStateFlow<T> {
         return MutableStateFlow(block())

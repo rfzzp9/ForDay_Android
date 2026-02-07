@@ -24,6 +24,11 @@ profileinstaller = "1.4.1"
 # https://developer.android.com/jetpack/androidx/releases/benchmark
 baselineprofile = "1.3.4"
 
+## Navigation3
+nav3Core = "1.0.0"
+lifecycleViewmodelNav3 = "2.10.0"
+material3AdaptiveNav3 = "1.3.0-alpha04"
+
 ## Compose
 # https://developer.android.com/develop/ui/compose/bom/bom-mapping
 androidxComposeBom = "2025.05.01"
@@ -32,14 +37,20 @@ androidxComposeNavigation = "2.9.0"
 # https://developer.android.com/jetpack/androidx/releases/compose-material3
 androidxComposeMaterial3 = "1.3.2"
 
-# https://github.com/skydoves/landscapist
-landscapist = "2.3.4"
 # https://github.com/valentinilk/compose-shimmer
 composeShimmer = "1.3.2"
+
+## Coil
+# https://github.com/coil-kt/coil
+coil = "3.2.0"
 
 ## Kotlin Symbol Processing
 # https://github.com/google/ksp/
 ksp = "2.1.21-2.0.1"
+
+## Lottie
+# https://github.com/airbnb/lottie-compose
+lottieCompose = "6.1.0"
 
 ## Hilt
 # https://github.com/google/dagger/releases
@@ -85,6 +96,12 @@ firebaseCrashlytics = "3.0.6"
 ## Kakao
 # https://github.com/kakao-developer-center/kakao-sdk-android
 kakao = "2.20.1"
+
+## Third party
+timber = "5.0.1"
+googleServices = "4.4.4"
+
+splash = "1.0.0"
 
 ## Test
 # https://github.com/junit-team/junit4
@@ -150,6 +167,9 @@ androidx-compose-navigation-test = { group = "androidx.navigation", name = "navi
 androidx-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+
 hilt-core = { group = "com.google.dagger", name = "hilt-core", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 
@@ -159,6 +179,11 @@ hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-comp
 
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3Core" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNav3" }
+androidx-compose-material3-adaptive-navigation3 = { module = "androidx.compose.material3.adaptive:adaptive-navigation3", version.ref="material3AdaptiveNav3" }
+
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-kotlin-serialization = { module = "com.squareup.retrofit2:converter-kotlinx-serialization", version.ref = "retrofit" }
@@ -166,12 +191,9 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinx-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "kotlinxImmutable" }
 
-landscapist-glide = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
-landscapist-coil = { group = "com.github.skydoves", name = "landscapist-coil" }
-landscapist-placeholder = { group = "com.github.skydoves", name = "landscapist-placeholder" }
-landscapist-animation = { group = "com.github.skydoves", name = "landscapist-animation" }
-
 compose-shimmer = { group = "com.valentinilk.shimmer", name = "compose-shimmer", version.ref = "composeShimmer" }
+
+androidx-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splash" }
 
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
 junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitVintageEngine" }
@@ -188,14 +210,21 @@ kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.re
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
+## Lottie
+lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottieCompose" }
+
 ## Firebase
 firebaseBom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebaseCrashlytics = { group = "com.google.firebase", name = "firebase-crashlytics", version.ref = "firebaseCrashlytics" }
 firebaseConfig = { group = "com.google.firebase", name = "firebase-config", version.ref = "firebaseConfig" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 
 ## Kakao
 kakao-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakao" }
 kakao-share = { module = "com.kakao.sdk:v2-share", version.ref = "kakao" }
+
+## Third party
+timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 ## Test mockito
 test-mockito = { group = "org.mockito", name = "mockito-core", version.ref = "test-mockito" }
@@ -243,3 +272,4 @@ android-test = { id = "com.android.test", version.ref = "androidGradlePlugin" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }
 roborazzi-plugin = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlytics" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

@@ -3,12 +3,15 @@ package com.forday.app.remote.api.service
 import com.forday.app.remote.model.request.ProfileImageRequest
 import com.forday.app.remote.model.request.RegisterNicknameRequest
 import com.forday.app.remote.model.request.SwitchAccountRequest
+import com.forday.app.remote.model.response.CancelAccountResponse
 import com.forday.app.remote.model.response.IsNicknameDuplicateResponse
+import com.forday.app.remote.model.response.LogoutResponse
 import com.forday.app.remote.model.response.ProfileImageResponse
 import com.forday.app.remote.model.response.ProfileResponse
 import com.forday.app.remote.model.response.RegisterNicknameResponse
 import com.forday.app.remote.model.response.SwitchAccountResponse
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.Query
@@ -37,4 +40,11 @@ interface UserApi {
     suspend fun switchAccount(
         @Body request: SwitchAccountRequest
     ): SwitchAccountResponse
+
+    @DELETE("/auth/logout")
+    suspend fun logout(
+    ): LogoutResponse
+
+    @DELETE("/auth/withdraw")  // 회원 탈퇴
+    suspend fun cancelAccount(): CancelAccountResponse
 }

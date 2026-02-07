@@ -5,11 +5,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +70,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.forday.app.core.session.AuthEvent
+import com.forday.app.presentation.allsettings.SettingsViewModel
+import com.forday.app.presentation.allsettings.cancelaccount.navigation.CancelAccount
+import com.forday.app.presentation.allsettings.cancelaccount.screen.CancelAccountScreen
+import com.forday.app.presentation.record.RecordRoutineViewModel
+import com.forday.app.presentation.allsettings.settings.navigation.Settings
+import com.forday.app.presentation.allsettings.settings.screen.SettingsScreen
+import com.forday.app.presentation.allsettings.privacypolicy.navigation.PrivacyPolicy
+import com.forday.app.presentation.allsettings.privacypolicy.screen.PrivacyPolicyScreen
+import com.forday.app.presentation.allsettings.termsofservice.navigation.TermsOfService
+import com.forday.app.presentation.allsettings.termsofservice.screen.TermsOfServiceScreen
 import timber.log.Timber
 
 private fun Context.findActivity(): Activity? {
@@ -98,6 +106,10 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
     val inputRoutinesAndAiRecommendViewModel: InputRoutinesAndAiRecommendViewModel = hiltViewModel()
     val myPageViewModel: MyPageViewModel = hiltViewModel()
     val mainEventViewModel: MainEventViewModel = hiltViewModel()
+    val recordRoutineViewModel: RecordRoutineViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+
+    var loginSnackbarMessage by remember { mutableStateOf<String?>(null) }
 
     // 현재 route가 Bottom Bar를 보여줘야 하는지 확인
     val currentRoute = navigationState
@@ -110,6 +122,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
         mainEventViewModel.authEvents.collect { event ->
             when (event) {
                 AuthEvent.Expired -> {
+                    loginSnackbarMessage = "로그인이 만료되었어요. 다시 로그인해주세요."
                     navigator.resetTo(Login)
                 }
             }
@@ -121,6 +134,8 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             LoginScreenRoot(
                 onNavigateToHome = { navigator.navigate(Home) },
                 onNavigateToOnboarding = { navigator.navigate(SelectHobby) },
+                snackbarMessage = loginSnackbarMessage,
+                onSnackbarMessageConsumed = { loginSnackbarMessage = null },
                 viewModel = onboardingViewModel
             )
         }
@@ -232,7 +247,8 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 onMoveRecordedRoutine = { recordId ->
                     navigator.navigate(RoutineDetail(recordId.toLong()))
                 },
-                onAddHobbyClick = { navigator.navigate(SelectHobby) }
+                onAddHobbyClick = { navigator.navigate(SelectHobby) },
+                onSelectHobby = { navigator.navigate(SelectHobby) }
             )
         }
 
@@ -249,10 +265,11 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 viewModel = myPageViewModel,
                 onProfileSetting = { navigator.navigate(ProfileSetting) },  // 내 프로필 설정으로 이동
                 onHobbyPhotoManagement = { navigator.navigate(HobbyPhotoSetting) },  // 취미 대표사진 관리로 이동
-                onAllSettingsClick = { }, // 전체설정
+                onAllSettingsClick = { navigator.navigate(Settings) }, // 전체설정
                 onRoutineFeedClick = { routineId -> navigator.navigate(RoutineDetail(routineId.toLong())) },
                 onAddHobbyClick = { navigator.navigate(SelectHobby) },
-                onDismiss = { navigator.goBack() }
+                onDismiss = {  },
+                onNavigateToRecordRoutine = { navigator.navigate(RecordRoutine()) },
             )
         }
 
@@ -269,11 +286,13 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 modifyMode = modifyMode,
                 onComplete = {
                         routineId ->
+                    Timber.e("@#@#@#@#@##@#routineId "+routineId)
                     navigator.resetTo(MyPage)
                     navigator.navigate(RoutineDetail(routineId, true))
                     Timber.e("routineId@@@@@@@@@@@@@ : "+routineId)
                 },
-                onClose = { navigator.goBack() }
+                onClose = { navigator.goBack() },
+                viewModel = recordRoutineViewModel
             )
         }
 
@@ -330,6 +349,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 onChangeDuration = { params -> navigator.navigate(SelectPerTime(params = params, mode = ScreenMode.DEFAULT)) },
                 onChangeFrequency = { params -> navigator.navigate(SelectPerWeek(params = params, mode = ScreenMode.DEFAULT)) },  // 취미횟수
                 onChangeJourneyDays = { params -> navigator.navigate(SelectPeriod(params = params, mode = ScreenMode.DEFAULT)) },  // 여정일
+                onBack = { navigator.goBack() },
             )
         }
 
@@ -342,9 +362,10 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 onBackClick = {navigator.goBack()},
                 onNavigateToMyPage = {
                     navigator.resetTo(MyPage)
-                                     },
+                },
                 isNewRecord = isNewRecord,
                 onNavigateToRecordRoutine = { data, mode -> navigator.navigate(RecordRoutine(modifyData = data, modifyMode = mode)) },
+                onNavigateToHome = { navigator.resetTo(Home) },
             )
         }
 
@@ -360,6 +381,37 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 viewModel = myPageViewModel,
                 onBackClick = { navigator.goBack() },
                 onCompleteClick = { navigator.goBack() }
+            )
+        }
+
+        entry<Settings> {
+            SettingsScreen(
+                onBackClick = { navigator.goBack() },
+                onTermsOfServiceClick = { navigator.navigate(TermsOfService) },
+                onPrivacyPolicyClick = { navigator.navigate(PrivacyPolicy) },
+                navigateToLogin = { navigator.resetTo(Login) },
+                onCancelAccountClick = { navigator.navigate(CancelAccount) },
+                viewModel = settingsViewModel
+            )
+        }
+
+        entry<TermsOfService> {
+            TermsOfServiceScreen(
+                onCloseClick = { navigator.goBack() }
+            )
+        }
+
+        entry<PrivacyPolicy> {
+            PrivacyPolicyScreen(
+                onCloseClick = { navigator.goBack() }
+            )
+        }
+
+        entry<CancelAccount> {
+            CancelAccountScreen(
+                onBackClick = { navigator.goBack() },
+                onNavigateToLogin = { navigator.resetTo(Login) },
+                viewModel = settingsViewModel
             )
         }
     }
@@ -408,13 +460,11 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets.systemBars,
             bottomBar = {
                 // ✅ Top-level route일 때만 BottomBar 표시
                 if (shouldShowBottomBar) {
                     BottomBar(
-                        modifier = Modifier
-                            .navigationBarsPadding(),
+                        modifier = Modifier.navigationBarsPadding(),
                         selectedTab = navigationState.topLevelRoute.toBottomBarTab(),
                         onTabSelected = { tab ->
                             navigator.navigate(tab.toNavKey())

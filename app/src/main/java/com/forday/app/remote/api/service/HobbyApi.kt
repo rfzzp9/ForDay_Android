@@ -81,7 +81,7 @@ interface HobbyApi {
         @Query("hobbyStatus") hobbyStatus: String?
     ): MyHobbyListResponse
 
-    @POST("/hobbies/activities/{activityId}/record/test")   // 활동 기록하기
+    @POST("/hobbies/activities/{activityId}/record")   // 활동 기록하기
     suspend fun writeRoutine(
         @Path("activityId") routineId: Long,
         @Body body: WriteRoutineRequest

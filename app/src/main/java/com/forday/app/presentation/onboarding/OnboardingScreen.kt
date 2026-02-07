@@ -2,15 +2,14 @@ package com.forday.app.presentation.onboarding
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+
 import androidx.navigation3.runtime.NavKey
 import com.forday.app.core.designsystem.component.progressbar.ForDayProgressBar
 import com.forday.app.core.designsystem.component.topbar.SubTopAppBar
@@ -57,8 +56,7 @@ fun OnboardingScreen(
 
     ForDayTheme {
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets.systemBars
+            modifier = Modifier.fillMaxSize()
         ) { innerPadding ->
             Column(
                 modifier = Modifier

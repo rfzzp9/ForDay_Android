@@ -1,6 +1,7 @@
 package com.forday.app.remote.di
 
 import com.app.forday.BuildConfig
+import com.app.forday.BuildConfig.BASE_URL
 import com.forday.app.remote.api.interceptor.TokenInterceptor
 import com.forday.app.remote.api.service.AuthApi
 import com.forday.app.remote.api.service.FileApi
@@ -55,7 +56,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com") //TODO 여기 BASE_URL로 바꾸기
+            .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create()) // Use your preferred converter
             .build()
     }
@@ -140,7 +141,7 @@ object NetworkModule {
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com")  //TODO 여기 BASE_URL로 바꾸기
+            .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -152,7 +153,7 @@ object NetworkModule {
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl("http://forday-alb-1599562729.ap-northeast-2.elb.amazonaws.com")  //TODO 여기 BASE_URL로 바꾸기
+            .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 }

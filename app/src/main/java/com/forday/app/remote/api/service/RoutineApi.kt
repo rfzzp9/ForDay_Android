@@ -1,14 +1,18 @@
 package com.forday.app.remote.api.service
 
+import com.forday.app.remote.model.request.GetUserScrapListRequest
 import com.forday.app.remote.model.request.ModifyPostingRequest
 import com.forday.app.remote.model.request.PostingVisibilityRequest
 import com.forday.app.remote.model.request.ReactionRequest
+import com.forday.app.remote.model.response.CancelScrapResponse
 import com.forday.app.remote.model.response.DeletePostingResponse
 import com.forday.app.remote.model.response.ModifyPostingResponse
 import com.forday.app.remote.model.response.ReactionCancelResponse
 import com.forday.app.remote.model.response.ReactionResponse
 import com.forday.app.remote.model.response.ReactionUsersResponse
 import com.forday.app.remote.model.response.RoutineRecordDetailResponse
+import com.forday.app.remote.model.response.ScrapListResponse
+import com.forday.app.remote.model.response.ScrapResponse
 import com.forday.app.remote.model.response.UserFeedResponse
 import com.forday.app.remote.model.response.VisibilityResponse
 import retrofit2.http.Body
@@ -70,4 +74,21 @@ interface RoutineApi {
     suspend fun deletePosting(
         @Path("recordId") recordId: Long
     ): DeletePostingResponse
+
+    @GET("/users/scraps")
+    suspend fun getUserScrapList(  // 사용자 스크랩 목록 조회
+        @Query("lastScrapId") lastScrapId: Long?,
+        @Query("size") size: Long?,
+        @Query("userId") userId: String?,
+    ): ScrapListResponse
+
+    @POST("/records/{recordId}/scrap")  // 활동 기록 스크랩 추가
+    suspend fun scrapPosting(
+        @Path("recordId") recordId: Int
+    ): ScrapResponse
+
+    @DELETE("/records/{recordId}/scrap")  // 활동 기록 스크랩 취소
+    suspend fun cancelScrap(
+        @Path("recordId") recordId: Int
+    ): CancelScrapResponse
 }

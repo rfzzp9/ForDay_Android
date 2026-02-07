@@ -7,8 +7,10 @@ import com.forday.app.remote.model.request.SwitchAccountRequest
 import com.forday.app.remote.model.response.AccessTokenResponse
 import com.forday.app.remote.model.response.GuestLoginResponse
 import com.forday.app.remote.model.response.KakaoLoginResponse
+import com.forday.app.remote.model.response.LogoutResponse
 import com.forday.app.remote.model.response.SwitchAccountResponse
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 

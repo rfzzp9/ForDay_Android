@@ -1,0 +1,1929 @@
+package com.forday.app.presentation.mypage.main
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.presentation.mypage.MyPageSideEffect
+import com.forday.app.presentation.mypage.MyPageViewModel
+import com.app.forday.R
+import com.forday.app.core.designsystem.component.bottomsheet.HintBubble
+import com.forday.app.core.util.toUserMessage
+import kotlinx.coroutines.delay
+import timber.log.Timber
+
+// 색상 정의
+object MyPageColors {
+    val Neutral900 = Color(0xFF1E1E1E)
+    val Neutral800 = Color(0xFF3A3A3A)
+    val Neutral600 = Color(0xFF7A7A7A)
+    val Neutral500 = Color(0xFF9E9E9E)
+    val Neutral400 = Color(0xFFB5B5B5)
+    val White = Color(0xFFFFFFFF)
+    val Black = Color(0xFF000000)
+    val Stroke001 = Color(0xFFE5E5E5)
+    val Background001 = Color(0xFFFFFFFF)
+
+    // 그라디언트 색상
+    val BlueGradientStart = Color(0xFFC9DBFF)
+    val BlueGradientMiddle = Color(0xFF8FB3FF)
+    val BlueGradientEnd = Color(0xFFC9DBFF)
+
+    val GreenGradientStart = Color(0xFFDDF2D8)
+    val GreenGradientMiddle = Color(0xFFA8D8A2)
+    val GreenGradientEnd = Color(0xFFDDF2D8)
+
+    val OrangeGradientStart = Color(0xFFFFE6D1)
+    val OrangeGradientEnd = Color(0xFFF4A261)
+
+    // 카드 오버레이 그라디언트
+    val CardOverlayGradient = listOf(
+        Color(0x00000000), // 투명
+        Color(0x5C000000), // 36% 검정
+        Color(0x99000000)  // 60% 검정
+    )
+}
+
+// 데이터 클래스
+data class HobbyCategory1(
+    val name: String,
+    val imageUrl: String,
+    val isActive: Boolean = true
+)
+
+data class StickerCard(
+    val imageUrl: String,
+    val quote: String? = null,
+    val hasGradient: Boolean = false,
+    val gradientColors: List<Color> = emptyList(),
+    val hasOverlay: Boolean = false
+)
+
+data class HobbyCard(
+    val title: String,
+    val imageUrl: String,
+    val rotation: Float = 0f
+)
+
+@Composable
+fun MyPageScreen(
+    modifier: Modifier = Modifier,
+    viewModel: MyPageViewModel,
+    onProfileSetting: () -> Unit,
+    onHobbyPhotoManagement: () -> Unit,
+    onAllSettingsClick: () -> Unit,
+    onRoutineFeedClick: (Int) -> Unit,
+    onAddHobbyClick: () -> Unit,
+    onNavigateToRecordRoutine: () -> Unit,
+    onDismiss: () -> Unit,  //바텀시트(로그인) x버튼 눌렀을 때
+) {
+    val context = LocalContext.current.applicationContext
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showSettingsMenu by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
+    state.userHobbyTabUiModel?.hobbyItems?.map { it.hobbyId }
+    // 선택된 취미 ID들을 상위에서 관리 (무한 스크롤 시에도 같은 필터 유지)
+    var selectedHobbyIds by remember { mutableStateOf<Set<Int?>>(emptySet()) }
+    state.userHobbyTabUiModel?.hobbyItems?.map { it.hobbyName }
+    // 스크롤 상태
+    val scrollState = rememberScrollState()
+
+    // 로딩 상태 (추가 로딩 중인지)
+    var isLoadingMore by remember { mutableStateOf(false) }
+    // 바텀 시트 상태 - socialType이 "GUEST"일 때만 표시
+    var showGuestBottomSheet by remember { mutableStateOf(false) }
+    var dismissedByUser by remember { mutableStateOf(false) }
+
+    // 게스트 체크 - 최초 접속 시에만 바텀 시트 표시
+    LaunchedEffect(state.socialType, state.hasShownGuestBottomSheet) {
+        // 최초 1회만 체크 (ViewModel에서 관리하는 플래그 사용)
+        if (!state.hasShownGuestBottomSheet && state.socialType != null) {
+            if (state.socialType == "GUEST" && !dismissedByUser) {
+                showGuestBottomSheet = true
+                viewModel.markGuestBottomSheetShown()  // ViewModel에 표시했음을 기록
+            }
+        }
+
+        // 이후 게스트가 아니게 되면 닫기 (로그인 완료 시)
+        if (state.socialType != null && state.socialType != "GUEST") {
+            showGuestBottomSheet = false
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 2) {
+            viewModel.getUserScrapList(
+                lastScrapId = null,
+                size = 24,
+                userId = null
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.getUserInfo()
+        viewModel.getUserLoginInfo()  // 로그인 정보 (소셜 or 게스트)
+        viewModel.getUsersProgressHobbyTabs()
+        viewModel.getUserFeedList(
+            hobbyIds = emptyList(),
+            lastRecordId = null,
+            feedSize = 24
+        )
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                is MyPageSideEffect.DomainError -> {
+                    snackbarHostState.showSnackbar(message = effect.error)
+                }
+                is MyPageSideEffect.Exception -> {
+                    snackbarHostState.showSnackbar(
+                        message = effect.error.toUserMessage()
+                    )
+                }
+            }
+        }
+    }
+
+    // ✅ 스크롤 감지 - 하단 도달 시 추가 로딩
+    LaunchedEffect(scrollState.value) {
+        // 스크롤이 하단 80%에 도달하면 추가 로딩
+        val threshold = scrollState.maxValue * 0.8f
+
+        if (scrollState.value >= threshold &&
+            !isLoadingMore &&
+            selectedTab == 0 &&  // 진행중 탭에서만
+            state.userFeedUiModel?.hasMore == true &&
+            state.userFeedUiModel?.feedList?.isNotEmpty() == true) {
+
+            isLoadingMore = true
+
+            // 마지막 recordId 가져오기
+            val lastRecordId = state.userFeedUiModel?.feedList?.lastOrNull()?.recordId
+
+            Timber.d("무한 스크롤 트리거 - lastRecordId: $lastRecordId")
+
+            viewModel.getUserFeedList(
+                hobbyIds = selectedHobbyIds.toList(),
+                lastRecordId = lastRecordId?.toLong(),
+                feedSize = 24
+            )
+
+            // 로딩 완료 후 플래그 해제
+            delay(1000)  // API 응답 대기
+            isLoadingMore = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MyPageColors.Background001)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)  // ✅ scrollState 연결
+        ) {
+            MyPageHeader(
+                onSettingsClick = { showSettingsMenu = !showSettingsMenu }
+            )
+
+            ProfileSection(
+                profileImageUrl = state.userInfo?.profileImageUrl,
+                nickName = state.userInfo?.nickName,
+                totalCollectedStickerCount = state.userInfo?.totalCollectedStickerCount,
+            )
+
+            TabSection(
+                inProgressCount = state.userHobbyTabUiModel?.inProgressCount,
+                hobbyCardCount = state.userHobbyTabUiModel?.hobbyCardCount,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                scrapCount = state.scrapCount,
+                socialType = state.socialType
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            when (selectedTab) {
+                0 -> {
+                    // ✅ 게스트 여부에 따라 다른 UI 표시
+                    if (state.socialType == "GUEST") {
+                        GuestInProgressEmptyState(
+                            onKakaoLogin = {
+                                viewModel.loginWithKakao(context, "KAKAO")
+                            }
+                        )
+                    } else {
+                        // ✅ 로그인 사용자: 활동 기록 여부에 따라 분기
+                        if (state.userFeedUiModel?.feedList?.isEmpty() == true) {
+                            LoggedInEmptyState(
+                                selectedHobbyIds = selectedHobbyIds,
+                                onHobbySelectionChange = { newSelection ->  // ✅ 전달
+                                    selectedHobbyIds = newSelection
+                                    viewModel.getUserFeedList(
+                                        hobbyIds = newSelection.toList(),
+                                        lastRecordId = null,
+                                        feedSize = 24
+                                    )
+                                },
+                                hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
+                                onAddHobbyClick = onAddHobbyClick,
+                                onRecordActivity = {
+                                    // TODO: 활동 기록 화면으로 이동
+                                    Timber.d("활동 기록하러 가기 클릭")
+                                    onNavigateToRecordRoutine()
+                                }
+                            )
+                        } else {
+                            if (state.userFeedUiModel?.totalFeedCount == 0) {
+                                LoggedInEmptyState(
+                                    selectedHobbyIds = selectedHobbyIds,
+                                    onHobbySelectionChange = { newSelection ->  // ✅ 전달
+                                        selectedHobbyIds = newSelection
+                                        viewModel.getUserFeedList(
+                                            hobbyIds = newSelection.toList(),
+                                            lastRecordId = null,
+                                            feedSize = 24
+                                        )
+                                    },
+                                    hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
+                                    onAddHobbyClick = onAddHobbyClick,
+                                    onRecordActivity = {
+                                        Timber.d("활동 기록하러 가기 클릭")
+                                        onNavigateToRecordRoutine()
+                                    }
+                                )
+                            } else {
+                                InProgressTabContent(
+                                    hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
+                                    feedList = state.userFeedUiModel?.feedList,
+                                    viewModel = viewModel,
+                                    selectedHobbyIds = selectedHobbyIds,
+                                    onHobbySelectionChange = { newSelection ->
+                                        selectedHobbyIds = newSelection
+                                        viewModel.getUserFeedList(
+                                            hobbyIds = newSelection.toList(),
+                                            lastRecordId = null,
+                                            feedSize = 24
+                                        )
+                                    },
+                                    onStickerClick = { feedUiModel ->
+                                        Timber.d("Sticker clicked: ${feedUiModel.recordId}")
+                                        onRoutineFeedClick(feedUiModel.recordId)
+                                    },
+                                    feedCount = state.userFeedUiModel?.totalFeedCount,
+                                    onAddHobbyClick = onAddHobbyClick
+                                )
+                            }
+
+                        }
+                    }
+                }
+                1 -> HobbyCardTabContent()
+                2 -> ScrapTabContent(
+                    scrapListUiModel = state.scrapListUiModel,
+                    onScrapItemClick = { scrapItem ->
+                        Timber.d("Scrap clicked: ${scrapItem.recordId}")
+                        onRoutineFeedClick(scrapItem.recordId)
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 로딩 인디케이터
+            if (isLoadingMore) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color(0xFFFF9447)
+                    )
+                }
+            }
+        }
+
+        // Settings Menu Popup
+        if (showSettingsMenu) {
+            SettingsMenuPopup(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 95.dp, end = 20.dp),
+                onDismiss = { showSettingsMenu = false },
+                onProfileSettingClick = {
+                    onProfileSetting()
+                    showSettingsMenu = false
+                },
+                onHobbyPhotoManagementClick = {
+                    onHobbyPhotoManagement()
+                    showSettingsMenu = false
+                },
+                onAllSettingsClick = {
+                    onAllSettingsClick()
+                    showSettingsMenu = false
+                },
+                socialType = state.socialType,
+            )
+        }
+        // 게스트일 때만 바텀 시트 표시
+        if (showGuestBottomSheet) {
+            GuestLoginBottomSheet(
+                onDismiss = {
+                    showGuestBottomSheet = false  // ✅ 먼저 로컬 상태 닫기
+                    dismissedByUser = true
+                    onDismiss()  // 그 다음 화면 전환
+                },
+                onKakaoLogin = {
+                    showGuestBottomSheet = false  // ✅ 즉시 닫기
+                    dismissedByUser = true
+                    viewModel.loginWithKakao(context, "KAKAO")
+                }
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+        )
+    }
+}
+
+@Composable
+fun LoggedInEmptyState(
+    hobbyItems: List<HobbyUiModel>?,
+    selectedHobbyIds: Set<Int?>,
+    onHobbySelectionChange: (Set<Int?>) -> Unit,
+    onAddHobbyClick: () -> Unit,
+    onRecordActivity: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 0.dp),
+    ) {
+        // 취미 카테고리 섹션
+        HobbyCategoriesSection(
+            feedCount = 0,
+            hobbyItems = hobbyItems,
+            selectedHobbyIds = selectedHobbyIds,
+            onHobbySelectionChange = onHobbySelectionChange,
+            onAddHobbyClick = onAddHobbyClick
+        )
+
+        // Empty State UI
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 0개 카운트
+            Text(
+                text = "0개",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal,
+                color = MyPageColors.Neutral500,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+
+            // ✅ HobbyCardTabContent와 동일한 구조
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 400.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // 반투명 박스 이미지 (뒤쪽)
+                Image(
+                    painter = painterResource(id = R.drawable.box_img),
+                    contentDescription = "활동 기록 없음",
+                    modifier = Modifier.size(240.dp),
+                    contentScale = ContentScale.Fit,
+                    alpha = 0.3f
+                )
+
+                // 안내 메시지 (위쪽에 겹쳐서 표시)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(147.dp))
+
+                    Text(
+                        text = "활동을 기록해보세요!",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MyPageColors.Neutral900,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = "당신의 활동기록이 궁금해요.",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = MyPageColors.Neutral600,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 19.6.sp
+                    )
+
+                    // ✅ 버튼은 유지 (LoggedInEmptyState에만 필요)
+                    Button(
+                        onClick = onRecordActivity,
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .wrapContentHeight()
+                            .padding(horizontal = 10.dp)
+                            .padding(vertical = 5.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF9447)
+                        ),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "활동 기록하러가기",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.W400,
+                            color = Color.White,
+                            lineHeight = 16.8.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+fun GuestInProgressEmptyState(
+    onKakaoLogin: () -> Unit
+) {
+    Box(  // ← Column 대신 Box 사용
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 400.dp)  // ← 최소 높이 지정으로 충분한 공간 확보
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center  // ← Box의 중앙 정렬
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 말풍선 아이콘
+            Image(
+                painter = painterResource(id = R.drawable.icon_sad),
+                contentDescription = "로그인 필요",
+                modifier = Modifier.size(48.dp)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 메인 메시지
+            Text(
+                text = "활동 기록은 로그인 이후에\n확인이 가능해요.",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.W700,
+                color = MyPageColors.Neutral900,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.2.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 서브 메시지
+            Text(
+                text = "SNS로 시작해보세요!",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.W400,
+                color = MyPageColors.Neutral600,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.6.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // CTA 버튼
+            Button(
+                onClick = onKakaoLogin,
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .wrapContentHeight()
+                    .padding(vertical = 5.dp, horizontal = 10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF9447)
+                ),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text(
+                    text = "SNS로 시작하기",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+
+// 게스트 바텀 시트
+// 게스트 바텀 시트 - Dialog 방식으로 변경
+@Composable
+fun GuestLoginBottomSheet(
+    onDismiss: () -> Unit,
+    onKakaoLogin: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = { /* 빈 람다 - 여백 클릭 무시 */ },
+        properties = DialogProperties(
+            dismissOnBackPress = false,  // 뒤로가기 버튼 무시
+            dismissOnClickOutside = false,  // 바깥 클릭 무시
+            usePlatformDefaultWidth = false  // 전체 너비 사용
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .heightIn(min = 564.dp)
+                .background(Color.Black.copy(alpha = 0.32f))  // 스크림 배경
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { /* 배경 클릭 무시 */ }
+                ),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // 바텀 시트 컨텐츠
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(Color.White)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { /* 시트 내부 클릭은 소비만 */ }
+                    )
+                    .padding(top = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 헤더
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .padding(horizontal = 20.dp)
+                ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_close),
+                            contentDescription = "닫기",
+                            tint = Color(0xFF3A3A3A)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 메인 콘텐츠
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 캐릭터 아이콘
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF4A261)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.main_character),
+                            contentDescription = "메인 캐릭터",
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 타이틀
+                    Text(
+                        text = "포데이에\n오신 것을 환영합니다!",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1E1E1E),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 28.8.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 서브타이틀
+                    Text(
+                        text = "당신만의 취미 루틴, AI가 추천해드립니다",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFFF25F59),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 19.6.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(100.dp))
+
+                    // 힌트 말풍선
+                    HintBubble(text = "SNS로 가볍게 시작하기!")
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 카카오 로그인 버튼
+                    Button(
+                        onClick = onKakaoLogin,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFDE00)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_kakao),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Unspecified
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "카카오톡으로 시작하기",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E1E1E)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MyPageHeader(
+    onSettingsClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp).padding(vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "마이페이지",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = MyPageColors.Neutral900
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(
+                onClick = { /* 알림 */ },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_notification),
+                    contentDescription = "알림",
+                    tint = MyPageColors.Neutral800
+                )
+            }
+
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "설정",
+                    tint = MyPageColors.Neutral800
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileSection(
+    profileImageUrl: String?,
+    nickName: String?,
+    totalCollectedStickerCount: Int?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp).padding(top = 20.dp).padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile Image
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(MyPageColors.Stroke001),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = profileImageUrl.takeIf { !it.isNullOrEmpty() },
+                    contentDescription = "사용자 프로필 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.ic_profile_empty),
+                    error = painterResource(id = R.drawable.ic_profile_empty)
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = nickName ?: "사용자",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MyPageColors.Neutral900
+                )
+
+                Text(
+                    text = "${totalCollectedStickerCount ?: 0}개 스티커 수집 중",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MyPageColors.Neutral600
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun TabSection(
+    inProgressCount: Int?,
+    hobbyCardCount: Int?,
+    selectedTab: Int,
+    scrapCount: Int?,
+    onTabSelected: (Int) -> Unit,
+    socialType: String?,
+) {
+    val isGuest = socialType == "GUEST"  // 게스트 여부 확인
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .padding(horizontal = 20.dp)
+    ) {
+        // 진행중 탭
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable { onTabSelected(0) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "진행중",
+                    fontSize = 14.sp,
+                    fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                    color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                )
+                Text(
+                    text = (inProgressCount ?: 0).toString(),
+                    fontSize = 14.sp,
+                    fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                    color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                )
+            }
+
+            if (selectedTab == 0) {
+                Divider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                    color = MyPageColors.Neutral800
+                )
+            }
+        }
+
+        // 취미카드 탭
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable { onTabSelected(1) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "취미카드",
+                    fontSize = 14.sp,
+                    fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                    color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                )
+                Text(
+                    text = (hobbyCardCount ?: 0).toString(),
+                    fontSize = 14.sp,
+                    fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                    color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                )
+            }
+
+            if (selectedTab == 1) {
+                Divider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                    color = MyPageColors.Neutral800
+                )
+            }
+        }
+        // ✅ 스크랩 탭 추가
+        if (!isGuest) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable { onTabSelected(2) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "스크랩",
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 2) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                    Text(
+                        text = (scrapCount ?: 0).toString(),
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 2) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                }
+
+                if (selectedTab == 2) {
+                    Divider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = MyPageColors.Neutral800
+                    )
+                }
+            }
+        }
+
+    }
+}
+
+@Composable
+fun ScrapTabContent(
+    scrapListUiModel: ScrapListUiModel?,
+    onScrapItemClick: (ScrapItemUiModel) -> Unit
+) {
+    val items = scrapListUiModel?.items ?: emptyList()
+
+    if (items.isEmpty()) {
+        Spacer(Modifier.height(100.dp))
+        // ✅ HobbyCardTabContent와 동일한 구조
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // 반투명 박스 이미지 (뒤쪽)
+            Image(
+                painter = painterResource(id = R.drawable.box_img),
+                contentDescription = "빈 스크랩",
+                modifier = Modifier.size(240.dp),
+                contentScale = ContentScale.Fit,
+                alpha = 0.3f
+            )
+
+            // 안내 메시지 (위쪽에 겹쳐서 표시)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Spacer(Modifier.height(77.dp))
+
+                Text(
+                    text = "아직 스크랩한 기록이 없어요.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MyPageColors.Neutral900,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "마음에 드는 취미활동을 둘러볼까요?",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MyPageColors.Neutral600,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 19.6.sp
+                )
+            }
+        }
+    } else {
+        // 스크랩 목록 UI
+        ScrapGridSection(
+            scrapCount = scrapListUiModel?.totalCount,
+            scrapItems = items,
+            onScrapItemClick = onScrapItemClick
+        )
+    }
+}
+
+
+@Composable
+fun ScrapGridSection(
+    scrapCount: Int?,
+    scrapItems: List<ScrapItemUiModel>,
+    onScrapItemClick: (ScrapItemUiModel) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = if (scrapCount == null) "0개" else "${scrapCount}개",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Normal,
+            color = MyPageColors.Neutral500,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+
+        // Grid of scraps - 3개씩 행으로 배치
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            scrapItems.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    rowItems.forEach { scrapItem ->
+                        ScrapCardItem(
+                            modifier = Modifier.weight(1f),
+                            scrapItemUiModel = scrapItem,
+                            onClick = { onScrapItemClick(scrapItem) }
+                        )
+                    }
+
+                    // 마지막 행이 3개 미만일 경우 빈 공간 채우기
+                    repeat(3 - rowItems.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+// ==================== 스크랩 카드 아이템 (새로 추가) ====================
+@Composable
+fun ScrapCardItem(
+    modifier: Modifier = Modifier,
+    scrapItemUiModel: ScrapItemUiModel,
+    onClick: () -> Unit = {}
+) {
+    val isEmptyUrl = scrapItemUiModel.imageUrl.isEmpty()
+
+    // 스티커 타입에 따른 아이콘 리소스
+
+    // 스티커 아이콘에 따른 그라디언트 색상
+    val stickerGradientColors = when (scrapItemUiModel.stickerType) {
+        R.drawable.ic_sticker_smile -> listOf(
+            Color(0xFFFFE6D1),
+            Color(0xFFF4A261)
+        )
+        R.drawable.ic_sticker_sad -> listOf(
+            Color(0xFFDDF2D8),
+            Color(0xFFA8D8A2),
+            Color(0xFFDDF2D8)
+        )
+        R.drawable.ic_sticker_laugh -> listOf(
+            Color(0xFFC9DBFF),
+            Color(0xFF8FB3FF),
+            Color(0xFFC9DBFF)
+        )
+        R.drawable.ic_sticker_angry -> listOf(
+            Color(0xFFFFF4CC),
+            Color(0xFFFFD966),
+            Color(0xFFFFF4CC)
+        )
+        else -> listOf(
+            Color(0xFFDDF2D8),
+            Color(0xFFA8D8A2),
+            Color(0xFFDDF2D8)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(106f / 128f)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                onClick()
+            }
+            .then(
+                if (isEmptyUrl && stickerGradientColors.isNotEmpty()) {
+                    Modifier.background(
+                        brush = Brush.linearGradient(
+                            colors = stickerGradientColors,
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        )
+                    )
+                } else {
+                    Modifier.background(Color.LightGray)
+                }
+            )
+    ) {
+        // URL이 있을 때만 이미지 표시
+        if (!isEmptyUrl) {
+            AsyncImage(
+                model = scrapItemUiModel.imageUrl,
+                contentDescription = "스크랩 이미지",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.ic_profile_empty),
+                error = painterResource(id = R.drawable.ic_profile_empty)
+            )
+        } else if (scrapItemUiModel.memoPreview.isNotEmpty()) {
+            // URL이 비어있고 memo가 있으면 텍스트 표시
+            Column(
+                modifier = Modifier
+                    .padding(start = 10.dp, top = 43.dp)
+                    .width(86.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "\"",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                        fontWeight = FontWeight(400),
+                        color = Color(0xFFFFFFFF)
+                    )
+                )
+                Text(
+                    text = scrapItemUiModel.memoPreview,
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                        fontWeight = FontWeight(400),
+                        color = Color(0xFFFFFFFF)
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // 스티커 아이콘은 항상 표시
+        scrapItemUiModel.stickerType?.let {
+            Image(
+                painter = painterResource(id = it),
+                contentDescription = "스티커 아이콘",
+                modifier = Modifier
+                    .size(40.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 11.dp, bottom = 11.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
+}
+
+// ==================== 진행중 탭 콘텐츠 ====================
+@Composable
+fun InProgressTabContent(
+    hobbyItems: List<HobbyUiModel>?,
+    feedList: List<FeedUiModel>?,
+    feedCount: Int?,
+    viewModel: MyPageViewModel,
+    selectedHobbyIds: Set<Int?>,
+    onHobbySelectionChange: (Set<Int?>) -> Unit,
+    onStickerClick: (FeedUiModel) -> Unit,
+    onAddHobbyClick: () -> Unit  // ✅ 추가
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        HobbyCategoriesSection(
+            feedCount = feedCount,
+            hobbyItems = hobbyItems,
+            selectedHobbyIds = selectedHobbyIds,
+            onHobbySelectionChange = onHobbySelectionChange,
+            onAddHobbyClick = onAddHobbyClick  // ✅ 전달
+        )
+
+        StickerGridSection(
+            feedList = feedList,
+            onStickerClick = onStickerClick,
+            feedCount = feedCount
+        )
+    }
+}
+
+@Composable
+fun HobbyCategoriesSection(
+    feedCount: Int?,
+    hobbyItems: List<HobbyUiModel>?,
+    selectedHobbyIds: Set<Int?>,
+    onHobbySelectionChange: (Set<Int?>) -> Unit,
+    onAddHobbyClick: () -> Unit  // ✅ 추가
+) {
+    val displayHobbies = hobbyItems?.filter {
+        it.status == "IN_PROGRESS" || it.status == "ARCHIVED"
+    } ?: emptyList()
+
+    LaunchedEffect(hobbyItems) {
+        Timber.d("hobbyItems: $hobbyItems")
+        Timber.d("hobbyItems size: ${hobbyItems?.size}")
+    }
+
+    LaunchedEffect(displayHobbies) {
+        Timber.d("displayHobbies (IN_PROGRESS + ARCHIVED): $displayHobbies")
+        Timber.d("displayHobbies size: ${displayHobbies.size}")
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // ✅ hobbyItems가 비어있거나 null일 때 "취미 추가" 버튼 표시
+        if (displayHobbies.isEmpty()) {
+            HobbyCategoryItem(
+                hobbyName = "취미 추가",
+                thumbnail = null,
+                isActive = true,
+                isSelected = false,
+                isAddButton = true,  // ✅ 추가 버튼 플래그
+                onClick = onAddHobbyClick
+            )
+        } else {
+            displayHobbies.forEach { hobby ->
+                HobbyCategoryItem(
+                    hobbyName = hobby.hobbyName,
+                    thumbnail = hobby.thumbnail,
+                    isActive = hobby.status == "IN_PROGRESS",
+                    isSelected = selectedHobbyIds.contains(hobby.hobbyId),
+                    isAddButton = false,
+                    onClick = {
+                        val newSelection = if (selectedHobbyIds.contains(hobby.hobbyId)) {
+                            selectedHobbyIds - hobby.hobbyId
+                        } else {
+                            selectedHobbyIds + hobby.hobbyId
+                        }
+                        onHobbySelectionChange(newSelection)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HobbyCategoryItem(
+    hobbyName: String?,
+    thumbnail: String?,
+    isActive: Boolean,
+    isSelected: Boolean = false,
+    isAddButton: Boolean = false,  // ✅ 추가
+    onClick: () -> Unit = {}
+) {
+    val hasValidThumbnail = !thumbnail.isNullOrEmpty()
+    val hobbyIcon = if (!isAddButton) getHobbyIconByName(hobbyName) else null
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.width(48.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = when {
+                        isAddButton -> Color(0xFFE5E5E5)  // ✅ 취미 추가 버튼
+                        isSelected -> Color(0xFFFF9447)
+                        hasValidThumbnail -> MyPageColors.Stroke001
+                        hobbyIcon != null -> Color(0xFFE5E5E5)
+                        else -> MyPageColors.Stroke001
+                    },
+                    shape = CircleShape
+                )
+                .background(
+                    color = when {
+                        isAddButton -> Color(0xFFFFFFFF)  // ✅ 취미 추가 버튼
+                        hasValidThumbnail -> Color.LightGray.copy(alpha = if (isActive) 1f else 0.4f)
+                        hobbyIcon != null -> Color.White
+                        else -> Color.LightGray.copy(alpha = if (isActive) 1f else 0.4f)
+                    },
+                    shape = CircleShape
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onClick()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                // ✅ 케이스 0: 취미 추가 버튼
+                isAddButton -> {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_plus),
+                        contentDescription = "취미 추가",
+                        modifier = Modifier.size(24.dp),
+                        tint = Color(0xFFFF9447)
+                    )
+                }
+
+                // 케이스 1: 실제 thumbnail이 있을 때
+                hasValidThumbnail -> {
+                    SubcomposeAsyncImage(
+                        model = thumbnail,
+                        contentDescription = hobbyName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        loading = {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                                contentDescription = "로딩 중",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        },
+                        error = {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                                contentDescription = "로딩 실패",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    )
+
+                    if (!isActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White.copy(alpha = 0.6f))
+                        )
+                    }
+                }
+
+                // 케이스 2: thumbnail 없지만 hobbyName에 매칭되는 아이콘이 있을 때
+                hobbyIcon != null -> {
+                    Icon(
+                        painter = painterResource(id = hobbyIcon),
+                        contentDescription = hobbyName,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (isActive) Color(0xFFFF9447) else Color(0xFFFF9447).copy(alpha = 0.4f)
+                    )
+
+                    if (!isActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White.copy(alpha = 0.6f))
+                        )
+                    }
+                }
+
+                // 케이스 3: 둘 다 없을 때 → placeholder
+                else -> {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                        contentDescription = "기본 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = hobbyName ?: "",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isActive) MyPageColors.Neutral800 else MyPageColors.Neutral400,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+fun StickerGridSection(
+    feedCount: Int?,
+    feedList: List<FeedUiModel>?,
+    onStickerClick: (FeedUiModel) -> Unit
+) {
+    val items = feedList ?: emptyList()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = if (feedCount == null) "0개" else "${feedCount}개",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Normal,
+            color = MyPageColors.Neutral500,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+
+        // Grid of stickers - 3개씩 행으로 배치
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            items.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    rowItems.forEach { feed ->
+                        StickerCardItem(
+                            modifier = Modifier.weight(1f),
+                            feedUiModel = feed,
+                            onClick = { onStickerClick(feed) }
+                        )
+                    }
+
+                    // 마지막 행이 3개 미만일 경우 빈 공간 채우기
+                    repeat(3 - rowItems.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StickerCardItem(
+    modifier: Modifier = Modifier,
+    feedUiModel: FeedUiModel? = null,
+    hasGradient: Boolean = false,
+    gradientColors: List<Color> = emptyList(),
+    hasOverlay: Boolean = false,
+    onClick: () -> Unit = {}
+) {
+    val isEmptyUrl = feedUiModel?.url.isNullOrEmpty()
+
+    // 스티커 아이콘에 따른 그라디언트 색상 결정
+    val stickerGradientColors = feedUiModel?.let { feed ->
+        when (feed.stickerIconRes) {
+            R.drawable.ic_sticker_smile -> listOf(
+                Color(0xFFFFE6D1),
+                Color(0xFFF4A261)
+            )
+            R.drawable.ic_sticker_sad -> listOf(
+                Color(0xFFDDF2D8),
+                Color(0xFFA8D8A2),
+                Color(0xFFDDF2D8)
+            )
+            R.drawable.ic_sticker_laugh -> listOf(
+                Color(0xFFC9DBFF),
+                Color(0xFF8FB3FF),
+                Color(0xFFC9DBFF)
+            )
+            R.drawable.ic_sticker_angry -> listOf(
+                Color(0xFFFFF4CC),
+                Color(0xFFFFD966),
+                Color(0xFFFFF4CC)
+            )
+            else -> listOf(
+                Color(0xFFDDF2D8),
+                Color(0xFFA8D8A2),
+                Color(0xFFDDF2D8)
+            )
+        }
+    } ?: emptyList()
+
+    Box(
+        modifier = modifier
+            .aspectRatio(106f / 128f)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                onClick()
+            }
+            .then(
+                if (isEmptyUrl && stickerGradientColors.isNotEmpty()) {
+                    Modifier.background(
+                        brush = Brush.linearGradient(
+                            colors = stickerGradientColors,
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        )
+                    )
+                } else if (hasGradient && gradientColors.isNotEmpty()) {
+                    Modifier.background(
+                        brush = Brush.linearGradient(
+                            colors = gradientColors
+                        )
+                    )
+                } else {
+                    Modifier.background(Color.LightGray)
+                }
+            )
+            .then(
+                if (hasOverlay) {
+                    Modifier.background(Color(0xFFBD5757).copy(alpha = 0.5f))
+                } else {
+                    Modifier
+                }
+            )
+    ) {
+        // feedUiModel이 있으면 처리
+        feedUiModel?.let { feed ->
+            // URL이 있을 때만 이미지 표시
+            if (!feed.url.isNullOrEmpty()) {
+                AsyncImage(
+                    model = feed.url,
+                    contentDescription = "스티커 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.ic_profile_empty),
+                    error = painterResource(id = R.drawable.ic_profile_empty)
+                )
+            } else if (!feed.memo.isNullOrEmpty()) {
+                // URL이 비어있고 memo가 있으면 텍스트 표시
+                Column(
+                    modifier = Modifier
+                        .padding(start = 10.dp, top = 43.dp)
+                        .width(86.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "\"",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                            fontWeight = FontWeight(400),
+                            color = Color(0xFFFFFFFF)
+                        )
+                    )
+                    Text(
+                        text = feed.memo,
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp,
+                            fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                            fontWeight = FontWeight(400),
+                            color = Color(0xFFFFFFFF)
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // 스티커 아이콘은 항상 표시
+            Image(
+                painter = painterResource(id = feed.stickerIconRes),
+                contentDescription = "스티커 아이콘",
+                modifier = Modifier
+                    .size(40.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 11.dp, bottom = 11.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
+}
+
+// ==================== 취미카드 탭 콘텐츠 ====================
+@Composable
+fun HobbyCardTabContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        // 상단 타이틀
+        Text(
+            text = "아직 생성된 취미카드가 없어요.",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = MyPageColors.Neutral900,
+            lineHeight = 28.sp,
+            modifier = Modifier.padding(top = 40.dp)
+        )
+
+        // 중앙 일러스트레이션 + 메시지 (세로 중앙)
+        Box(
+            modifier = Modifier
+                .padding(top = 79.dp)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // 반투명 박스 이미지 (뒤쪽)
+            Image(
+                painter = painterResource(id = R.drawable.box_img),
+                contentDescription = "빈 취미카드",
+                modifier = Modifier.size(240.dp),
+                contentScale = ContentScale.Fit,
+                alpha = 0.3f
+            )
+
+            // 안내 메시지 (위쪽에 겹쳐서 표시)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Spacer(Modifier.height(77.dp))
+
+                Text(
+                    text = "취미카드를 준비 중이에요.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MyPageColors.Neutral900,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "지금 하고 있는 취미를\n꾸준히 이어가 보세요!",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MyPageColors.Neutral600,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 19.6.sp
+                )
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun HobbyCardStack() {
+    val hobbyCards = remember {
+        listOf(
+            HobbyCard(
+                title = "주로 아침에 활동한 독서",
+                imageUrl = "",
+                rotation = 0f  // 이 값은 이제 사용하지 않음
+            ),
+            HobbyCard(
+                title = "친구들과 함께 한 사진촬영",
+                imageUrl = "",
+                rotation = -5.17f
+            ),
+            HobbyCard(
+                title = "집밥만들기로 채운 요리",
+                imageUrl = "",
+                rotation = 3.41f
+            )
+        )
+    }
+
+    var currentIndex by remember { mutableIntStateOf(0) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+
+    val density = LocalDensity.current
+    val screenWidth = with(density) {
+        LocalConfiguration.current.screenWidthDp.dp.toPx()
+    }
+
+    // 드래그 진행률 (0.0 ~ 1.0)
+    val dragProgress = (offsetX / screenWidth * -1).coerceIn(0f, 1f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(350.dp)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        val threshold = screenWidth * 0.2f
+
+                        if (offsetX < -threshold) {
+                            currentIndex = (currentIndex + 1) % hobbyCards.size
+                        }
+                        offsetX = 0f
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        if (dragAmount < 0) {
+                            offsetX += dragAmount
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        val nextIndex = (currentIndex + 1) % hobbyCards.size
+        val nextNextIndex = (currentIndex + 2) % hobbyCards.size
+
+        // 가장 뒤 카드 (다다음) - 약간 왼쪽으로 기울어진 상태
+        HobbyCardItem(
+            card = hobbyCards[nextNextIndex],
+            modifier = Modifier
+                .zIndex(1f)
+                .offset(y = 5.dp)
+                .graphicsLayer {
+                    alpha = 0.5f
+                    scaleX = 0.9f
+                    scaleY = 0.9f
+                    rotationZ = -3f  // 왼쪽으로 3도
+                }
+        )
+
+        // 중간 카드 (다음) - 드래그 시 오른쪽으로 회전하며 앞으로 나옴
+        HobbyCardItem(
+            card = hobbyCards[nextIndex],
+            modifier = Modifier
+                .zIndex(2f)
+                .offset(y = 0.dp)
+                .graphicsLayer {
+                    alpha = 0.7f + (dragProgress * 0.3f)
+                    val scale = 0.95f + (dragProgress * 0.05f)
+                    scaleX = scale
+                    scaleY = scale
+                    // 드래그 전: 약간 왼쪽으로 (-2도)
+                    // 드래그 중: 오른쪽으로 회전 (최대 5도)
+                    rotationZ = -2f + (dragProgress * 7f)
+                    translationX = dragProgress * 20f
+                }
+        )
+
+        // 가장 앞 카드 (현재) - 항상 오른쪽으로 5도 기울어진 상태
+        HobbyCardItem(
+            card = hobbyCards[currentIndex],
+            modifier = Modifier
+                .zIndex(3f)
+                .offset(
+                    x = with(density) { offsetX.toDp() },
+                    y = 16.dp
+                )
+                .graphicsLayer {
+                    alpha = 1f - dragProgress
+                    val scale = 1f - (dragProgress * 0.2f)
+                    scaleX = scale
+                    scaleY = scale
+                    // 항상 오른쪽으로 5도 + 드래그 시 추가 회전
+                    rotationZ = 5f + (dragProgress * -15f)
+                }
+        )
+    }
+}
+
+
+fun getHobbyIconByName(hobbyName: String?): Int? {
+    if (hobbyName.isNullOrEmpty()) return null
+
+    return when {
+        hobbyName.contains("독서") -> R.drawable.ic_book
+        hobbyName.contains("사진") -> R.drawable.ic_camera2
+        hobbyName.contains("요리") -> R.drawable.ic_cook
+        hobbyName.contains("그림") -> R.drawable.ic_draw
+        hobbyName.contains("헬스") -> R.drawable.ic_health
+        hobbyName.contains("음악") -> R.drawable.ic_music
+        hobbyName.contains("러닝") -> R.drawable.ic_running
+        hobbyName.contains("카페") -> R.drawable.ic_cafe
+        hobbyName.contains("영화") -> R.drawable.ic_movie
+        hobbyName.contains("글쓰기") -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby
+    }
+}
+
+@Composable
+fun HobbyCardItem(
+    card: HobbyCard,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(320.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.LightGray)
+    ) {
+        // 실제 이미지
+//        AsyncImage(
+//            model = card.imageUrl,
+//            contentDescription = "활동 이미지",
+//            modifier = Modifier.fillMaxSize(),
+//            contentScale = ContentScale.Crop
+//        )
+        Image(
+            painter = painterResource(R.drawable.hobbycard_cafe),
+            contentDescription = "",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // 그라디언트 오버레이
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = MyPageColors.CardOverlayGradient,
+                        startY = 160f,
+                        endY = 320f
+                    )
+                )
+        )
+
+        // 제목
+        Text(
+            text = card.title,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = MyPageColors.White,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 24.dp)
+        )
+    }
+}
+
+// ==================== 설정 메뉴 팝업 ====================
+@Composable
+fun SettingsMenuPopup(
+    modifier: Modifier = Modifier,
+    socialType: String?,
+    onDismiss: () -> Unit,
+    onProfileSettingClick: () -> Unit,
+    onHobbyPhotoManagementClick: () -> Unit,
+    onAllSettingsClick: () -> Unit
+) {
+    val isGuest = socialType == "GUEST"  // ✅ 게스트 여부 확인
+    Surface(
+        modifier = modifier
+            .wrapContentSize(),
+        shape = RoundedCornerShape(12.dp),
+        color = MyPageColors.Background001,
+        shadowElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+        ) {
+            if (!isGuest) {
+                SettingsMenuItem(
+                    text = "내 프로필 설정",
+                    onClick = onProfileSettingClick
+                )
+                SettingsMenuItem(
+                    text = "취미 대표사진 관리",
+                    onClick = onHobbyPhotoManagementClick
+                )
+            }
+
+            SettingsMenuItem(
+                text = "전체설정",
+                onClick = onAllSettingsClick
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsMenuItem(
+    text: String,
+    onClick: () -> Unit
+) {
+    Text(
+        text = text,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        color = MyPageColors.Neutral800,
+        modifier = Modifier
+            .padding(vertical = 8.dp)
+            .clickable { onClick() }
+    )
+}
+
+@Preview
+@Composable
+fun MyPageScreenPreview() {
+    ForDayTheme {
+        MyPageScreen(
+            modifier = TODO(),
+            viewModel = TODO(),
+            onProfileSetting = TODO(),
+            onHobbyPhotoManagement = TODO(),
+            onAllSettingsClick = TODO(),
+            onRoutineFeedClick = TODO(),
+            onAddHobbyClick = TODO(),
+            onDismiss = TODO(),
+            onNavigateToRecordRoutine = TODO()
+        )
+    }
+}

@@ -53,6 +53,9 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+import com.forday.app.core.util.UserMessageCategory
+import com.forday.app.core.util.toUserMessage
+
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val analyticsManager: AnalyticsManager,
@@ -131,7 +134,7 @@ class OnboardingViewModel @Inject constructor(
     fun dismissDialog() {
         _uiState.update {
             it.copy(showDialog = false)
-            // ✅ customHobbyText는 유지 (초기화하지 않음)
+            // customHobbyText는 유지 (초기화하지 않음)
         }
     }
 
@@ -414,27 +417,22 @@ class OnboardingViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     Timber.d("error "+error.message)
-                    val errorMessage = error.message ?: "게스트 로그인에 실패했습니다."
+                    val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            isLoginSuccess = false,  // ✅ 로그인 실패
+                            isLoginSuccess = false,  // 로그인 실패
                             error = errorMessage
                         )
                     }
                     sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
                 }
         } catch (e: Exception) {
-            val errorMessage = when (e) {
-                is java.net.UnknownHostException,
-                is java.net.SocketTimeoutException -> "네트워크 연결을 확인해주세요"
-
-                else -> "로그인 처리 중 오류가 발생했습니다"
-            }
+            val errorMessage = e.toUserMessage(UserMessageCategory.AUTH)
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    isLoginSuccess = false,  // ✅ 로그인 실패
+                    isLoginSuccess = false,  // 로그인 실패
                     error = errorMessage
                 )
             }
@@ -448,7 +446,9 @@ class OnboardingViewModel @Inject constructor(
 
         val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
             if (error != null || token == null) {
-                sendSideEffect(OnboardingSideEffect.DomainError("카카오 로그인에 실패했습니다"))
+                val errorMessage = error?.toUserMessage(UserMessageCategory.AUTH)
+                    ?: "로그인에 실패했어요. 잠시 후 다시 시도해주세요."
+                sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
             } else {
                 loginIntoApp(token.accessToken)
                 Timber.d("token.accessToken ${token.accessToken}")
@@ -459,7 +459,7 @@ class OnboardingViewModel @Inject constructor(
             kakao.loginWithKakaoTalk(context) { token, error ->
                 if (error != null || token == null) {
                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
-                        sendSideEffect(OnboardingSideEffect.DomainError("카카오 로그인에 실패했습니다"))
+                        sendSideEffect(OnboardingSideEffect.DomainError(error.toUserMessage(UserMessageCategory.AUTH)))
                         return@loginWithKakaoTalk
                     }
                     UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
@@ -492,7 +492,7 @@ class OnboardingViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     Timber.e("@@@@@@@@@@@@@@@@@ error "+error)
-                    val errorMessage = error.message ?: "카카오 로그인에 실패했습니다."
+                    val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -502,11 +502,7 @@ class OnboardingViewModel @Inject constructor(
                     sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
                 }
         } catch (e: Exception) { // loginUseCase 호출 자체에서 발생한 예외 처리
-            val errorMessage = when (e) {
-                is java.net.UnknownHostException,
-                is java.net.SocketTimeoutException -> "네트워크 연결을 확인해주세요"
-                else -> "로그인 처리 중 오류가 발생했습니다"
-            }
+            val errorMessage = e.toUserMessage(UserMessageCategory.AUTH)
             _uiState.update {
                 it.copy(
                     isLoading = false,

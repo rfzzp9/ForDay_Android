@@ -49,6 +49,23 @@ import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import timber.log.Timber
 
+// hobbyInfoId에 따라 아이콘 리소스를 반환하는 함수
+fun getHobbyIconResource(hobbyInfoId: Int?): Int {
+    return when (hobbyInfoId) {
+        1 -> R.drawable.ic_draw
+        2 -> R.drawable.ic_health
+        3 -> R.drawable.ic_book
+        4 -> R.drawable.ic_music
+        5 -> R.drawable.ic_running
+        6 -> R.drawable.ic_cook
+        7 -> R.drawable.ic_cafe
+        8 -> R.drawable.ic_movie
+        9 -> R.drawable.ic_camera2
+        10 -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby // 기본값
+    }
+}
+
 @Composable
 fun SelectFrequencyScreenRoot(
     params: HobbyModifyParams?,
@@ -57,12 +74,14 @@ fun SelectFrequencyScreenRoot(
     onBack: () -> Unit,
     viewModel: OnboardingViewModel,
 ) {
+
     viewModel.logEvent("hobby_info_frequency_entry")
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val shouldAutoAdvance by viewModel.shouldAutoAdvanceFromFrequency.collectAsStateWithLifecycle()  // ✅ 추가
 
     SelectFrequencyScreen(
         hobbyName = state.selectedHobbyName,
+        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
         selectedTime = if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
             "${state.selectedMinutes!! / 60}시간"
         } else {
@@ -96,6 +115,7 @@ fun SelectFrequencyScreenRoot(
 @Composable
 fun SelectFrequencyScreen(
     hobbyName: String? = "독서",
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     selectedTime: String = "30분",
     selectedFrequency: Int? = null,
     params: HobbyModifyParams?,
@@ -167,9 +187,10 @@ fun SelectFrequencyScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Hobby Summary Card
+                    // Hobby Summary Card - hobbyInfoId 전달
                     HobbySummaryCard(
                         hobbyName = hobbyName,
+                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyId else hobbyInfoId,
                         selectedTime = selectedTime,
                         selectedFrequency = currentFrequency,
                     )
@@ -240,9 +261,9 @@ fun FrequencyTitleSection(hobbyName: String?) {
 @Composable
 fun HobbySummaryCard(
     hobbyName: String?,
+    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
     selectedTime: String,
     selectedFrequency: Int?
-    // ✅ onNext 파라미터 제거
 ) {
     val isSelected = selectedFrequency != null
 
@@ -266,13 +287,13 @@ fun HobbySummaryCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Book icon placeholder
+            // Book icon - hobbyInfoId에 따라 동적으로 아이콘 표시
             Box(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.book1),
+                    painter = painterResource(id = getHobbyIconResource(hobbyInfoId)),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color.Unspecified
@@ -487,6 +508,7 @@ fun SelectFrequencyScreenPreview() {
     ForDayTheme {
         SelectFrequencyScreen(
             hobbyName = "독서",
+            hobbyInfoId = 3, // 예시: 독서는 id 3
             selectedTime = "30분",
             selectedFrequency = 2,
             params = null,
@@ -494,7 +516,7 @@ fun SelectFrequencyScreenPreview() {
             onBack = {},
             onNext = {},
             onFrequencySelect = {},
-            shouldAutoAdvance = TODO(),
+            shouldAutoAdvance = false,
             viewModel = TODO()
         )
     }
