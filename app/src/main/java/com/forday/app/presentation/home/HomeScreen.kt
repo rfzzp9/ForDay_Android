@@ -171,7 +171,8 @@ fun HomeScreenRoot(
         modifier = modifier,
         state = state,
         currentHobbyId = currentHobbyId,
-        onCreateRoutine = { onRoutineCreate(currentHobbyId, state.aiCallRemaining) }
+        onCreateRoutine = { onRoutineCreate(currentHobbyId, state.aiCallRemaining) },
+        viewModel = viewModel
     )
     if (showAlreadyRecordedDialog) {
         RoutineOnlyOneHaveDialog(
@@ -205,7 +206,8 @@ fun HomeScreen(
     onCreateRoutine: () -> Unit,
     modifier: Modifier = Modifier,
     state: HomeState,
-    currentHobbyId: Long?
+    currentHobbyId: Long?,
+    viewModel: HomeViewModel,
 ) {
     var settingsIconBottomPx by remember { mutableFloatStateOf(0f) }
 
@@ -419,7 +421,7 @@ fun HomeScreen(
                 userName = state.nickName ?: "사용자",
                 hobbyName = currentHobbyName,
                 onDismiss = { showAiBottomSheet = false },
-                onAiRecommendButtonClick = { /* viewModel handled in root usually */ },
+                onAiRecommendButtonClick = { viewModel.getAiRecommendedRoutines(currentHobbyId)    },  //TODO
                 aiRecommendData = state.aiRoutineList,
                 aiCallCount = state.aiCallCount,
                 onRecommendationsSelected = { }
