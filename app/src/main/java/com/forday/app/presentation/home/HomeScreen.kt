@@ -534,22 +534,22 @@ fun HomeHeader(
                 )
             }
 
-            Icon(
-                painter = painterResource(id = R.drawable.ic_settings),
-                contentDescription = "설정",
-                modifier = Modifier
-                    .size(24.dp)
-                    .onGloballyPositioned { coordinates ->
-                        onSettingsIconBottomChanged(coordinates.boundsInRoot().bottom)
-                    }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        onSettingsClick()
-                    },
-                tint = Color(0xFF1E1E1E)
-            )
+//            Icon(
+//                painter = painterResource(id = R.drawable.ic_settings),
+//                contentDescription = "설정",
+//                modifier = Modifier
+//                    .size(24.dp)
+//                    .onGloballyPositioned { coordinates ->
+//                        onSettingsIconBottomChanged(coordinates.boundsInRoot().bottom)
+//                    }
+//                    .clickable(
+//                        interactionSource = remember { MutableInteractionSource() },
+//                        indication = null
+//                    ) {
+//                        onSettingsClick()
+//                    },
+//                tint = Color(0xFF1E1E1E)
+//            )
         }
     }
 }

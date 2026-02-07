@@ -762,16 +762,16 @@ fun MyPageHeader(
                 )
             }
 
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_settings),
-                    contentDescription = "설정",
-                    tint = MyPageColors.Neutral800
-                )
-            }
+//            IconButton(
+//                onClick = onSettingsClick,
+//                modifier = Modifier.size(24.dp)
+//            ) {
+//                Icon(
+//                    painter = painterResource(R.drawable.ic_settings),
+//                    contentDescription = "설정",
+//                    tint = MyPageColors.Neutral800
+//                )
+//            }
         }
     }
 }
