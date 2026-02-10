@@ -23,8 +23,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,31 +48,30 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.onboarding.OnboardingViewModel
-import kotlinx.coroutines.delay
 import timber.log.Timber
 
 @Composable
 fun LoginScreenRoot(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
-    snackbarMessage: String?,
-    onSnackbarMessageConsumed: () -> Unit,
     viewModel: OnboardingViewModel
 ) {
     viewModel.logEvent("login_screen")
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current.applicationContext
     var showInstallDialog by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // 로그인 시도 플래그
     var loginAttempted by remember { mutableStateOf(false) }
 
     // 로그인 완료 후에만 navigation
     LaunchedEffect(state.isLoginSuccess, state.isNewUser, state.isOnboardingCompleted, state.isNicknameSet, loginAttempted) {
+        Timber.e(
+            "LoginScreenRoot LaunchedEffect - attempted=$loginAttempted, success=${state.isLoginSuccess}, newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet}"
+        )
         // 로그인 버튼을 눌렀더라도, 앱 로그인(서버 로그인) 성공 전에는 화면 이동하지 않음
         if (!loginAttempted || !state.isLoginSuccess) return@LaunchedEffect
 
@@ -96,14 +93,13 @@ fun LoginScreenRoot(
                 onNavigateToHome()
                 loginAttempted = false
             }
-        }
-    }
 
-    LaunchedEffect(snackbarMessage) {
-        val message = snackbarMessage ?: return@LaunchedEffect
-        delay(300)
-        snackbarHostState.showSnackbar(message)
-        onSnackbarMessageConsumed()
+            else -> {
+                Timber.e(
+                    "LoginScreenRoot navigation skipped - no branch matched (newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet})"
+                )
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -119,13 +115,6 @@ fun LoginScreenRoot(
                 loginAttempted = true  // ✅ 플래그 설정
                 viewModel.loginWithGuest()
             }
-        )
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp)
         )
     }
 }

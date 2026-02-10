@@ -1,7 +1,11 @@
 package com.forday.app.presentation.home
 
 import androidx.lifecycle.viewModelScope
+import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.core.logger.analytics.AnalyticsManager
+import com.forday.app.core.util.logAndExtractServerMessage
+import com.forday.app.core.util.toUserMessage
+import com.forday.app.domain.usecase.CreateRoutinesUseCase
 import com.forday.app.domain.usecase.GetAiRecommendedRoutinesUseCase
 import com.forday.app.domain.usecase.GetHomeHobbyUseCase
 import com.forday.app.domain.usecase.GetMyHobbyListUseCase
@@ -10,11 +14,11 @@ import com.forday.app.domain.usecase.GetStickersUseCase
 import com.forday.app.domain.usecase.GetUserNicknameUseCase
 import com.forday.app.domain.usecase.WriteRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.home.model.HomeState
 import com.forday.app.presentation.home.model.RoutinePreviewUiModel
 import com.forday.app.presentation.home.model.RoutineUiModel
 import com.forday.app.presentation.home.model.toPresentation
-import com.forday.app.presentation.onboarding.OnboardingSideEffect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,21 +41,12 @@ class HomeViewModel @Inject constructor(
     private val getStickersUseCase: GetStickersUseCase,  // 스티커판 조회
     private val getAiRecommendedRoutinesUseCase: GetAiRecommendedRoutinesUseCase,  // ai 활동 추천
     private val getUserNicknameUseCase: GetUserNicknameUseCase,
-) : BaseViewModel<HomeSideEffect>() {
+    private val userLocalDataSource: UserLocalDataSource,
+    private val createRoutinesUseCase: CreateRoutinesUseCase,  // 취미활동 생성
+    private val snackbarManager: SnackbarManager,
+) : BaseViewModel<Unit>() {
 
-    private val _uiState: MutableStateFlow<HomeState> = MutableStateFlow(
-        HomeState(
-//        stickerCnt = 27,  // 50개로 설정 (2페이지)
-//        currentStickerPage = 9,
-            stickers = listOf(
-//            StickerUiModel(12, "smile.jpg"),
-//            StickerUiModel(13, "angry.jpg"),
-//            StickerUiModel(14, "smile.jpg"),
-//            StickerUiModel(15, "laugh.jpg"),
-            ),
-//        stickerInfo = emptyStickerInfoUiModel()
-        )
-    )
+    private val _uiState: MutableStateFlow<HomeState> = MutableStateFlow(HomeState())
     val uiState: StateFlow<HomeState> = _uiState.toStateIn()
 
     fun fetchHomeHobbyData(hobbyId: Long?) = viewModelScope.launch {
@@ -64,7 +59,11 @@ class HomeViewModel @Inject constructor(
         }.catch { throwable ->
             Timber.e("HomeHobbyData Fetch Error: $throwable")
             _uiState.update { it.copy(isLoading = false) } // 에러 시 로딩 종료
-            _sideEffectChannel.send(HomeSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchHomeHobbyData")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { data ->
             // data(UiModel)가 null이 아닐 때만 업데이트 진행
             data?.let { uiModel ->
@@ -104,7 +103,11 @@ class HomeViewModel @Inject constructor(
                 emit(response.data.routines)
             }.catch { throwable ->
                 Timber.e("@##@#@#@#@#@#@#@@ " + throwable)
-                _sideEffectChannel.send(HomeSideEffect.Exception(throwable))
+                val message = when (throwable) {
+                    is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchSpecificRoutineList")
+                    else -> null
+                }
+                snackbarManager.show(message ?: throwable.toUserMessage())
             }.collect { routines ->
                 routines.map {
                     Timber.e("@###@#@#@ " + it.routineId + ", " + it.aiRecommended)
@@ -139,7 +142,11 @@ class HomeViewModel @Inject constructor(
         }.catch { throwable ->
             Timber.e("ERROR fetching stickers: $throwable")
             throwable.printStackTrace()
-            _sideEffectChannel.send(HomeSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchStickerHistory")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { result ->
             // ✅ Result 타입 처리 확인
             Timber.e("Collected result type: ${result::class.simpleName}")
@@ -234,7 +241,11 @@ class HomeViewModel @Inject constructor(
                 is IOException -> Timber.e(throwable, "[AI routines] 네트워크 I/O 오류")
                 else -> Timber.e(throwable, "[AI routines] 예기치 못한 오류")
             }
-            _sideEffectChannel.send(HomeSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "getAiRecommendedRoutines")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { result ->
             Timber.d("AI routines 성공: count=%d", result.data.routines.size)
             val newAiRoutines = result.data.routines.map { it.toPresentation() }
@@ -248,10 +259,40 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun createRoutines(hobbyId: Long?, routineList: List<Pair<Boolean, String>>) =
+        viewModelScope.launch {
+            flow {
+                emit(createRoutinesUseCase.invoke(hobbyId, routineList))
+            }.catch { throwable ->
+                routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
+                Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+throwable)
+                Timber.e(throwable)
+                val message = when (throwable) {
+                    is HttpException -> throwable.logAndExtractServerMessage(tag = "createRoutines")
+                    else -> null
+                }
+                snackbarManager.show(message ?: throwable.toUserMessage())
+            }.collect { result ->
+                routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
+                Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+result.data)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        routineId = result.data.createdRoutineNum  // 취미활동 번호
+                    )
+                }
+            }
+
+        }
+
     fun getUserNickname() = viewModelScope.launch {
         getUserNicknameUseCase()
             .catch { throwable ->
-                _sideEffectChannel.send(HomeSideEffect.Exception(throwable))
+                val message = when (throwable) {
+                    is HttpException -> throwable.logAndExtractServerMessage(tag = "getUserNickname")
+                    else -> null
+                }
+                snackbarManager.show(message ?: throwable.toUserMessage())
             }.collect { data ->
                 _uiState.update { state ->
                     state.copy(

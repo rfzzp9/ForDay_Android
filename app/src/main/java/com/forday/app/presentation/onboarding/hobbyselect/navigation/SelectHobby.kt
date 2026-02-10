@@ -5,3 +5,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data object SelectHobby : NavKey  //취미 선택 화면
+
+@Serializable
+data object SelectHobbyFromModify : NavKey  // 취미 수정 화면에서 취미 추가로 진입

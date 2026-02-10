@@ -3,6 +3,7 @@ package com.forday.app.core.util
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import retrofit2.HttpException
+import timber.log.Timber
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -45,6 +46,7 @@ fun Throwable.toUserMessage(category: UserMessageCategory = UserMessageCategory.
             if (category == UserMessageCategory.AUTH) {
                 "로그인 처리 중 오류가 발생했습니다."
             } else {
+                Timber.e("@#@#@#@#@# "+cause)
                 "오류가 발생했습니다."
             }
         }

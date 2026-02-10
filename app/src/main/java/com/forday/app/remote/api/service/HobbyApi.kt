@@ -15,6 +15,7 @@ import com.forday.app.remote.model.response.AiRecommendedResponse
 import com.forday.app.remote.model.response.CreateHobbyResponse
 import com.forday.app.remote.model.response.CreateRoutinesResponse
 import com.forday.app.remote.model.response.DeleteRoutineResponse
+import com.forday.app.remote.model.response.HobbyCardAgainResponse
 import com.forday.app.remote.model.response.HobbyCardResponse
 import com.forday.app.remote.model.response.HobbyMainImageResponse
 import com.forday.app.remote.model.response.HobbyRoutineListResponse
@@ -147,4 +148,7 @@ interface HobbyApi {
 
     @GET("/users/hobbies/in-progress")   //사용자 취미 진행 상단탭 조회
     suspend fun getUsersProgressHobbyTabs(): UserHobbyTabResponse
+
+    @GET("/hobbies/info/re-check")
+    suspend fun getHobbyCardDataAgain(): HobbyCardAgainResponse  // 취미 정보 재조회
 }

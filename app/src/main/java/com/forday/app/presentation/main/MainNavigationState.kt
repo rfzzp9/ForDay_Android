@@ -3,6 +3,7 @@ package com.forday.app.presentation.main
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSerializable
@@ -34,6 +35,7 @@ import com.forday.app.presentation.mypage.profilesetting.navigation.ProfileSetti
 import com.forday.app.presentation.mypage.routinedetail.navigation.RoutineDetail
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
+import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobbyFromModify
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
@@ -58,6 +60,13 @@ class MainNavigationState(
     val backStacks: Map<NavKey, NavBackStack<NavKey>>
 ) {
     var topLevelRoute by topLevelRoute
+
+    var changeId by mutableIntStateOf(0)
+        private set
+
+    fun notifyNavChanged() {
+        changeId += 1
+    }
 
     /**
      * 현재 사용 중인 스택들
@@ -142,6 +151,7 @@ val serializersConfig = SavedStateConfiguration {
 
             // 온보딩 화면들
             subclass(SelectHobby::class, SelectHobby.serializer())
+            subclass(SelectHobbyFromModify::class, SelectHobbyFromModify.serializer())
             subclass(SelectPerTime::class, SelectPerTime.serializer())
             subclass(SelectPurpose::class, SelectPurpose.serializer())
             subclass(SelectPerWeek::class, SelectPerWeek.serializer())

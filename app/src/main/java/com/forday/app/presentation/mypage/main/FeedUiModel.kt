@@ -1,6 +1,6 @@
 package com.forday.app.presentation.mypage.main
 
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.domain.model.FeedItem
 import com.forday.app.domain.model.UserFeedDomain
 

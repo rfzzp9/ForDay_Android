@@ -10,8 +10,6 @@ import com.forday.app.domain.usecase.GetHobbyMateRoutinesUseCase
 import com.forday.app.domain.usecase.GetOnboardingDataUseCase
 import com.forday.app.domain.usecase.GetUserNicknameUseCase
 import com.forday.app.presentation.BaseViewModel
-import com.forday.app.presentation.home.HomeSideEffect
-import com.forday.app.presentation.onboarding.OnboardingSideEffect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +63,10 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
         _uiState.update { it.copy(selectedAiRoutine = null) }
     }
 
+    fun saveAiRoutines(routines: List<AiRoutineItemState>) = viewModelScope.launch {
+        userLocalDataSource.saveAiRoutineList(routines)
+    }
+
     private fun getOnboardingData() = viewModelScope.launch {
         getOnboardingDataUseCase()
             .catch { throwable ->
@@ -80,8 +82,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
             }
     }
 
-    fun createRoutines(hobbyId: Long?, routineList: List<Pair<Boolean, String>>) = // TODO 취미활동 생성 시 AI 추천이 계속 FALSE로 전달되는 오류 수정해야 함
-
+    fun createRoutines(hobbyId: Long?, routineList: List<Pair<Boolean, String>>) =
         viewModelScope.launch {
             flow {
                 emit(createRoutinesUseCase.invoke(hobbyId, routineList))
@@ -112,7 +113,8 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
         flow {
             emit(getAiRecommendedRoutinesUseCase(hobbyId))
         }.catch { throwable ->
-            Timber.d("🔵 AI routines 요청 시작: hobbyId=%s", throwable)
+            Timber.d("🔵 AI routines 에러 발생: %s", throwable)
+
             when (throwable) {
                 is HttpException -> {
                     val errorBody = throwable.response()?.errorBody()?.string()
@@ -123,10 +125,18 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
                         throwable.message(),
                         errorBody
                     )
+
+                    // ✅ AI 호출 횟수 초과 에러 체크
+                    if (errorBody?.contains("AI_CALL_LIMIT_EXCEEDED") == true) {
+                        Timber.d("🟡 AI 호출 횟수 초과 - 로컬 데이터 불러오기")
+                        loadSavedAiRoutines()
+                        return@catch  // catch 블록 종료
+                    }
                 }
                 is IOException -> Timber.e(throwable, "[AI routines] 네트워크 I/O 오류")
                 else -> Timber.e(throwable, "[AI routines] 예기치 못한 오류")
             }
+
             // ✅ 에러 시에도 로딩 상태 해제
             _uiState.update { it.copy(isLoading = false) }
             _sideEffectChannel.send(InputRoutinesAndAiRecommendSideEffect.Exception(throwable))
@@ -149,6 +159,36 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
                 )
                 Timber.d("🔄 State 업데이트 후: ${updated.aiRoutineList.size}개")
                 updated
+            }
+        }
+    }
+
+    private fun loadSavedAiRoutines() = viewModelScope.launch {
+
+        userLocalDataSource.getAiRoutineList().collect { savedRoutines ->
+            if (savedRoutines != null && savedRoutines.isNotEmpty()) {
+                Timber.d("저장된 루틴 ${savedRoutines.size}")
+                Timber.d("루틴 내용: ${savedRoutines.map { it.content }}")
+
+                _uiState.update {
+                    it.copy(
+                        aiRoutineList = savedRoutines,
+                        isLoading = false
+                    )
+                }
+            } else {
+                Timber.e("저장된 AI 루틴이 없습니다")
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "저장된 AI 추천 활동이 없습니다."
+                    )
+                }
+                _sideEffectChannel.send(
+                    InputRoutinesAndAiRecommendSideEffect.Exception(
+                        Exception("저장된 AI 추천 활동이 없습니다.")
+                    )
+                )
             }
         }
     }

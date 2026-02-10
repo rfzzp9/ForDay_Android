@@ -47,7 +47,7 @@ import com.forday.app.presentation.mypage.MyPageViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.domain.model.ReactionDetailDomain

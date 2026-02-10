@@ -1,5 +1,6 @@
 package com.forday.app.data.impl
 
+import android.util.Log
 import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.data.model.toDomain
 import com.forday.app.data.remote.AuthDataSource
@@ -23,17 +24,57 @@ internal class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
     override suspend fun kakaoLogin(kakaoAccessToken: String) : Result<KakaoLoginDomain> =
         runCatching {
-            val loginData = authDataSource.kakaoLogin(KakaoLoginRequest(kakaoAccessToken)).toDomain()
-            Timber.d("@@@@@@@loginResponse: ${loginData.data.accessToken}")
-            // 로컬에 토큰 저장
-            userLocalDataSource.saveKakaoToken(
-                loginData.data.accessToken,
-                loginData.data.refreshToken,
-                loginData.data.socialType
-            )
-            Timber.d("@@@@@@@토큰 저장 완료: ${loginData.data.accessToken}"+" ${loginData.data.refreshToken}")
-            // login data 반환
-            loginData
+            try {
+                Log.e("AuthRepository", "kakaoLogin: start")
+                Timber.d("kakaoLogin: start")
+                val responseEntity = authDataSource.kakaoLogin(KakaoLoginRequest(kakaoAccessToken))
+                Log.e("AuthRepository", "kakaoLogin: remote success")
+                Timber.d("kakaoLogin: remote success")
+
+                val loginData = responseEntity.toDomain()
+                Log.e("AuthRepository", "kakaoLogin: mapping success")
+                Timber.d("kakaoLogin: mapping success")
+
+                // 로컬에 토큰 저장
+                userLocalDataSource.saveKakaoToken(
+                    loginData.data.accessToken,
+                    loginData.data.refreshToken,
+                    loginData.data.socialType
+                )
+                Log.e("AuthRepository", "kakaoLogin: saveKakaoToken success")
+                Timber.d("kakaoLogin: saveKakaoToken success")
+
+                userLocalDataSource.saveNickname(loginData.data.nickname)
+                Log.e("AuthRepository", "kakaoLogin: saveNickname success")
+                Timber.d("kakaoLogin: saveNickname success")
+
+                userLocalDataSource.saveIsOnboardingCompleted(loginData.data.isOnboardingCompleted)
+                Log.e("AuthRepository", "kakaoLogin: saveIsOnboardingCompleted success")
+                Timber.d("kakaoLogin: saveIsOnboardingCompleted success")
+
+                userLocalDataSource.saveIsNicknameSet(loginData.data.isNicknameSet)
+                Log.e("AuthRepository", "kakaoLogin: saveIsNicknameSet success")
+                Timber.d("kakaoLogin: saveIsNicknameSet success")
+
+                userLocalDataSource.saveOnboardingData(
+                    loginData.data.onboardingData?.id?.toLong(),
+                    loginData.data.onboardingData?.hobbyName,
+                    loginData.data.onboardingData?.hobbyTimeMinutes,
+                    loginData.data.onboardingData?.hobbyPurpose,
+                    loginData.data.onboardingData?.executionCount,
+                    loginData.data.onboardingData?.isDurationSet == true
+                )
+                Log.e("AuthRepository", "kakaoLogin: saveOnboardingData success")
+                Timber.d("kakaoLogin: saveOnboardingData success")
+
+                Log.e("AuthRepository", "kakaoLogin: done")
+                Timber.d("kakaoLogin: done")
+                loginData
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "kakaoLogin: failed at repository layer", e)
+                Timber.e(e, "kakaoLogin: failed at repository layer")
+                throw e
+            }
         }
 
     override suspend fun kakaoLogout(): Result<Unit> {

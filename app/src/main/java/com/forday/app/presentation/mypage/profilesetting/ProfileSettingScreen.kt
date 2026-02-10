@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.presentation.mypage.MyPageViewModel
 import android.provider.OpenableColumns
 import androidx.activity.result.PickVisualMediaRequest

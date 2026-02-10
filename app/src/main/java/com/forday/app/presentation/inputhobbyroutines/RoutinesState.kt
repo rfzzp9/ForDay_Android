@@ -3,6 +3,8 @@ package com.forday.app.presentation.inputhobbyroutines
 
 import com.forday.app.domain.model.AiRoutineItemDomain
 import com.forday.app.presentation.inputhobbyroutines.screen.RoutineItem
+import kotlinx.serialization.Serializable
+
 
 data class RoutinesState(
     val hobbymateRoutines: List<String> = emptyList(),
@@ -20,6 +22,7 @@ data class RoutinesState(
     val selectedAiRoutine: AiRoutineItemState? = null  // ✅ 추가
 )
 
+@Serializable   // TODO 나중에 userLocalDataSource에 저장할 데이터클래스 별도 생성해야 함 (임시)
 data class AiRoutineItemState(
     val routineId: Int,
     val topic: String,

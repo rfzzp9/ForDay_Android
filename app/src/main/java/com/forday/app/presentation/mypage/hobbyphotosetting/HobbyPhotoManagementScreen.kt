@@ -47,7 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.presentation.mypage.MyPageViewModel
 import timber.log.Timber
 import java.io.File
-import com.app.forday.R
+import com.dayn.forday.R
 
 // 색상 정의
 object HobbyPhotoColors {
@@ -229,21 +229,21 @@ fun HobbyPhotoManagementScreenRoot(
             quote = feedUiModel.memo ?: "",
             hasGradient = feedUiModel.url.isEmpty(),
             gradientColors = when (feedUiModel.stickerIconRes) {
-                com.app.forday.R.drawable.ic_sticker_smile -> listOf(
+                com.dayn.forday.R.drawable.ic_sticker_smile -> listOf(
                     androidx.compose.ui.graphics.Color(0xFFFFE6D1),
                     androidx.compose.ui.graphics.Color(0xFFF4A261)
                 )
-                com.app.forday.R.drawable.ic_sticker_sad -> listOf(
+                com.dayn.forday.R.drawable.ic_sticker_sad -> listOf(
                     androidx.compose.ui.graphics.Color(0xFFDDF2D8),
                     androidx.compose.ui.graphics.Color(0xFFA8D8A2),
                     androidx.compose.ui.graphics.Color(0xFFDDF2D8)
                 )
-                com.app.forday.R.drawable.ic_sticker_laugh -> listOf(
+                com.dayn.forday.R.drawable.ic_sticker_laugh -> listOf(
                     androidx.compose.ui.graphics.Color(0xFFC9DBFF),
                     androidx.compose.ui.graphics.Color(0xFF8FB3FF),
                     androidx.compose.ui.graphics.Color(0xFFC9DBFF)
                 )
-                com.app.forday.R.drawable.ic_sticker_angry -> listOf(
+                com.dayn.forday.R.drawable.ic_sticker_angry -> listOf(
                     androidx.compose.ui.graphics.Color(0xFFFFF4CC),
                     androidx.compose.ui.graphics.Color(0xFFFFD966),
                     androidx.compose.ui.graphics.Color(0xFFFFF4CC)

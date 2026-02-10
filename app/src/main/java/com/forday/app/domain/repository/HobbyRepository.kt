@@ -4,6 +4,7 @@ import com.forday.app.domain.model.AiRecommendedDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
+import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
 import com.forday.app.domain.model.HobbyMainImageDomain
 import com.forday.app.domain.model.HobbyRoutineListDomain
@@ -60,4 +61,5 @@ interface HobbyRepository {
     suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodDomain
     suspend fun getUsersProgressHobbyTabs(): UserHobbyTabDomain
     suspend fun setHobbyMainImage(hobbyId: Long?, coverImageUrl: String?, recordId: Long?): HobbyMainImageDomain
+    suspend fun getHobbyCardDataAgain(): HobbyCardAgainDomain
 }

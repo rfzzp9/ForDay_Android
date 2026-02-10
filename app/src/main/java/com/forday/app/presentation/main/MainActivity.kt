@@ -1,32 +1,47 @@
 package com.forday.app.presentation.main
 
-import android.Manifest.permission.READ_EXTERNAL_STORAGE
-import android.Manifest.permission.READ_MEDIA_IMAGES
-import android.Manifest.permission.READ_MEDIA_VIDEO
-import android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
-import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Base64
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.activity.viewModels
-import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.modifyhobby.screen.ModifyHobbyScreenRoot
-import com.forday.app.presentation.onboarding.OnboardingViewModel
-import com.forday.app.presentation.record.screen.RecordRoutineScreenRoot
-
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
+import com.forday.app.presentation.onboarding.OnboardingViewModel
+import java.security.MessageDigest
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-
+        getReleaseKeyHash()
         setContent {
+            Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
             AppEntryPoint()
         }
     }
 
+    fun getReleaseKeyHash() {
+        Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
+        try {
+            val info = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+            val signatures = info.signingInfo?.apkContentsSigners
 
+            if (signatures != null) {
+                for (signature in signatures) {
+                    val md = MessageDigest.getInstance("SHA")
+                    md.update(signature.toByteArray())
+                    val keyHash = Base64.encodeToString(md.digest(), Base64.DEFAULT)
+                    Log.e("@@@@@@@@@@@@KeyHash", "현재 릴리스 키해시: $keyHash")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("@@@@@@@@@@@@KeyHash", "키해시를 가져올 수 없습니다.", e)
+        }
+    }
 }

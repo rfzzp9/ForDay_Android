@@ -16,10 +16,10 @@ fun AppEntryPoint() {
 
     ForDayTheme {
         when {
-            uiState.isSplashLoading -> {
+            uiState.isSplashLoading || uiState.initialRoute == null -> {
                 SplashScreen()
             }
-            uiState.initialRoute != null -> {
+            else -> {
                 // MainFlow 시작
                 Timber.e("@@@@@@@@@@@ "+uiState.initialRoute)
                 MainFlow(initialRoute = uiState.initialRoute!!, onboardingViewModel = viewModel)

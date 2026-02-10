@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
+
 package com.forday.app.presentation.home
 
 import androidx.compose.animation.AnimatedContent
@@ -20,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,10 +37,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,6 +60,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
@@ -70,7 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.bottomsheet.AiRecommendationBottomSheet
 import com.forday.app.core.designsystem.component.dropdown.DropdownItem
 import com.forday.app.core.designsystem.component.dropdown.RoutineDropdown
@@ -81,6 +89,10 @@ import com.forday.app.presentation.home.component.FloatingMenuPopup
 import com.forday.app.presentation.home.model.HomeState
 import kotlinx.coroutines.delay
 import timber.log.Timber
+
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 
 enum class SettingsMenuItem(val label: String) {
     MY_HOBBY_MANAGEMENT("내 취미관리"),
@@ -121,9 +133,17 @@ fun HomeScreenRoot(
     }
 
     LaunchedEffect(currentHobbyId) {
-        viewModel.fetchSpecificRoutineList(currentHobbyId, 5)
-        viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+        if (currentHobbyId != null) {
+            Timber.e("@#@#@#@#@###@#@ "+currentHobbyId)
+            viewModel.fetchSpecificRoutineList(currentHobbyId, 5)
+            viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+        }
         viewModel.getUserNickname()
+    }
+
+    LaunchedEffect(state.routineId) {  // TODO ai 취미활동 생성했을 때 routineId가 트리거되어야 하는데 안되는 오류 -> 지나님한테 말씀드랴놓음
+        viewModel.fetchHomeHobbyData(currentHobbyId)
+        viewModel.fetchStickerHistory(currentHobbyId, 28, null)
     }
 
     HomeScreen(
@@ -202,13 +222,20 @@ fun HomeScreen(
     onStickerPagePrevious: () -> Unit,
     onAddHobbyClick: () -> Unit,
     onCurrentHobbyClick: (Long) -> Unit,
-    onOtherHobbyClick: (Long) -> Unit,
+    onOtherHobbyClick: (Long?) -> Unit,
     onCreateRoutine: () -> Unit,
     modifier: Modifier = Modifier,
     state: HomeState,
     currentHobbyId: Long?,
     viewModel: HomeViewModel,
 ) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshTriggered by remember { mutableStateOf(false) }
+    var refreshStartStickerSize by remember { mutableStateOf(0) }
+    var refreshStartMillis by remember { mutableStateOf(0L) }
+
+    val listState = rememberLazyListState()
+
     var settingsIconBottomPx by remember { mutableFloatStateOf(0f) }
 
     var showFloatingMenu by remember { mutableStateOf(false) }
@@ -223,7 +250,65 @@ fun HomeScreen(
 
     val currentHobbyName = state.inProgressHobbies.find { it.isCurrent }?.name ?: ""
 
-    Box(modifier = modifier.fillMaxSize()) {
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+        }
+    )
+
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            refreshTriggered = true
+            refreshStartStickerSize = state.stickers.size
+            refreshStartMillis = System.currentTimeMillis()
+            viewModel.fetchHomeHobbyData(currentHobbyId)
+            viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+
+            // Safety: ensure the indicator never spins forever
+            delay(4_000L)
+            if (isRefreshing) {
+                isRefreshing = false
+                refreshTriggered = false
+                refreshStartMillis = 0L
+            }
+        }
+    }
+
+    // When refresh ends, return the list to the top so the UI snaps back naturally.
+    LaunchedEffect(isRefreshing, refreshTriggered) {
+        if (!isRefreshing && !refreshTriggered) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
+    // Home 화면은 기본적으로 고정 레이아웃 UX라, 사용자가 아래→위로 드래그해도
+    // 뷰가 위로 올라간 채로 남지 않도록 스크롤 종료 시 항상 상단으로 복귀시킵니다.
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress && !isRefreshing) {
+            val shouldSnapBack = listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0
+            if (shouldSnapBack) {
+                listState.animateScrollToItem(0)
+            }
+        }
+    }
+
+    LaunchedEffect(state.isLoading, state.stickers.size, refreshTriggered) {
+        val stickerUpdated = state.stickers.size != refreshStartStickerSize
+        val timedOut = refreshStartMillis != 0L && (System.currentTimeMillis() - refreshStartMillis) > 3_000L
+
+        if (refreshTriggered && ((!state.isLoading && stickerUpdated) || timedOut)) {
+            isRefreshing = false
+            refreshTriggered = false
+            refreshStartMillis = 0L
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
         Image(
             painter = painterResource(id = R.drawable.mainframe),
             contentDescription = null,
@@ -231,82 +316,102 @@ fun HomeScreen(
             contentScale = ContentScale.FillBounds
         )
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            HomeHeader(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .onGloballyPositioned { coordinates ->
-                        homeHeaderBottomPx = coordinates.boundsInRoot().bottom
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(bottom = 0.dp)
+        ) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillParentMaxHeight()
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        HomeHeader(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .onGloballyPositioned { coordinates ->
+                                    homeHeaderBottomPx = coordinates.boundsInRoot().bottom
+                                }
+                                .padding(horizontal = 20.dp),
+                            state = state,
+                            onSettingsClick = {
+                                showSettingsDropdown = !showSettingsDropdown
+                                if (showSettingsDropdown) showDropdown = false
+                            },
+                            onAddHobbyClick = onAddHobbyClick,
+                            onCurrentHobbyClick = onCurrentHobbyClick,
+                            onOtherHobbyClick = onOtherHobbyClick,
+                            onSettingsIconBottomChanged = { bottomPx ->
+                                settingsIconBottomPx = bottomPx
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(68.dp))
+
+                        MyHobbySection(
+                            state = state,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            onRoutineCreate = { onRoutineCreate(state.aiCallRemaining) },
+                            onRoutineSelected = onRoutineSelected,
+                            onRecordRoutine = onRecordRoutine,
+                            showDropdown = showDropdown,
+                            onDropdownToggle = {
+                                showDropdown = !showDropdown
+                                if (showDropdown) showSettingsDropdown = false
+                            },
+                            onShowRoutineList = onShowRoutineList,
+                            onRoutineDropdownAnchorBottomChanged = { bottomPx ->
+                                routineDropdownAnchorBottomPx = bottomPx
+                            },
+                            onRoutineActionButtonBottomChanged = { bottomPx ->
+                                routineActionButtonBottomPx = bottomPx
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        StickerBottomSheet(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            state = state,
+                            onCreateRoutine = onCreateRoutine,
+                            onStickerClick = onMoveRecordedRoutine,
+                            onPageNext = onStickerPageNext,
+                            onPagePrevious = onStickerPagePrevious,
+                            onRecordRoutine = onRecordRoutine
+                        )
                     }
-                    .padding(horizontal = 20.dp),
-                state = state,
-                onSettingsClick = {
-                    showSettingsDropdown = !showSettingsDropdown
-                    if (showSettingsDropdown) showDropdown = false
-                },
-                onAddHobbyClick = onAddHobbyClick,
-                onCurrentHobbyClick = onCurrentHobbyClick,
-                onOtherHobbyClick = onOtherHobbyClick,
-                onSettingsIconBottomChanged = { bottomPx ->
-                    settingsIconBottomPx = bottomPx
+
+                    FloatingSettingsButton(
+                        onShowAiRecommendBottomSheet = { showAiBottomSheet = true },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 20.dp)
+                            .padding(top = 62.dp),
+                        state = state
+                    )
+
+                    FloatingBottomButton(
+                        isExpanded = showFloatingMenu,
+                        onClick = { showFloatingMenu = !showFloatingMenu },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 20.dp, bottom = 16.dp)
+                    )
                 }
-            )
-
-            Spacer(modifier = Modifier.height(68.dp))
-
-            MyHobbySection(
-                state = state,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                onRoutineCreate = { onRoutineCreate(state.aiCallRemaining) },
-                onRoutineSelected = onRoutineSelected,
-                onRecordRoutine = onRecordRoutine,
-                showDropdown = showDropdown,
-                onDropdownToggle = {
-                    showDropdown = !showDropdown
-                    if (showDropdown) showSettingsDropdown = false
-                },
-                onShowRoutineList = onShowRoutineList,
-                onRoutineDropdownAnchorBottomChanged = { bottomPx ->
-                    routineDropdownAnchorBottomPx = bottomPx
-                },
-                onRoutineActionButtonBottomChanged = { bottomPx ->
-                    routineActionButtonBottomPx = bottomPx
-                }
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            StickerBottomSheet(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                state = state,
-                onCreateRoutine = onCreateRoutine,
-                onStickerClick = onMoveRecordedRoutine,
-                onPageNext = onStickerPageNext,
-                onPagePrevious = onStickerPagePrevious,
-                onRecordRoutine = onRecordRoutine
-            )
+            }
         }
 
-        FloatingSettingsButton(
-            onShowAiRecommendBottomSheet = { showAiBottomSheet = true },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = 20.dp)
-                .padding(top = 62.dp),
-            state = state
-        )
-
-        FloatingBottomButton(
-            isExpanded = showFloatingMenu,
-            onClick = { showFloatingMenu = !showFloatingMenu },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 16.dp)
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
         )
 
         if (showDropdown && state.routineList.isNotEmpty()) {
@@ -418,13 +523,17 @@ fun HomeScreen(
         if (showAiBottomSheet) {
             AiRecommendationBottomSheet(
                 showBottomSheet = showAiBottomSheet,
-                userName = state.nickName ?: "사용자",
+                userName = state.nickName ?: "포비",
                 hobbyName = currentHobbyName,
                 onDismiss = { showAiBottomSheet = false },
-                onAiRecommendButtonClick = { viewModel.getAiRecommendedRoutines(currentHobbyId)    },  //TODO
+                onAiRecommendButtonClick = { viewModel.getAiRecommendedRoutines(currentHobbyId) },
                 aiRecommendData = state.aiRoutineList,
                 aiCallCount = state.aiCallCount,
-                onRecommendationsSelected = { }
+                onRecommendationsSelected = { routines ->
+                    val routinesList = routines.filter { it.title.isNotBlank() }
+                    .map { Pair(true, it.title) }
+                   viewModel.createRoutines(currentHobbyId, routinesList)
+                }
             )
         }
     }
@@ -437,7 +546,7 @@ fun HomeHeader(
     onSettingsClick: () -> Unit,
     onAddHobbyClick: () -> Unit,
     onCurrentHobbyClick: (Long) -> Unit,
-    onOtherHobbyClick: (Long) -> Unit,
+    onOtherHobbyClick: (Long?) -> Unit,
     onSettingsIconBottomChanged: (Float) -> Unit = {}
 ) {
     val currentHobby = state.inProgressHobbies.find { it.isCurrent }
@@ -519,37 +628,37 @@ fun HomeHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_notification),
-                    contentDescription = "알림",
-                    modifier = Modifier.size(24.dp),
-                    tint = Color(0xFF1E1E1E)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .align(Alignment.TopEnd)
-                        .background(Color(0xFFEE5D50), CircleShape)
-                )
-            }
+//            Box {
+//                Icon(
+//                    painter = painterResource(id = R.drawable.ic_notification),
+//                    contentDescription = "알림",
+//                    modifier = Modifier.size(24.dp),
+//                    tint = Color(0xFF1E1E1E)
+//                )
+//                Box(
+//                    modifier = Modifier
+//                        .size(4.dp)
+//                        .align(Alignment.TopEnd)
+//                        .background(Color(0xFFEE5D50), CircleShape)
+//                )
+//            }
 
-//            Icon(
-//                painter = painterResource(id = R.drawable.ic_settings),
-//                contentDescription = "설정",
-//                modifier = Modifier
-//                    .size(24.dp)
-//                    .onGloballyPositioned { coordinates ->
-//                        onSettingsIconBottomChanged(coordinates.boundsInRoot().bottom)
-//                    }
-//                    .clickable(
-//                        interactionSource = remember { MutableInteractionSource() },
-//                        indication = null
-//                    ) {
-//                        onSettingsClick()
-//                    },
-//                tint = Color(0xFF1E1E1E)
-//            )
+            Icon(
+                painter = painterResource(id = R.drawable.ic_settings),
+                contentDescription = "설정",
+                modifier = Modifier
+                    .size(24.dp)
+                    .onGloballyPositioned { coordinates ->
+                        onSettingsIconBottomChanged(coordinates.boundsInRoot().bottom)
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onSettingsClick()
+                    },
+                tint = Color(0xFF1E1E1E)
+            )
         }
     }
 }

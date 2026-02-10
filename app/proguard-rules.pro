@@ -34,3 +34,7 @@
 -if interface * { @retrofit2.http.* public *** *(...); }
 -keep,allowoptimization,allowshrinking,allowobfuscation class <3>
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
+
+# Keep Gson model field names (request/response) to avoid release-only API failures due to obfuscated JSON keys
+-keepclassmembers class com.forday.app.remote.model.request.** { <fields>; }
+-keepclassmembers class com.forday.app.remote.model.response.** { <fields>; }

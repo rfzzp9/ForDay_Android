@@ -10,7 +10,7 @@ data class HomeHobbyUiModel(
 )
 
 data class InProgressHobbyUiModel(
-    val hobbyId: Long,
+    val hobbyId: Long? = null,
     val name: String,
     val isCurrent: Boolean
 )

@@ -2,10 +2,11 @@ package com.forday.app.presentation.onboarding
 
 import androidx.navigation3.runtime.NavKey
 import com.forday.app.core.util.ImageCodeMapper.getDrawableResId
+import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
 import com.forday.app.domain.model.HobbyDomain
+import com.forday.app.domain.model.HobbyItemDomain
 import com.forday.app.domain.model.IsNicknameDuplicateDomain
-import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.onboarding.hobbyselect.Hobby
 import com.forday.app.presentation.onboarding.periodselect.JourneyMode
 
@@ -33,7 +34,7 @@ data class OnboardingUiState(
     val isNicknameChecked: Boolean = false, // 중복 확인 완료 여부
     val nicknameRegisterSuccess: Boolean = false,
     val isOnboardingDataSaved: Boolean = false, // 온보딩 데이터 서버에 저장됐는지 여부
-    val initialRoute: NavKey? = Home,
+    val initialRoute: NavKey? = null,
     val isSplashLoading: Boolean = true,
     val isLoginSuccess: Boolean = false// ✅ 로그인 성공 플래그
 )
@@ -42,6 +43,16 @@ fun HobbyCardDomain.toPresentation() =
     OnboardingUiState(hobbies = hobbies.map { it.toPresentation() }, appVersion = appVersion)
 
 fun HobbyDomain.toPresentation() = Hobby(
+    id = id,
+    name = name,
+    description = description,
+    imageResId = getDrawableResId(imageCode),
+)
+
+fun HobbyCardAgainDomain.toPresentation() =
+    OnboardingUiState(hobbies = hobbies.map { it.toPresentation() })
+
+fun HobbyItemDomain.toPresentation() = Hobby(
     id = id,
     name = name,
     description = description,

@@ -6,6 +6,7 @@ import com.forday.app.domain.model.AiRecommendedDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
+import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
 import com.forday.app.domain.model.HobbyMainImageDomain
 import com.forday.app.domain.model.HobbyRoutineListDomain
@@ -131,4 +132,6 @@ class HobbyRepositoryImpl @Inject constructor(
     ): HobbyMainImageDomain =
         hobbyDataSource.setHobbyMainImage(hobbyId, coverImageUrl, recordId).toDomain()
 
+    override suspend fun getHobbyCardDataAgain(): HobbyCardAgainDomain =
+        hobbyDataSource.getHobbyCardDataAgain().toDomain()
 }

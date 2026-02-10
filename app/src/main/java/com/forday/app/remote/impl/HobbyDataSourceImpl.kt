@@ -4,6 +4,7 @@ import com.forday.app.data.model.AiRecommendedEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
 import com.forday.app.data.model.DeleteRoutineEntity
+import com.forday.app.data.model.HobbyCardAgainEntity
 import com.forday.app.data.model.HobbyCardEntity
 import com.forday.app.data.model.HobbyMainImageEntity
 import com.forday.app.data.model.HobbyRoutineListEntity
@@ -150,5 +151,8 @@ class HobbyDataSourceImpl @Inject constructor(
         recordId: Long?
     ): HobbyMainImageEntity =
         hobbyApi.setHobbyMainImage(HobbyMainImageRequest(hobbyId, coverImageUrl, recordId)).toData()
+
+    override suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity =
+        hobbyApi.getHobbyCardDataAgain().toData()
 
 }

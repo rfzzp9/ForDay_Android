@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.presentation.modifyroutine.ModifyRoutineViewModel
 import com.forday.app.presentation.modifyroutine.RoutineUiModel
 import kotlinx.coroutines.delay
@@ -95,7 +95,6 @@ fun ModifyRoutineScreenRoot(
                 viewModel.deleteRoutine(routine.routineId)  // 여기서 삭제!
                 showDeleteDialog = false
                 selectedRoutineForDelete = null
-                showToast = true
             }
         },
         showEditDialog = showEditDialog,

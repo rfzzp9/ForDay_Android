@@ -5,6 +5,7 @@ import com.forday.app.domain.repository.AuthRepository
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.common.SnackbarManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val repository: AuthRepository,
+    private val snackbarManager: SnackbarManager,
 ) : BaseViewModel<SettingsSideEffect>() {
 
     private val _uiState: MutableStateFlow<SettingsUiState> = MutableStateFlow(SettingsUiState())
@@ -25,15 +27,11 @@ class SettingsViewModel @Inject constructor(
                 if (data.isSuccess) {
                     _uiState.value = SettingsUiState(isLoggedOut = true)
                 } else {
-                    _sideEffectChannel.send(SettingsSideEffect.DomainError(data.message))
+                    snackbarManager.show(data.message)
                 }
             }
             .onFailure { throwable ->
-                _sideEffectChannel.send(
-                    SettingsSideEffect.DomainError(
-                        throwable.toUserMessage(UserMessageCategory.AUTH)
-                    )
-                )
+                snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
     }
 
@@ -43,11 +41,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.value = SettingsUiState(isAccountCancelled = true)
             }
             .onFailure { throwable ->
-                _sideEffectChannel.send(
-                    SettingsSideEffect.DomainError(
-                        throwable.toUserMessage(UserMessageCategory.AUTH)
-                    )
-                )
+                snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
     }
 }

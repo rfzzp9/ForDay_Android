@@ -45,9 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
@@ -60,12 +59,17 @@ fun SelectHobbyScreenRoot(
     onNext: () -> Unit,
     onBack: () -> Unit,
     viewModel: OnboardingViewModel,
+    fromModifyHobbyOrHome: Boolean = false,
 ) {
     viewModel.logEvent("select_hobby_screen") // 취미카드 선택화면 진입
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchHobbyData()
+    LaunchedEffect(fromModifyHobbyOrHome) {
+        if (fromModifyHobbyOrHome) {
+            viewModel.getHobbyCardDataAgain()
+        } else {
+            viewModel.fetchHobbyData()
+        }
     }
 
     SelectHobbyScreen(

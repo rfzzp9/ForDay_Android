@@ -36,7 +36,8 @@ data class HomeState(
     val currentHobbyStatus: String = "",
     val hobbyList: List<MyHobbyUiModel> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val routineId: Int? = null,  // AI 취미활동 생성한 고유 번호
 ) {
     val totalStickerPages: Int
         get() = maxOf(1, (stickerCnt + 27) / 28)

@@ -1,6 +1,6 @@
 package com.forday.app.core.util
 
-import com.app.forday.R
+import com.dayn.forday.R
 
 object ImageCodeMapper {
 

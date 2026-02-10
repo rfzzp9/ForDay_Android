@@ -9,17 +9,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.forday.app.core.designsystem.component.navigationbar.BottomBar
+import com.forday.app.core.designsystem.component.navigationbar.BottomBarTab
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.navigation.*
 import com.forday.app.presentation.discovery.navigation.Discovery
@@ -47,6 +54,7 @@ import com.forday.app.presentation.onboarding.frequencyselect.SelectFrequencyScr
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
 import com.forday.app.presentation.onboarding.hobbyselect.SelectHobbyScreenRoot
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
+import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobbyFromModify
 import com.forday.app.presentation.onboarding.login.LoginScreenRoot
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.nicknameinput.InputNicknameScreenRoot
@@ -80,6 +88,8 @@ import com.forday.app.presentation.allsettings.privacypolicy.navigation.PrivacyP
 import com.forday.app.presentation.allsettings.privacypolicy.screen.PrivacyPolicyScreen
 import com.forday.app.presentation.allsettings.termsofservice.navigation.TermsOfService
 import com.forday.app.presentation.allsettings.termsofservice.screen.TermsOfServiceScreen
+import com.forday.app.presentation.common.AppSideEffect
+import com.forday.app.presentation.common.SnackbarHostViewModel
 import timber.log.Timber
 
 private fun Context.findActivity(): Activity? {
@@ -99,30 +109,32 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
         topLevelRoutes = TOP_LEVEL_DESTINATIONS.keys
     )
 
-    val navigator = remember {
-        Navigator(navigationState)
-    }
+    val navigator = remember(navigationState) { Navigator(navigationState) }
 
     val inputRoutinesAndAiRecommendViewModel: InputRoutinesAndAiRecommendViewModel = hiltViewModel()
     val myPageViewModel: MyPageViewModel = hiltViewModel()
     val mainEventViewModel: MainEventViewModel = hiltViewModel()
     val recordRoutineViewModel: RecordRoutineViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val snackbarHostViewModel: SnackbarHostViewModel = hiltViewModel()
 
-    var loginSnackbarMessage by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // 현재 route가 Bottom Bar를 보여줘야 하는지 확인
-    val currentRoute = navigationState
-        .backStacks[navigationState.topLevelRoute]
-        ?.lastOrNull()
-        ?: navigationState.topLevelRoute
-    val shouldShowBottomBar = currentRoute in TOP_LEVEL_DESTINATIONS.keys
+    LaunchedEffect(Unit) {
+        snackbarHostViewModel.sideEffects.collect { effect ->
+            when (effect) {
+                is AppSideEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         mainEventViewModel.authEvents.collect { event ->
             when (event) {
                 AuthEvent.Expired -> {
-                    loginSnackbarMessage = "로그인이 만료되었어요. 다시 로그인해주세요."
+                    snackbarHostViewModel.show("로그인이 만료되었어요. 다시 로그인해주세요.")
                     navigator.resetTo(Login)
                 }
             }
@@ -132,10 +144,14 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
     val entryProvider = entryProvider<NavKey> {
         entry<Login> {
             LoginScreenRoot(
-                onNavigateToHome = { navigator.navigate(Home) },
-                onNavigateToOnboarding = { navigator.navigate(SelectHobby) },
-                snackbarMessage = loginSnackbarMessage,
-                onSnackbarMessageConsumed = { loginSnackbarMessage = null },
+                onNavigateToHome = {
+                    Timber.e("MainFlow(Login) - navigate to Home requested")
+                    navigator.navigate(Home)
+                },
+                onNavigateToOnboarding = {
+                    Timber.e("MainFlow(Login) - navigate to SelectHobby requested")
+                    navigator.navigate(SelectHobby)
+                },
                 viewModel = onboardingViewModel
             )
         }
@@ -147,6 +163,15 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                 onNext = { navigator.navigate(SelectPerTime(mode = ScreenMode.ONBOARDING)) },
                 onBack = { navigator.goBack() },
                 viewModel = onboardingViewModel
+            )
+        }
+
+        entry<SelectHobbyFromModify> {
+            SelectHobbyScreenRoot(
+                onNext = { navigator.navigate(SelectPerTime(mode = ScreenMode.ONBOARDING)) },
+                onBack = { navigator.goBack() },
+                viewModel = onboardingViewModel,
+                fromModifyHobbyOrHome = true
             )
         }
 
@@ -232,45 +257,71 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
         // ==================== 메인 앱 (Bottom Bar 탭들) ====================
 
         entry<Home> {
-            HomeScreenRoot(
-                onRoutineCreate = { hobbyId, aiCallRemaining ->
-                    Timber.e("@@@@@@#######" + hobbyId)
-                    navigator.navigate(InputRoutine(hobbyId, aiCallRemaining))
-                },
-                onModifyRoutine = { hobbyId -> navigator.navigate(ModifyRoutine(hobbyId)) },
-                onRecordRoutine = { hobbyId ->
-                    Timber.e("@@@@@@#######routineId : " + hobbyId)
-                    navigator.navigate(RecordRoutine(hobbyId))
-                },
-                onModifyHobby = { navigator.navigate(ModifyHobby) },
-                onAllSettingsClick = {},
-                onMoveRecordedRoutine = { recordId ->
-                    navigator.navigate(RoutineDetail(recordId.toLong()))
-                },
-                onAddHobbyClick = { navigator.navigate(SelectHobby) },
-                onSelectHobby = { navigator.navigate(SelectHobby) }
-            )
+            MainTabScaffold(
+                navigationState = navigationState,
+                onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
+                onRecordClick = { navigator.navigate(RecordRoutine()) },
+            ) { padding ->
+                HomeScreenRoot(
+                    modifier = Modifier.padding(padding),
+                    onRoutineCreate = { hobbyId, aiCallRemaining ->
+                        Timber.e("@@@@@@#######" + hobbyId)
+                        navigator.navigate(InputRoutine(hobbyId, aiCallRemaining))
+                    },
+                    onModifyRoutine = { hobbyId -> navigator.navigate(ModifyRoutine(hobbyId)) },
+                    onRecordRoutine = { hobbyId ->
+                        Timber.e("@@@@@@#######routineId : " + hobbyId)
+                        navigator.navigate(RecordRoutine(hobbyId))
+                    },
+                    onModifyHobby = { navigator.navigate(ModifyHobby) },
+                    onAllSettingsClick = { navigator.navigate(Settings) },
+                    onMoveRecordedRoutine = { recordId ->
+                        navigator.navigate(RoutineDetail(recordId.toLong()))
+                    },
+                    onAddHobbyClick = { navigator.navigate(SelectHobbyFromModify) },
+                    onSelectHobby = { navigator.navigate(SelectHobbyFromModify) },
+                )
+            }
         }
 
         entry<Discovery> {
-//            DiscoveryScreenRoot()
+            MainTabScaffold(
+                navigationState = navigationState,
+                onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
+                onRecordClick = { navigator.navigate(RecordRoutine()) },
+            ) { _ ->
+                // DiscoveryScreenRoot()
+            }
         }
 
         entry<Story> {
-//            StoryScreenRoot()
+            MainTabScaffold(
+                navigationState = navigationState,
+                onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
+                onRecordClick = { navigator.navigate(RecordRoutine()) },
+            ) { _ ->
+                // StoryScreenRoot()
+            }
         }
 
         entry<MyPage> {
-            MyPageScreen(
-                viewModel = myPageViewModel,
-                onProfileSetting = { navigator.navigate(ProfileSetting) },  // 내 프로필 설정으로 이동
-                onHobbyPhotoManagement = { navigator.navigate(HobbyPhotoSetting) },  // 취미 대표사진 관리로 이동
-                onAllSettingsClick = { navigator.navigate(Settings) }, // 전체설정
-                onRoutineFeedClick = { routineId -> navigator.navigate(RoutineDetail(routineId.toLong())) },
-                onAddHobbyClick = { navigator.navigate(SelectHobby) },
-                onDismiss = {  },
-                onNavigateToRecordRoutine = { navigator.navigate(RecordRoutine()) },
-            )
+            MainTabScaffold(
+                navigationState = navigationState,
+                onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
+                onRecordClick = { navigator.navigate(RecordRoutine()) },
+            ) { padding ->
+                MyPageScreen(
+                    modifier = Modifier.padding(padding),
+                    viewModel = myPageViewModel,
+                    onProfileSetting = { navigator.navigate(ProfileSetting) },  // 내 프로필 설정으로 이동
+                    onHobbyPhotoManagement = { navigator.navigate(HobbyPhotoSetting) },  // 취미 대표사진 관리로 이동
+                    onAllSettingsClick = { navigator.navigate(Settings) }, // 전체설정
+                    onRoutineFeedClick = { routineId -> navigator.navigate(RoutineDetail(routineId.toLong())) },
+                    onAddHobbyClick = { navigator.navigate(SelectHobby) },
+                    onDismiss = { },
+                    onNavigateToRecordRoutine = { navigator.navigate(RecordRoutine()) },
+                )
+            }
         }
 
         // ==================== 기타 화면들 (Bottom Bar 없음) ====================
@@ -345,7 +396,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
 
         entry<ModifyHobby> {  // 내 취미정보를 수정하고 추가하기
             ModifyHobbyScreenRoot(
-                onAddHobby = { navigator.navigate(SelectHobby) },   // 취미 추가 (취미 생성)
+                onAddHobby = { navigator.navigate(SelectHobbyFromModify) },   // 취미 추가 (취미 생성)
                 onChangeDuration = { params -> navigator.navigate(SelectPerTime(params = params, mode = ScreenMode.DEFAULT)) },
                 onChangeFrequency = { params -> navigator.navigate(SelectPerWeek(params = params, mode = ScreenMode.DEFAULT)) },  // 취미횟수
                 onChangeJourneyDays = { params -> navigator.navigate(SelectPeriod(params = params, mode = ScreenMode.DEFAULT)) },  // 여정일
@@ -421,6 +472,16 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
         var lastBackPressedAt by remember { mutableLongStateOf(0L) }
         var exitToast by remember { mutableStateOf<Toast?>(null) }
 
+        LaunchedEffect(navigationState.changeId) {
+            val activeKeys = navigationState.stacksInUse
+            val lastRoutes = activeKeys.associateWith { key ->
+                navigationState.backStacks[key]?.lastOrNull()
+            }
+            Timber.e(
+                "NavState(changeId=${navigationState.changeId}) startRoute=${navigationState.startRoute} topLevelRoute=${navigationState.topLevelRoute} stacksInUse=$activeKeys lastRoutes=$lastRoutes"
+            )
+        }
+
         BackHandler(enabled = true) {
             val handled = navigator.handleBack()
             if (!handled && navigationState.topLevelRoute in TOP_LEVEL_DESTINATIONS.keys) {
@@ -460,21 +521,6 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            bottomBar = {
-                // ✅ Top-level route일 때만 BottomBar 표시
-                if (shouldShowBottomBar) {
-                    BottomBar(
-                        modifier = Modifier.navigationBarsPadding(),
-                        selectedTab = navigationState.topLevelRoute.toBottomBarTab(),
-                        onTabSelected = { tab ->
-                            navigator.navigate(tab.toNavKey())
-                        },
-                        onRecordClick = {
-                            navigator.navigate(RecordRoutine())
-                        }
-                    )
-                }
-            }
         ) { innerPadding ->
             Timber.e("@@@@@@@@@@@@@@@@@route: " + initialRoute)
             Box(
@@ -482,11 +528,41 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                NavDisplay(
-                    entries = navigationState.toEntries(entryProvider),
-                    onBack = { navigator.goBack() },
+                key(navigationState.changeId) {
+                    NavDisplay(
+                        entries = navigationState.toEntries(entryProvider),
+                        onBack = { navigator.goBack() },
+                    )
+                }
+
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 20.dp)
                 )
             }
         }
     }
+}
+
+@Composable
+private fun MainTabScaffold(
+    navigationState: MainNavigationState,
+    onTabSelected: (BottomBarTab) -> Unit,
+    onRecordClick: () -> Unit,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            BottomBar(
+                modifier = Modifier.navigationBarsPadding(),
+                selectedTab = navigationState.topLevelRoute.toBottomBarTab(),
+                onTabSelected = onTabSelected,
+                onRecordClick = onRecordClick,
+            )
+        },
+        content = content,
+    )
 }

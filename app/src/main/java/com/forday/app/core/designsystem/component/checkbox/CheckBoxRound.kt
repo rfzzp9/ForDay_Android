@@ -18,7 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.app.forday.R
+import com.dayn.forday.R
 
 /**
  * ForDay 체크박스 (라운드)

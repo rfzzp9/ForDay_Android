@@ -1,6 +1,6 @@
 package com.forday.app.presentation.mypage.main
 
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.domain.model.ScrapItemDomain
 import com.forday.app.domain.model.ScrapListDataDomain
 import kotlin.collections.map

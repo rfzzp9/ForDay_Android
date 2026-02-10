@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Forday_Android</string>
+    <string name="app_name">포데이</string>
     <string name="kakao_native_api_key">4a8c46b5ba89a1e9b3617f277c8f4e85</string>
     <string name="kakao_redirection_scheme">kakao4a8c46b5ba89a1e9b3617f277c8f4e85</string>
 </resources>

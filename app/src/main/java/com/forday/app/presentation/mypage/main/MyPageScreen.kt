@@ -44,11 +44,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.mypage.MyPageSideEffect
 import com.forday.app.presentation.mypage.MyPageViewModel
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.bottomsheet.HintBubble
-import com.forday.app.core.util.toUserMessage
 import kotlinx.coroutines.delay
 import timber.log.Timber
 
@@ -119,7 +117,6 @@ fun MyPageScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     var showSettingsMenu by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     state.userHobbyTabUiModel?.hobbyItems?.map { it.hobbyId }
@@ -170,51 +167,6 @@ fun MyPageScreen(
             lastRecordId = null,
             feedSize = 24
         )
-    }
-
-    LaunchedEffect(viewModel) {
-        viewModel.sideEffect.collect { effect ->
-            when (effect) {
-                is MyPageSideEffect.DomainError -> {
-                    snackbarHostState.showSnackbar(message = effect.error)
-                }
-                is MyPageSideEffect.Exception -> {
-                    snackbarHostState.showSnackbar(
-                        message = effect.error.toUserMessage()
-                    )
-                }
-            }
-        }
-    }
-
-    // ✅ 스크롤 감지 - 하단 도달 시 추가 로딩
-    LaunchedEffect(scrollState.value) {
-        // 스크롤이 하단 80%에 도달하면 추가 로딩
-        val threshold = scrollState.maxValue * 0.8f
-
-        if (scrollState.value >= threshold &&
-            !isLoadingMore &&
-            selectedTab == 0 &&  // 진행중 탭에서만
-            state.userFeedUiModel?.hasMore == true &&
-            state.userFeedUiModel?.feedList?.isNotEmpty() == true) {
-
-            isLoadingMore = true
-
-            // 마지막 recordId 가져오기
-            val lastRecordId = state.userFeedUiModel?.feedList?.lastOrNull()?.recordId
-
-            Timber.d("무한 스크롤 트리거 - lastRecordId: $lastRecordId")
-
-            viewModel.getUserFeedList(
-                hobbyIds = selectedHobbyIds.toList(),
-                lastRecordId = lastRecordId?.toLong(),
-                feedSize = 24
-            )
-
-            // 로딩 완료 후 플래그 해제
-            delay(1000)  // API 응답 대기
-            isLoadingMore = false
-        }
     }
 
     Box(
@@ -388,13 +340,6 @@ fun MyPageScreen(
                 }
             )
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp)
-        )
     }
 }
 
@@ -751,27 +696,27 @@ fun MyPageHeader(
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(
-                onClick = { /* 알림 */ },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.icon_notification),
-                    contentDescription = "알림",
-                    tint = MyPageColors.Neutral800
-                )
-            }
-
 //            IconButton(
-//                onClick = onSettingsClick,
+//                onClick = { /* 알림 */ },
 //                modifier = Modifier.size(24.dp)
 //            ) {
 //                Icon(
-//                    painter = painterResource(R.drawable.ic_settings),
-//                    contentDescription = "설정",
+//                    painter = painterResource(R.drawable.icon_notification),
+//                    contentDescription = "알림",
 //                    tint = MyPageColors.Neutral800
 //                )
 //            }
+
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = "설정",
+                    tint = MyPageColors.Neutral800
+                )
+            }
         }
     }
 }
@@ -1876,14 +1821,14 @@ fun SettingsMenuPopup(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             if (!isGuest) {
-                SettingsMenuItem(
-                    text = "내 프로필 설정",
-                    onClick = onProfileSettingClick
-                )
-                SettingsMenuItem(
-                    text = "취미 대표사진 관리",
-                    onClick = onHobbyPhotoManagementClick
-                )
+//                SettingsMenuItem(
+//                    text = "내 프로필 설정",
+//                    onClick = onProfileSettingClick
+//                )
+//                SettingsMenuItem(
+//                    text = "취미 대표사진 관리",
+//                    onClick = onHobbyPhotoManagementClick
+//                )
             }
 
             SettingsMenuItem(
@@ -1906,7 +1851,10 @@ fun SettingsMenuItem(
         color = MyPageColors.Neutral800,
         modifier = Modifier
             .padding(vertical = 8.dp)
-            .clickable { onClick() }
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
     )
 }
 

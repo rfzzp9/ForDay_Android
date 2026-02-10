@@ -1,6 +1,6 @@
 package com.forday.app.core.util
 
-import com.app.forday.R
+import com.dayn.forday.R
 
 /**
  * 스티커 파일명을 Drawable Resource ID로 변환

@@ -1,5 +1,6 @@
 package com.forday.app.core.designsystem.component.navigationbar
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -22,7 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.app.forday.R
+import com.dayn.forday.R
 
 enum class BottomBarTab {
     HOME,
@@ -38,6 +40,7 @@ fun BottomBar(
     onRecordClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     // 색상 정의
     val neutralWhite = Color(0xFFFFFFFF)
     val neutral900 = Color(0xFF1E1E1E)
@@ -84,16 +87,18 @@ fun BottomBar(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onRecordClick
+                    onClick = {
+                        Toast.makeText(context, "준비 중입니다.", Toast.LENGTH_SHORT).show()
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.icon_pencil),
-                    contentDescription = "기록하기",
-                    modifier = Modifier.fillMaxSize(),
-                    tint = Color.Unspecified
-                )
+            Icon(
+                painter = painterResource(id = R.drawable.icon_pencil),
+                contentDescription = "기록하기",
+                modifier = Modifier.fillMaxSize(),
+                tint = Color.Unspecified
+            )
 
         }
 

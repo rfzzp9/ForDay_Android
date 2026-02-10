@@ -23,6 +23,7 @@ import com.forday.app.domain.usecase.SetProfileImageUseCase
 import com.forday.app.domain.usecase.SwitchAccountUseCase
 import com.forday.app.domain.usecase.UploadImageToS3UseCase
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.mypage.main.FeedContainerUiModel
 import com.forday.app.presentation.mypage.main.UserInfoUiModel
 import com.forday.app.core.util.UserMessageCategory
@@ -66,7 +67,8 @@ class MyPageViewModel @Inject constructor(
     private val getUserScrapListUseCase: GetUserScrapListUseCase,  // 스크랩 목록 조회
     private val scrapPostingUseCase: ScrapPostingUseCase,  // 스크랩
     private val cancelScrapPostingUseCase: CancelScrapPostingUseCase,  // 스크랩 취소
-    private val getUserData: UserLocalDataSource   // 나중에 수정 예정 usecase로
+    private val getUserData: UserLocalDataSource,   // 나중에 수정 예정 usecase로
+    private val snackbarManager: SnackbarManager,
 ): BaseViewModel<MyPageSideEffect>() {
 
     private val _uiState: MutableStateFlow<MyPageUiState> = MutableStateFlow(MyPageUiState(
@@ -86,7 +88,7 @@ class MyPageViewModel @Inject constructor(
             emit(getMyRoutineRecordDetailUseCase(routineId.toInt()))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update { state ->
                 state.copy(
@@ -101,9 +103,9 @@ class MyPageViewModel @Inject constructor(
             emit(reactionToRoutinePostingUseCase(recordId.toInt(), reactionType))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
-            if (data.status != 200) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+            if (data.status != 200) snackbarManager.show(data.message)
         }
     }
 
@@ -112,9 +114,9 @@ class MyPageViewModel @Inject constructor(
             emit(cancelMyReactionUseCase(recordId, reactionType))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
-            if (data.status != 200) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+            if (data.status != 200) snackbarManager.show(data.message)
         }
     }
 
@@ -123,9 +125,9 @@ class MyPageViewModel @Inject constructor(
             emit(modifyPostingVisibilityUseCase(recordId, visibility))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
-            if (data.status != 200) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+            if (data.status != 200) snackbarManager.show(data.message)
         }
     }
 
@@ -138,7 +140,7 @@ class MyPageViewModel @Inject constructor(
             // 네트워크 에러나 예상치 못한 예외 처리
             Timber.e("@#@@@@@@@@@@@@111 deletePosting Delete Posting Error $throwable")
             Timber.e("Delete Posting Error: $throwable")
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { domainData ->
             // 2. 결과 처리
             if (domainData.isSuccess) {
@@ -155,7 +157,7 @@ class MyPageViewModel @Inject constructor(
                 // updateListAfterDeletion(recordId)
             } else {
                 // 실패 시 (404 등): 서버에서 온 에러 메시지를 전달
-                _sideEffectChannel.send(MyPageSideEffect.DomainError(domainData.message))
+                snackbarManager.show(domainData.message)
             }
         }
     }
@@ -165,9 +167,9 @@ class MyPageViewModel @Inject constructor(
             emit(getReactionUsersUseCase(recordId, reactionType, lastUserId, size))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
-            if (data.status != 200) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+            if (data.status != 200) snackbarManager.show(data.message)
             _uiState.update { state ->
                 state.copy(
                     reactionUsers = data.toUiModel()
@@ -182,7 +184,7 @@ class MyPageViewModel @Inject constructor(
             emit(getUserInfoUseCase())
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update { state ->
                 state.copy(
@@ -213,7 +215,7 @@ class MyPageViewModel @Inject constructor(
             emit(setProfileImageUseCase(imageUrl))
         }.catch { throwable ->
             Timber.e(throwable, "Failed to set profile image")
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             if (data.status == 200) {
                 // 핵심: 서버 업데이트 성공 시 로컬 상태도 동기화
@@ -227,7 +229,7 @@ class MyPageViewModel @Inject constructor(
 
                 Timber.d("Profile image updated successfully: $imageUrl")
             } else {
-                _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+                snackbarManager.show(data.message)
             }
         }
     }
@@ -238,7 +240,7 @@ class MyPageViewModel @Inject constructor(
             emit(getUsersProgressHobbyTabsUseCase())
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@@@@@@@@@@@@111 "+data)
             _uiState.update { state ->
@@ -258,7 +260,7 @@ class MyPageViewModel @Inject constructor(
             emit(getUserFeedListUseCase(hobbyIds, lastRecordId, feedSize))
         }.catch { throwable ->
             Timber.e("getUserFeedList Error: $throwable")
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.d("getUserFeedList Success: ${data.toPresentation().feedList.size}개 조회")
 
@@ -297,7 +299,7 @@ class MyPageViewModel @Inject constructor(
             emit(getPresignedUrlUseCase(images).data)
         }.catch { throwable ->
             Timber.e(throwable, "@#@############ Failed to get presigned URL   "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@############ Success to get presigned URL"+data)
             _uiState.update { state ->
@@ -321,10 +323,10 @@ class MyPageViewModel @Inject constructor(
             emit(deleteS3ImageUseCase(imageUrl))
         }.catch { throwable ->
             Timber.e(throwable, "@#@############ deleteS3Image  throwable : "+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@############ deleteS3Image  data : "+data)
-            if (data.status == 404) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.data.message))
+            if (data.status == 404) snackbarManager.show(data.data.message)
         }
     }
 
@@ -355,12 +357,12 @@ class MyPageViewModel @Inject constructor(
             }.onFailure { throwable ->
                 Timber.e(throwable, "Image upload failed: ${file.name}, order: $order")
                 updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-                _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+                snackbarManager.show(throwable.toUserMessage())
             }
         } catch (e: Exception) {
             Timber.e(e, "Unexpected error during upload")
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(e))
+            snackbarManager.show(e.toUserMessage())
         }
     }
 
@@ -383,7 +385,7 @@ class MyPageViewModel @Inject constructor(
     fun getNickname() = viewModelScope.launch {
         getNicknameUseCase()  // 이미 Flow를 반환하므로 그대로 사용
             .catch { throwable ->
-                _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+                snackbarManager.show(throwable.toUserMessage())
             }
             .collect { nickname ->  // nickname은 String? 타입
                 _uiState.update { state ->
@@ -402,7 +404,7 @@ class MyPageViewModel @Inject constructor(
             emit(getUserScrapListUseCase(lastScrapId, size, userId))
         }.catch { throwable ->
             Timber.e("@#@#@#@#@#@getUserScrapList"+throwable)
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@#@#@#@#@getUserScrapList"+data)
             _uiState.update {
@@ -417,14 +419,14 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(scrapPostingUseCase(routineId))
         }.catch { throwable ->
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable   ))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update {
                 it.copy(
                     isScraped = data.data.scraped
                 )
             }
-            if (data.data.scraped == false) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.data.message))
+            if (data.data.scraped == false) snackbarManager.show(data.data.message)
         }
     }
 
@@ -432,14 +434,14 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(cancelScrapPostingUseCase(routineId))
         }.catch { throwable ->
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update {
                 it.copy(
                     isScraped = data.isScraped
                 )
             }
-            if (data.isScraped == true) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
+            if (data.isScraped == true) snackbarManager.show(data.message)
         }
     }
 
@@ -448,7 +450,7 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(setHobbyMainImageUseCase(hobbyId, imageUrl, recordId))
         }.catch { throwable ->
-            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update { state ->
                 state.copy(
@@ -507,7 +509,10 @@ class MyPageViewModel @Inject constructor(
     }
 
     fun sendSideEffect(sideEffect: MyPageSideEffect) = viewModelScope.launch {
-        _sideEffectChannel.send(sideEffect)
+        when (sideEffect) {
+            is MyPageSideEffect.DomainError -> snackbarManager.show(sideEffect.error)
+            is MyPageSideEffect.Exception -> snackbarManager.show(sideEffect.error.toUserMessage())
+        }
     }
 
     private fun loginIntoApp(socialType: String, kakaoAccessToken: String) = viewModelScope.launch {

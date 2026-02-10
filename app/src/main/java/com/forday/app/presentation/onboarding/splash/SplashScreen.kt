@@ -17,7 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import kotlinx.coroutines.delay
@@ -76,7 +76,7 @@ fun SplashScreen() {
         Image(
             painter = painterResource(id = R.drawable.logo_forday),
             contentDescription = "포데이 로고",
-            modifier = Modifier.padding(bottom = 79.8.dp),
+//            modifier = Modifier.padding(bottom = 79.8.dp),
             contentScale = ContentScale.Fit
         )
     }

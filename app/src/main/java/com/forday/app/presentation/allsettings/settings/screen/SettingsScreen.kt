@@ -18,8 +18,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,11 +38,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.core.util.UserMessageCategory
-import com.forday.app.core.util.toUserMessage
-import com.forday.app.presentation.allsettings.SettingsSideEffect
 import com.forday.app.presentation.allsettings.SettingsViewModel
 
 @Composable
@@ -57,24 +52,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(viewModel) {
-        viewModel.sideEffect.collect { effect ->
-            when (effect) {
-                is SettingsSideEffect.DomainError -> {
-                    snackbarHostState.showSnackbar(message = effect.error)
-                }
-                is SettingsSideEffect.Exception -> {
-                    snackbarHostState.showSnackbar(
-                        message = effect.error.toUserMessage(UserMessageCategory.AUTH)
-                    )
-                }
-            }
-        }
-    }
 
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) {
@@ -143,13 +122,6 @@ fun SettingsScreen(
                 )
             }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp)
-        )
     }
 
     // 로그아웃 다이얼로그

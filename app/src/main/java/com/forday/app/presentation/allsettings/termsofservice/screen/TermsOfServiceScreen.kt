@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,13 +21,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 
 @Composable
@@ -296,14 +301,64 @@ fun TermsOfServiceScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // 문의처
-                TermsSection(
-                    title = "문의처",
-                    content = """서비스명: 포데이 (FORDAY)
-운영: 데이앤 (DayN)
-이메일: team.forday@gmail.com
-대표자: 유지원
-대표번호: 010-2127-7492"""
-                )
+                Column {
+                    Text(
+                        text = "문의처",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF3A3A3A)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val uriHandler = LocalUriHandler.current
+                    val linkUrl = "https://www.notion.so/2fdb17d4cc2d80268d3fd1d8394d9d2f?source=copy_link"
+
+                    val annotatedString = buildAnnotatedString {
+                        append("서비스명: 포데이 (FORDAY)\n")
+                        append("운영: 데이앤 (DayN)\n")
+                        append("이메일: team.forday@gmail.com\n")
+                        append("대표자: 유지원\n")
+                        append("대표번호: 010-2127-7492\n")
+                        append("제 1차 이용약관: ")
+
+                        // 링크 부분을 파란색으로, 밑줄 추가
+                        pushStringAnnotation(
+                            tag = "URL",
+                            annotation = linkUrl
+                        )
+                        withStyle(
+                            style = SpanStyle(
+                                color = Color(0xFF007AFF), // 파란색
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                            )
+                        ) {
+                            append(linkUrl)
+                        }
+                        pop()
+                    }
+
+                    ClickableText(
+                        text = annotatedString,
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF4A4A4A),
+                            lineHeight = 20.sp
+                        ),
+                        onClick = { offset ->
+                            annotatedString.getStringAnnotations(
+                                tag = "URL",
+                                start = offset,
+                                end = offset
+                            ).firstOrNull()?.let { annotation ->
+                                uriHandler.openUri(annotation.item)
+                            }
+                        }
+                    )
+                }
             }
         }
     }

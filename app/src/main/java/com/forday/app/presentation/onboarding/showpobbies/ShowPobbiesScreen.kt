@@ -43,7 +43,7 @@ fun ShowPobbiesScreen(
                 Color(0x054F49EE)  // rgba(79, 73, 238, 0.02)
             ),
             borderColor = Color(0x334F49EE), // rgba(79, 73, 238, 0.2)
-            imageRes = com.app.forday.R.drawable.icon
+            imageRes = com.dayn.forday.R.drawable.icon
         ),
         PobyCharacter(
             gradientColors = listOf(
@@ -52,7 +52,7 @@ fun ShowPobbiesScreen(
                 Color(0x05EE9449)  // rgba(238, 148, 73, 0.02)
             ),
             borderColor = Color(0x33EE9449), // rgba(238, 148, 73, 0.2)
-            imageRes = com.app.forday.R.drawable.icon_one
+            imageRes = com.dayn.forday.R.drawable.icon_one
         ),
         PobyCharacter(
             gradientColors = listOf(
@@ -61,7 +61,7 @@ fun ShowPobbiesScreen(
                 Color(0x05EED549)  // rgba(238, 213, 73, 0.02)
             ),
             borderColor = Color(0x33EEE049), // rgba(238, 224, 73, 0.2)
-            imageRes = com.app.forday.R.drawable.icon_two
+            imageRes = com.dayn.forday.R.drawable.icon_two
         ),
         PobyCharacter(
             gradientColors = listOf(
@@ -70,7 +70,7 @@ fun ShowPobbiesScreen(
                 Color(0x0549EE85)  // rgba(73, 238, 133, 0.02)
             ),
             borderColor = Color(0x3349EE85), // rgba(73, 238, 133, 0.2)
-            imageRes = com.app.forday.R.drawable.icon_three
+            imageRes = com.dayn.forday.R.drawable.icon_three
         )
     )
 

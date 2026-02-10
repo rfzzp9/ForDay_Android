@@ -4,6 +4,7 @@ import com.forday.app.data.model.AiRecommendedEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
 import com.forday.app.data.model.DeleteRoutineEntity
+import com.forday.app.data.model.HobbyCardAgainEntity
 import com.forday.app.data.model.HobbyCardEntity
 import com.forday.app.data.model.HobbyMainImageEntity
 import com.forday.app.data.model.HobbyRoutineListEntity
@@ -60,4 +61,5 @@ interface HobbyDataSource {
     suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodEntity
     suspend fun getUsersProgressHobbyTabs(): UserHobbyTabEntity
     suspend fun setHobbyMainImage(hobbyId: Long?, coverImageUrl: String?, recordId: Long?): HobbyMainImageEntity
+    suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity
 }

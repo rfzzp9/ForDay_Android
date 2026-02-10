@@ -24,10 +24,8 @@ data class KakaoLoginResponse(
             data = data.toData()
         )
     }
-
 }
 
-// 핵심 로그인 데이터 객체 (AuthData -> LoginData)
 data class LoginData(
     @SerializedName("accessToken")
     val accessToken: String,
@@ -47,7 +45,11 @@ data class LoginData(
     @SerializedName("nicknameSet")
     val nicknameSet: Boolean,
 
-    // 케이스별 선택적 필드 (Nullable)
+    // 추가된 필드: 모든 응답 케이스에 포함되어 있으므로 String으로 정의
+    @SerializedName("nickname")
+    val nickname: String? = null,
+
+    // 선택적 필드 (Nullable 유지)
     @SerializedName("guestUserId")
     val guestUserId: String? = null,
 
@@ -62,14 +64,13 @@ data class LoginData(
             socialType = socialType,
             isOnboardingCompleted = onboardingCompleted,
             isNicknameSet = nicknameSet,
+            nickname = nickname, // Entity에도 추가가 필요합니다.
             guestUserId = guestUserId,
             onboardingData = onboardingData?.toData()
         )
     }
-
 }
 
-// 온보딩 상세 데이터 (기존과 동일)
 data class KakaoOnboardingData(
     @SerializedName("id")
     val id: Int,
@@ -103,5 +104,4 @@ data class KakaoOnboardingData(
             durationSet = durationSet
         )
     }
-
 }

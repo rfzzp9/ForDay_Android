@@ -17,6 +17,7 @@ data class KakaoLoginDataDomain(
     val socialType: String,
     val isOnboardingCompleted: Boolean,
     val isNicknameSet: Boolean,
+    val nickname: String?,
     val guestUserId: String?,
     // UI에서 온보딩 정보를 상세히 보여줘야 하므로 객체 타입을 권장합니다.
     // 만약 단순히 문자열만 필요하다면 String?도 괜찮습니다.

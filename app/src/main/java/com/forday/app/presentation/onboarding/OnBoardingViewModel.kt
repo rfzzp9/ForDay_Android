@@ -55,6 +55,8 @@ import kotlin.coroutines.suspendCoroutine
 
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
+import com.forday.app.domain.usecase.GetHobbyCardDataAgainUseCase
+import com.forday.app.presentation.common.SnackbarManager
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -64,6 +66,7 @@ class OnboardingViewModel @Inject constructor(
     private val guestLoginUseCase: GuestLoginUseCase,
     private val getAccessTokenUseCase: GetAccessTokenUseCase,
     private val getIsOnboardingCompletedUseCase: GetIsOnboardingCompletedUseCase,
+    private val getHobbyCardDataAgainUseCase: GetHobbyCardDataAgainUseCase,
     private val getIsNicknameSetUseCase: GetIsNicknameSetUseCase,
     private val getOnboardingDataUseCase: GetOnboardingDataUseCase,
     private val getIsNicknameDuplicateUseCase: GetIsNicknameDuplicateUseCase,
@@ -75,23 +78,27 @@ class OnboardingViewModel @Inject constructor(
     private val saveIsNicknameSetUseCase: SaveIsNicknameSetUseCase,
     private val modifyHobbyTimeUseCase: ModifyHobbyTimeUseCase, // 취미 정보 수정 - 취미 시간
     private val modifyHobbyExecutionCountUseCase: ModifyHobbyExecutionCountUseCase, // 취미 정보 수정 - 취미 주당 횟수
-    private val modifyHobbyDurationUseCase: ModifyHobbyDurationUseCase
-) : BaseViewModel<OnboardingSideEffect>() {
+    private val modifyHobbyDurationUseCase: ModifyHobbyDurationUseCase,
+    private val snackbarManager: SnackbarManager,
+) : BaseViewModel<Unit>() {
 
-    private val _uiState: MutableStateFlow<OnboardingUiState> = MutableStateFlow(OnboardingUiState())
+    private val _uiState: MutableStateFlow<OnboardingUiState> =
+        MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.toStateIn()
 
     private val _shouldAutoAdvanceFromTime = MutableStateFlow(true)
     val shouldAutoAdvanceFromTime: StateFlow<Boolean> = _shouldAutoAdvanceFromTime.asStateFlow()
 
     private val _shouldAutoAdvanceFromPurpose = MutableStateFlow(true)
-    val shouldAutoAdvanceFromPurpose: StateFlow<Boolean> = _shouldAutoAdvanceFromPurpose.asStateFlow()
+    val shouldAutoAdvanceFromPurpose: StateFlow<Boolean> =
+        _shouldAutoAdvanceFromPurpose.asStateFlow()
 
     private val _shouldAutoAdvanceFromFrequency = MutableStateFlow(true)
-    val shouldAutoAdvanceFromFrequency: StateFlow<Boolean> = _shouldAutoAdvanceFromFrequency.asStateFlow()
+    val shouldAutoAdvanceFromFrequency: StateFlow<Boolean> =
+        _shouldAutoAdvanceFromFrequency.asStateFlow()
 
     init {
-        Timber.e("@@@@@@@@@@@@@ 호출1 "+uiState.value.isOnboardingCompleted+", "+uiState.value.isNicknameSet+", "+uiState.value.accessToken)
+        Timber.e("@@@@@@@@@@@@@ 호출1 " + uiState.value.isOnboardingCompleted + ", " + uiState.value.isNicknameSet + ", " + uiState.value.accessToken)
         viewModelScope.launch {
             getUserData()
             determineInitialRoute()
@@ -100,7 +107,7 @@ class OnboardingViewModel @Inject constructor(
 
     fun onAction(action: OnboardingAction) = viewModelScope.launch {  //아직 사용중이지 않음
         when (action) {
-            is OnboardingAction.OnClose -> _sideEffectChannel.send(OnboardingSideEffect.OnClose)
+            is OnboardingAction.OnClose -> Unit
         }
     }
 
@@ -108,10 +115,10 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(getHobbyDataUseCase().toPresentation())
         }.catch { throwable ->
-            Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+            Timber.e("@#@@@@@@@@@@@@111 " + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
-            Timber.e("@#@@@@@@@@@@@@222 "+data.hobbies.size)
+            Timber.e("@#@@@@@@@@@@@@222 " + data.hobbies.size)
             _uiState.update {
                 it.copy(
                     hobbies = data.hobbies,
@@ -268,11 +275,17 @@ class OnboardingViewModel @Inject constructor(
             getAccessTokenUseCase(),
             getIsOnboardingCompletedUseCase(),
             getIsNicknameSetUseCase(),
-        ) { accessToken, isOnboardingCompleted, isNicknameSet -> Triple(accessToken, isOnboardingCompleted, isNicknameSet) }
+        ) { accessToken, isOnboardingCompleted, isNicknameSet ->
+            Triple(
+                accessToken,
+                isOnboardingCompleted,
+                isNicknameSet
+            )
+        }
             .catch { throwable ->
-                _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+                snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }.collect { (accessToken, isOnboardingCompleted, isNicknameSet) ->
-                Timber.e("@@@@@@@@isNicknameSet@@@"+isNicknameSet+", "+isOnboardingCompleted)
+                Timber.e("@@@@@@@@isNicknameSet@@@" + isNicknameSet + ", " + isOnboardingCompleted)
                 _uiState.update {
                     it.copy(
                         accessToken = accessToken,
@@ -286,7 +299,7 @@ class OnboardingViewModel @Inject constructor(
     fun getOnboardingData() = viewModelScope.launch {
         getOnboardingDataUseCase()
             .catch { throwable ->
-                _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+                snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
             .collect { onboardingData ->
                 _uiState.update {
@@ -306,15 +319,29 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(getIsNicknameDuplicateUseCase(nickName))
         }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@@@@@@@@@@@@@@@@ "+throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+            Timber.e("@@@@@@@@@@@@@@@@@@@@@@@@@@@ " + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { result ->
-            Timber.e("@@@@@@@@@@@@@@@@@@@@@@@@@@@ "+result.data.nickname+", "+result.data.available+", "+result.data.message)
+            Timber.e("@@@@@@@@@@@@@@@@@@@@@@@@@@@ " + result.data.nickname + ", " + result.data.available + ", " + result.data.message)
             _uiState.update {
                 it.copy(
                     selectedHobbyName = result.data.nickname,
                     nicknameCheckMessage = result.data.message,
                     isNicknameChecked = result.data.available
+                )
+            }
+        }
+    }
+
+    fun getHobbyCardDataAgain() = viewModelScope.launch {
+        flow {
+            emit(getHobbyCardDataAgainUseCase().toPresentation())
+        }.catch { throwable ->
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }.collect { data ->
+            _uiState.update {
+                it.copy(
+                    hobbies = data.hobbies
                 )
             }
         }
@@ -333,7 +360,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(registerNicknameUseCase(nickName))
         }.catch { throwable ->
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
             _uiState.update {
                 it.copy(
@@ -363,7 +390,7 @@ class OnboardingViewModel @Inject constructor(
                 selectedPeriod == JourneyMode.FORDAY_66
             )
         }.onFailure { throwable ->
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }
     }
 
@@ -375,7 +402,7 @@ class OnboardingViewModel @Inject constructor(
         selectedFrequency: Int?,
         selectedPeriod: JourneyMode?
     ) = viewModelScope.launch {
-        Timber.e("@@@@@@@@@@@@@ 호출 "+selectedHobbyId+", "+selectedHobbyName+", "+selectedMinutes+", "+selectedPurpose+", "+selectedFrequency+", "+(selectedPeriod == JourneyMode.FORDAY_66))
+        Timber.e("@@@@@@@@@@@@@ 호출 " + selectedHobbyId + ", " + selectedHobbyName + ", " + selectedMinutes + ", " + selectedPurpose + ", " + selectedFrequency + ", " + (selectedPeriod == JourneyMode.FORDAY_66))
         flow {
             emit(
                 createHobbyUseCase(
@@ -388,10 +415,10 @@ class OnboardingViewModel @Inject constructor(
                 )
             )
         }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@@ "+throwable.stackTrace+", "+throwable.cause+", "+throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
+            Timber.e("@@@@@@@@@@@@@ " + throwable.stackTrace + ", " + throwable.cause + ", " + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { result ->
-            Timber.e("@@@@@@@@@@@@@ "+result.data.message)
+            Timber.e("@@@@@@@@@@@@@ " + result.data.message)
             _uiState.update {
                 it.copy(
                     isOnboardingDataSaved = result.isSuccess,
@@ -406,7 +433,7 @@ class OnboardingViewModel @Inject constructor(
         try {
             guestLoginUseCase()
                 .onSuccess { isNewUser ->
-                    Timber.d("isNewUser "+isNewUser)
+                    Timber.d("isNewUser " + isNewUser)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -416,7 +443,7 @@ class OnboardingViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    Timber.d("error "+error.message)
+                    Timber.d("error " + error.message)
                     val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
                     _uiState.update {
                         it.copy(
@@ -425,7 +452,7 @@ class OnboardingViewModel @Inject constructor(
                             error = errorMessage
                         )
                     }
-                    sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
+                    snackbarManager.show(errorMessage)
                 }
         } catch (e: Exception) {
             val errorMessage = e.toUserMessage(UserMessageCategory.AUTH)
@@ -436,73 +463,183 @@ class OnboardingViewModel @Inject constructor(
                     error = errorMessage
                 )
             }
-            sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
+            snackbarManager.show(errorMessage)
         }
     }
 
 
     fun loginWithKakao(context: Context) {
+        Log.e("OnboardingViewModel", "========== loginWithKakao 시작 ==========")
         val kakao = UserApiClient.instance
+        Log.e(
+            "OnboardingViewModel",
+            "isKakaoTalkLoginAvailable: ${kakao.isKakaoTalkLoginAvailable(context)}"
+        )
 
         val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
+            Log.e("OnboardingViewModel", "========== Kakao Account 콜백 ==========")
             if (error != null || token == null) {
+                Log.e("OnboardingViewModel", "카카오 계정 로그인 실패")
+                Log.e("OnboardingViewModel", "Error type: ${error?.javaClass?.simpleName}")
+                Log.e("OnboardingViewModel", "Error message: ${error?.message}")
+                if (error != null) {
+                    Log.e("OnboardingViewModel", "Error stacktrace:", error)
+                }
+
                 val errorMessage = error?.toUserMessage(UserMessageCategory.AUTH)
                     ?: "로그인에 실패했어요. 잠시 후 다시 시도해주세요."
-                sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
+                Log.e("OnboardingViewModel", "User error message: $errorMessage")
+                snackbarManager.show(errorMessage)
             } else {
+                Log.e("OnboardingViewModel", "카카오 계정 로그인 성공")
+                Log.e("OnboardingViewModel", "accessToken: ${token.accessToken}")
                 loginIntoApp(token.accessToken)
-                Timber.d("token.accessToken ${token.accessToken}")
             }
         }
 
         if (kakao.isKakaoTalkLoginAvailable(context)) {
+            Log.e("OnboardingViewModel", "========== 카카오톡으로 로그인 시도 ==========")
             kakao.loginWithKakaoTalk(context) { token, error ->
+                Log.e("OnboardingViewModel", "========== KakaoTalk 콜백 ==========")
                 if (error != null || token == null) {
+                    Log.e("OnboardingViewModel", "카카오톡 로그인 실패")
+                    Log.e("OnboardingViewModel", "Error type: ${error?.javaClass?.simpleName}")
+                    Log.e("OnboardingViewModel", "Error message: ${error?.message}")
+
                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
-                        sendSideEffect(OnboardingSideEffect.DomainError(error.toUserMessage(UserMessageCategory.AUTH)))
+                        Log.e("OnboardingViewModel", "사용자가 카카오톡 로그인 취소")
+                        snackbarManager.show(error.toUserMessage(UserMessageCategory.AUTH))
                         return@loginWithKakaoTalk
+                    }
+
+                    Log.e("OnboardingViewModel", "========== 카카오 계정으로 로그인 재시도 ==========")
+                    if (error != null) {
+                        Log.e("OnboardingViewModel", "Error stacktrace:", error)
                     }
                     UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
                 } else {
+                    Log.e("OnboardingViewModel", "카카오톡 로그인 성공")
+                    Log.e("OnboardingViewModel", "accessToken: ${token.accessToken}")
                     loginIntoApp(token.accessToken)
-                    Timber.d("token.accessToken ${token.accessToken}")
                 }
             }
         } else {
+            Log.e("OnboardingViewModel", "========== 카카오 계정으로 로그인 시도 ==========")
             kakao.loginWithKakaoAccount(context, callback = callback)
         }
     }
 
-    fun sendSideEffect(sideEffect: OnboardingSideEffect) = viewModelScope.launch {
-        _sideEffectChannel.send(sideEffect)
+    fun logEvent(logEvent: String) {
+        analyticsManager.logEvent(logEvent)
+    }
+
+    fun modifyHobbyTime(hobbyId: Long?, minutes: Int) = viewModelScope.launch {
+        flow {
+            emit(modifyHobbyTimeUseCase(hobbyId, minutes))
+        }.catch { throwable ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyTime@@@@@@@" + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }.collect { data ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyTime@@@@@@@" + data)
+            if (data.status != 200) {
+                snackbarManager.show(data.data.message)
+            }
+        }
+    }
+
+    fun modifyHobbyExecutionCount(hobbyId: Long?, executionCount: Int) = viewModelScope.launch {
+        flow {
+            emit(modifyHobbyExecutionCountUseCase(hobbyId, executionCount))
+        }.catch { throwable ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@" + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }.collect { data ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@" + data)
+            if (data.status != 200) {
+                snackbarManager.show(data.data.message)
+            }
+        }
+    }
+
+    fun modifyHobbyGoalDays(hobbyId: Long?, goalDays: Boolean) = viewModelScope.launch {
+        flow {
+            emit(modifyHobbyDurationUseCase(hobbyId, goalDays))
+        }.catch { throwable ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyGoalDays@@@@@@@" + throwable)
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }.collect { data ->
+            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@" + data)
+            if (data.status != 200) {
+                snackbarManager.show(data.data.message)
+            }
+        }
+    }
+
+    fun saveIsNicknameSet(isNicknameSet: Boolean) = viewModelScope.launch {
+        runCatching {
+            saveIsNicknameSetUseCase(isNicknameSet)
+        }.onFailure { throwable ->
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }
+    }
+
+    fun saveIsOnboardingCompleted(isOnboardingCompleted: Boolean) = viewModelScope.launch {
+        runCatching {
+            saveIsOnboardingCompletedUseCase(isOnboardingCompleted)
+        }.onFailure { throwable ->
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }
     }
 
     private fun loginIntoApp(kakaoAccessToken: String) = viewModelScope.launch {
         try {
+            Log.e("OnboardingViewModel", "========== 카카오 로그인 시작 ==========")
+            Log.e("OnboardingViewModel", "kakaoAccessToken: $kakaoAccessToken")
+
             kakaoLoginUseCase(kakaoAccessToken)
                 .onSuccess { data ->
-                    Timber.e("@@@@@@@@@@@@@@@@@data "+data)
+                    Log.e("OnboardingViewModel", "========== 카카오 로그인 성공 ==========")
+                    Log.e("OnboardingViewModel", "Response data: $data")
+                    Log.e("OnboardingViewModel", "isNewUser: ${data.data.isNewUser}")
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isNewUser = data.data.isNewUser,
+                            isOnboardingCompleted = data.data.isOnboardingCompleted,
+                            isNicknameSet = data.data.isNicknameSet,
                             isLoginSuccess = true
                         )
                     }
+                    Log.e("OnboardingViewModel", "UI State 업데이트 완료 - isLoginSuccess: true")
                 }
                 .onFailure { error ->
-                    Timber.e("@@@@@@@@@@@@@@@@@ error "+error)
+                    Log.e("OnboardingViewModel", "========== 카카오 로그인 실패 (onFailure) ==========")
+                    Log.e("OnboardingViewModel", "Error type: ${error.javaClass.name}")
+                    Log.e("OnboardingViewModel", "Error message: ${error.cause}")
+                    Log.e("OnboardingViewModel", "Error stacktrace:", error)
+
                     val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
+                    Log.e("OnboardingViewModel", "User error message: $errorMessage")
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isLoginSuccess = false
                         )
                     }
-                    sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
+                    Log.e("OnboardingViewModel", "UI State 업데이트 완료 - isLoginSuccess: false")
+                    snackbarManager.show(errorMessage)
                 }
-        } catch (e: Exception) { // loginUseCase 호출 자체에서 발생한 예외 처리
+        } catch (e: Exception) {
+            Log.e("OnboardingViewModel", "========== 카카오 로그인 실패 (Exception) ==========")
+            Log.e("OnboardingViewModel", "Exception type: ${e.javaClass.simpleName}")
+            Log.e("OnboardingViewModel", "Exception message: ${e.message}")
+            Log.e("OnboardingViewModel", "Exception stacktrace:", e)
+
             val errorMessage = e.toUserMessage(UserMessageCategory.AUTH)
+            Log.e("OnboardingViewModel", "User error message: $errorMessage")
+
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -510,7 +647,8 @@ class OnboardingViewModel @Inject constructor(
                     isLoginSuccess = false
                 )
             }
-            sendSideEffect(OnboardingSideEffect.DomainError(errorMessage))
+            Log.e("OnboardingViewModel", "UI State 업데이트 완료 - error: $errorMessage")
+            snackbarManager.show(errorMessage)
         }
     }
 
@@ -527,74 +665,5 @@ class OnboardingViewModel @Inject constructor(
                 }
             }
         }
-
-
-    // 온보딩 완료여부 저장
-    fun saveIsOnboardingCompleted(isOnboardingCompleted: Boolean) = viewModelScope.launch {
-        saveIsOnboardingCompletedUseCase(isOnboardingCompleted)
-
-        _uiState.update { currentState ->
-            currentState.copy(
-                isOnboardingCompleted = isOnboardingCompleted
-            )
-        }
-    }
-
-    // 닉네임 완료여부 저장
-    fun saveIsNicknameSet(isNicknameSet: Boolean) = viewModelScope.launch {
-        saveIsNicknameSetUseCase(isNicknameSet)
-
-        _uiState.update { currentState ->
-            currentState.copy(
-                isNicknameSet = isNicknameSet
-            )
-        }
-    }
-
-    fun modifyHobbyTime(hobbyId: Long, minutes: Int) = viewModelScope.launch {  // 취미 정보 수정 - 시간
-        flow {
-            emit(modifyHobbyTimeUseCase(hobbyId, minutes))
-        }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyTime@@@@@@@"+throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
-        }.collect { data ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyTime@@@@@@@"+data)
-            if (data.status != 200) {
-                _sideEffectChannel.send(OnboardingSideEffect.DomainError(data.data.message))
-            }
-        }
-    }
-
-    fun modifyHobbyExecutionCount(hobbyId: Long, executionCount: Int) = viewModelScope.launch {
-        flow {
-            emit(modifyHobbyExecutionCountUseCase(hobbyId, executionCount))
-        }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@"+throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
-        }.collect { data ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@"+data)
-            if (data.status != 200) {
-                _sideEffectChannel.send(OnboardingSideEffect.DomainError(data.data.message))
-            }
-        }
-    }
-
-    fun modifyHobbyGoalDays(hobbyId: Long, goalDays: Boolean) = viewModelScope.launch {
-        flow {
-            emit(modifyHobbyDurationUseCase(hobbyId, goalDays))
-        }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyGoalDays@@@@@@@" + throwable)
-            _sideEffectChannel.send(OnboardingSideEffect.Exception(throwable))
-        }.collect { data ->
-            Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@"+data)
-            if (data.status != 200) {
-                _sideEffectChannel.send(OnboardingSideEffect.DomainError(data.data.message))
-            }
-        }
-    }
-
-    fun logEvent(logEvent: String) {
-        analyticsManager.logEvent(logEvent)
-    }
 
 }

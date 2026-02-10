@@ -44,7 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.AIRecommendationButton
 import com.forday.app.core.designsystem.toast.SuccessToast
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
@@ -419,7 +419,7 @@ fun InputRoutineScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AIRecommendationButton(
-                onCreateAiRoutines = onAIRecommendationRoutines, enabled = aiCallRemaining ?: false
+                onCreateAiRoutines = onAIRecommendationRoutines, enabled = true
             )
             BottomButton2(
                 enabled = hasValidActivities,

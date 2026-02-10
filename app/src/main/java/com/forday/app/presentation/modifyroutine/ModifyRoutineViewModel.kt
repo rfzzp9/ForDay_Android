@@ -2,10 +2,13 @@ package com.forday.app.presentation.modifyroutine
 
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.forday.app.core.util.logAndExtractServerMessage
+import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.DeleteHobbyRoutineUseCase
 import com.forday.app.domain.usecase.GetHobbyRoutineListUseCase
 import com.forday.app.domain.usecase.ModifyHobbyRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.home.model.HomeState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -22,6 +26,7 @@ class ModifyRoutineViewModel @Inject constructor(
     private val getHobbyRoutineListUseCase: GetHobbyRoutineListUseCase,
     private val modifyHobbyRoutineUseCase: ModifyHobbyRoutineUseCase,
     private val deleteHobbyRoutineUseCase: DeleteHobbyRoutineUseCase,
+    private val snackbarManager: SnackbarManager,
 ): BaseViewModel<ModifyRoutineSideEffect>() {
 
     private val _uiState: MutableStateFlow<RoutinesUiState> = MutableStateFlow(RoutinesUiState())
@@ -32,14 +37,23 @@ class ModifyRoutineViewModel @Inject constructor(
             emit(getHobbyRoutineListUseCase(hobbyId))
         }.catch { throwable ->
             Timber.e("@####@#@#@#throwable "+throwable)
-            _sideEffectChannel.send(ModifyRoutineSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchHobbyRoutineList")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@####@#@#@#throwable "+data.data.routines.map { it.isAiRecommended })
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    routines = data.data.routines.toUiModelList()
-                )
+            if (data.status == 200) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        routines = data.data.routines.toUiModelList()
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isLoading = false) }
+                snackbarManager.show(data.data.message)
             }
         }
     }
@@ -48,10 +62,13 @@ class ModifyRoutineViewModel @Inject constructor(
         flow {
             emit(modifyHobbyRoutineUseCase(routineId, content))
         }.catch { throwable ->
-            _sideEffectChannel.send(ModifyRoutineSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "modifyRoutine")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { data ->
             if (data.status == 200) {
-                // ✅ 성공 시 해당 routineId의 content 업데이트
                 _uiState.update { currentState ->
                     currentState.copy(
                         routines = currentState.routines.map { routine ->
@@ -64,7 +81,7 @@ class ModifyRoutineViewModel @Inject constructor(
                     )
                 }
             } else {
-                _sideEffectChannel.send(ModifyRoutineSideEffect.DomainError(data.data.message))
+                snackbarManager.show(data.data.message)
             }
         }
     }
@@ -74,7 +91,11 @@ class ModifyRoutineViewModel @Inject constructor(
             emit(deleteHobbyRoutineUseCase(routineId))
         }.catch { throwable ->
             Timber.e("deleteRoutine throwable : "+throwable)
-            _sideEffectChannel.send(ModifyRoutineSideEffect.Exception(throwable))
+            val message = when (throwable) {
+                is HttpException -> throwable.logAndExtractServerMessage(tag = "deleteRoutine")
+                else -> null
+            }
+            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { data ->
             Timber.e("deleteRoutine data.data.message : "+data.data.message)
             if (data.status == 200) {
@@ -86,8 +107,12 @@ class ModifyRoutineViewModel @Inject constructor(
                         }
                     )
                 }
+
+                data.data.message
+                    .takeIf { it.isNotBlank() }
+                    ?.let(snackbarManager::show)
             } else {
-                _sideEffectChannel.send(ModifyRoutineSideEffect.DomainError(data.data.message))
+                snackbarManager.show(data.data.message)
             }
         }
     }

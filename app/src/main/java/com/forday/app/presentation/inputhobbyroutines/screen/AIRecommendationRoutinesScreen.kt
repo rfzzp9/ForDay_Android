@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import timber.log.Timber
@@ -60,12 +60,15 @@ fun AIRecommendationRoutinesScreenRoot(
     }
 
     LaunchedEffect(state.value.aiRoutineList.size) {
+        if (state.value.aiRoutineList.size == 3) {
+            viewModel.saveAiRoutines(state.value.aiRoutineList)
+        }
         Timber.d("📊@@@ Root에서 감지된 루틴 변경: ${state.value.aiRoutineList.size}개")
         Timber.d("📊@@@ 루틴 내용: ${state.value.aiRoutineList.map { it.content }}")
     }
 
     AIRecommendationRoutinesScreen(
-        routineTitle = state.value.selectedHobbyName,
+        routineTitle = state.value.recommendedText,
         routines = state.value.aiRoutineList,
         isLoading = state.value.isLoading,
         onBackClick = {
@@ -109,7 +112,7 @@ fun AIRecommendationRoutinesScreen(
     val hasSelection = selectedRoutineIndex != null
     val maxReached = apiCallCount >= maxApiCalls
 
-    Timber.d("🚦 상태: apiCallCount=$apiCallCount, maxReached=$maxReached")
+    Timber.d("상태: apiCallCount=$apiCallCount, maxReached=$maxReached")
 
     Box(
         modifier = Modifier
@@ -145,11 +148,7 @@ fun AIRecommendationRoutinesScreen(
                                 routine = routine,
                                 isSelected = selectedRoutineIndex == index,
                                 onSelect = {
-                                    selectedRoutineIndex = if (selectedRoutineIndex == index) {
-                                        null
-                                    } else {
-                                        index
-                                    }
+                                    selectedRoutineIndex = index
                                 }
                             )
                         }
@@ -354,14 +353,7 @@ private fun AITitleSection(routineTitle: String?) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "${routineTitle}에 맞는",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = ForDayTheme.color.Neutral900,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "AI 추천 활동을 만들었어요 🎉",
+                text = "$routineTitle",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = ForDayTheme.color.Neutral900,
@@ -380,7 +372,11 @@ private fun RoutineCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelect() },
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,  // 리플 효과 제거
+                onClick = onSelect
+            ),
         shape = RoundedCornerShape(12.dp),
         shadowElevation = 4.dp,
         color = Color.White

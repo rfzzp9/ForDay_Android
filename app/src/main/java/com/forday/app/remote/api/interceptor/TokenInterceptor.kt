@@ -1,5 +1,6 @@
 package com.forday.app.remote.api.interceptor
 
+import android.util.Log
 import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.core.session.AuthEvent
 import com.forday.app.core.session.AuthEventBus
@@ -9,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import okhttp3.Interceptor
 import okhttp3.Response
-import timber.log.Timber
 import java.net.HttpURLConnection
 import java.nio.charset.Charset
 import javax.inject.Inject
@@ -27,26 +27,26 @@ class TokenInterceptor @Inject constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        Timber.e("###########22######╔════════════════════════════════════════════════════════════")
-        Timber.e("###########22######║ REQUEST")
-        Timber.e("###########22######╠════════════════════════════════════════════════════════════")
-        Timber.e("###########22######║ URL: ${originalRequest.url}")
-        Timber.e("###########22######║ METHOD: ${originalRequest.method}")
-        Timber.e("###########22######║ HEADERS:")
+        Log.d("TokenInterceptor", "###########22######╔════════════════════════════════════════════════════════════")
+        Log.d("TokenInterceptor", "###########22######║ REQUEST")
+        Log.d("TokenInterceptor", "###########22######╠════════════════════════════════════════════════════════════")
+        Log.d("TokenInterceptor", "###########22######║ URL: ${originalRequest.url}")
+        Log.d("TokenInterceptor", "###########22######║ METHOD: ${originalRequest.method}")
+        Log.d("TokenInterceptor", "###########22######║ HEADERS:")
         val accessToken = tokenProvider.getAccessToken()
-        Timber.e("@###@!@$@$@A#@# $accessToken")
+        Log.d("TokenInterceptor", "@###@!@$@$@A#@# $accessToken")
         val authedRequest = originalRequest.newBuilder().apply {
             if (!accessToken.isNullOrBlank()) header("Authorization", "Bearer $accessToken")
         }.build()
-        Timber.e("###########22###### RefreshToken from provider: ${tokenProvider.getRefreshToken()}")
+        Log.d("TokenInterceptor", "###########22###### RefreshToken from provider: ${tokenProvider.getRefreshToken()}")
         val response = chain.proceed(authedRequest)
-        Timber.e("###########22######╔════════════════════════════════════════════════════════════")
-        Timber.e("###########22######║ RESPONSE"+accessToken)
-        Timber.e("###########22######╠════════════════════════════════════════════════════════════")
-        Timber.e("###########22######║ encodedPath: ${originalRequest.url.encodedPath}")
-        Timber.e("###########22######║ CODE: ${response.code}")
-        Timber.e("###########22######║ MESSAGE: ${response.message}")
-        Timber.e("###########22######║ HEADERS:")
+        Log.d("TokenInterceptor", "###########22######╔════════════════════════════════════════════════════════════")
+        Log.d("TokenInterceptor", "###########22######║ RESPONSE"+accessToken)
+        Log.d("TokenInterceptor", "###########22######╠════════════════════════════════════════════════════════════")
+        Log.d("TokenInterceptor", "###########22######║ encodedPath: ${originalRequest.url.encodedPath}")
+        Log.d("TokenInterceptor", "###########22######║ CODE: ${response.code}")
+        Log.d("TokenInterceptor", "###########22######║ MESSAGE: ${response.message}")
+        Log.d("TokenInterceptor", "###########22######║ HEADERS:")
 
         val responseBody = response.body
         val source = responseBody?.source()
@@ -55,8 +55,8 @@ class TokenInterceptor @Inject constructor(
         val charset = responseBody?.contentType()?.charset(Charset.forName("UTF-8")) ?: Charset.forName("UTF-8")
         val bodyString = buffer?.clone()?.readString(charset) ?: ""
 
-        Timber.e("###########22######║ BODY: $bodyString")
-        Timber.e("###########22######╚════════════════════════════════════════════════════════════")
+        Log.d("TokenInterceptor", "###########22######║ BODY: $bodyString")
+        Log.d("TokenInterceptor", "###########22######╚════════════════════════════════════════════════════════════")
         if (response.code != HttpURLConnection.HTTP_UNAUTHORIZED) {
             return response
         }
@@ -75,54 +75,54 @@ class TokenInterceptor @Inject constructor(
     }
 
     private suspend fun refreshSafely(oldAccess: String?): String? {
-        Timber.e("1############################### "+oldAccess)
+        Log.d("TokenInterceptor", "1############################### "+oldAccess)
         return mutex.lockAndGet {
             val latest = tokenProvider.getAccessToken()
-            Timber.e("2############################### "+latest)
-            Timber.e("2############################### "+tokenProvider.getRefreshToken())
+            Log.d("TokenInterceptor", "2############################### "+latest)
+            Log.d("TokenInterceptor", "2############################### "+tokenProvider.getRefreshToken())
             if (!latest.isNullOrBlank() && latest != oldAccess) return@lockAndGet latest
-            Timber.e("3############################### "+tokenProvider.getRefreshToken())
+            Log.d("TokenInterceptor", "3############################### "+tokenProvider.getRefreshToken())
             val refreshToken = tokenProvider.getRefreshToken()
             val rt = refreshToken ?: return@lockAndGet null
             try {
-                Timber.e("4############################### "+rt)
+                Log.d("TokenInterceptor", "4############################### "+rt)
                 val res = tokenApi.refreshToken(RefreshRequest(rt))
-                Timber.e("4############################### "+res.status)
+                Log.d("TokenInterceptor", "4############################### "+res.status)
                 tokenProvider.setAccessToken(res.data.accessToken)
                 tokenProvider.setRefreshToken(res.data.refreshToken)
                 res.data.accessToken
             } catch (e: Exception) {
-                Timber.e("===== refreshToken failed =====")
-                Timber.e("Exception type: ${e.javaClass.simpleName}")
-                Timber.e("Exception message: ${e.message}")
+                Log.d("TokenInterceptor", "===== refreshToken failed =====")
+                Log.d("TokenInterceptor", "Exception type: ${e.javaClass.simpleName}")
+                Log.d("TokenInterceptor", "Exception message: ${e.message}")
 
                 // Retrofit/OkHttp 에러인 경우 상세 정보
                 when (e) {
                     is retrofit2.HttpException -> {
-                        Timber.e("HTTP Status Code: ${e.code()}")
-                        Timber.e("HTTP Message: ${e.message()}")
+                        Log.d("TokenInterceptor", "HTTP Status Code: ${e.code()}")
+                        Log.d("TokenInterceptor", "HTTP Message: ${e.message()}")
 
                         // 응답 본문 읽기
                         try {
                             val errorBody = e.response()?.errorBody()?.string()
-                            Timber.e("Error Response Body: $errorBody")
+                            Log.d("TokenInterceptor", "Error Response Body: $errorBody")
                         } catch (bodyException: Exception) {
-                            Timber.e("Failed to read error body: ${bodyException.message}")
+                            Log.d("TokenInterceptor", "Failed to read error body: ${bodyException.message}")
                         }
                     }
                     is java.io.IOException -> {
-                        Timber.e("Network error (IOException): ${e.message}")
+                        Log.d("TokenInterceptor", "Network error (IOException): ${e.message}")
                     }
                     is kotlinx.serialization.SerializationException -> {
-                        Timber.e("Serialization error: ${e.message}")
+                        Log.d("TokenInterceptor", "Serialization error: ${e.message}")
                     }
                     else -> {
-                        Timber.e("Unknown error type")
+                        Log.d("TokenInterceptor", "Unknown error type")
                     }
                 }
 
                 // 전체 스택 트레이스
-                Timber.e(e, "Full stack trace:")
+                Log.d("TokenInterceptor", "Full stack trace:", e)
 
                 runBlocking {
                     userLocalDataSource.clear()

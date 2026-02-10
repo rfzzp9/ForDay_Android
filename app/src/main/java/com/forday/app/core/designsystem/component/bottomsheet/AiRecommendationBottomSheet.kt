@@ -51,7 +51,7 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
-import com.app.forday.R
+import com.dayn.forday.R
 import com.forday.app.presentation.home.model.AiRoutineItemState
 import kotlinx.coroutines.delay
 import kotlin.collections.count

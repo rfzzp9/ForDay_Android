@@ -1,7 +1,6 @@
 package com.forday.app.remote.di
 
-import com.app.forday.BuildConfig
-import com.app.forday.BuildConfig.BASE_URL
+import com.dayn.forday.BuildConfig
 import com.forday.app.remote.api.interceptor.TokenInterceptor
 import com.forday.app.remote.api.service.AuthApi
 import com.forday.app.remote.api.service.FileApi
@@ -56,7 +55,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create()) // Use your preferred converter
             .build()
     }
@@ -141,7 +140,7 @@ object NetworkModule {
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -153,7 +152,7 @@ object NetworkModule {
     ): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 }

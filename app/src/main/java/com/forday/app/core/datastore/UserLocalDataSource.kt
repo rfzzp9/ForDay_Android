@@ -8,8 +8,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.forday.app.data.model.OnboardingDataEntity
+import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -45,22 +47,27 @@ class UserLocalDataSource @Inject constructor(
 
         private val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
         private val IS_NICKNAME_SET = booleanPreferencesKey("is_nickname_set")
+
+        private val AI_ROUTINE_LIST = stringPreferencesKey("ai_routine_list")
+
+        private val LEGACY_HOBBY_ID_1_STRING = stringPreferencesKey("hobby_id_1")
+        private val LEGACY_HOBBY_INFO_1_LONG = longPreferencesKey("hobby_info_1")
     }
 
-    val userNicknameFlow = dataStore.data.map { it[USER_NICKNAME] ?: "" }
+    val userNicknameFlow = dataStore.data.map { it[USER_NICKNAME] ?: null }
     val kakaoIdFlow = dataStore.data.map { it[KAKAO_USER_ID] ?: "" }
     val guestIdFlow = dataStore.data.map { it[GUEST_USER_ID] ?: null }
     val hobbyFirstFlow = dataStore.data.map { it[HOBBY_1] ?: "" }
-    val hobbyFirstIdFlow = dataStore.data.map { it[HOBBY_ID_1] ?: "" }
+    val hobbyFirstIdFlow = dataStore.data.map { it[HOBBY_ID_1] ?: 0L }
     val hobbySecondFlow = dataStore.data.map { it[HOBBY_2] ?: "" }
-    val hobbySecondIdFlow = dataStore.data.map { it[HOBBY_ID_2] ?: "" }
-    val hobbyTakeTimeFlow = dataStore.data.map { it[HOBBY_TAKE_TIME] ?: "" }
+    val hobbySecondIdFlow = dataStore.data.map { it[HOBBY_ID_2] ?: 0 }
+    val hobbyTakeTimeFlow = dataStore.data.map { it[HOBBY_TAKE_TIME] ?: 0 }
     val hobbyPurposeFirst = dataStore.data.map { it[HOBBY_PURPOSE] ?: "" }
     val hobbyPurposeSecond = dataStore.data.map { it[HOBBY_PURPOSE_2] ?: "" }
     val hobbyPurposeThird = dataStore.data.map { it[HOBBY_PURPOSE_3] ?: "" }
     val hobbyPurposeFourth = dataStore.data.map { it[HOBBY_PURPOSE_4] ?: "" }
-    val hobbyPerWeekFlow = dataStore.data.map { it[HOBBY_PER_WEEK] ?: "" }
-    val hobbyPeriodFlow = dataStore.data.map { it[HOBBY_PERIOD] ?: "" }
+    val hobbyPerWeekFlow = dataStore.data.map { it[HOBBY_PER_WEEK] ?: 0 }
+    val hobbyPeriodFlow = dataStore.data.map { it[HOBBY_PERIOD] == true }
     val hobbyRoutineFirst = dataStore.data.map { it[HOBBY_ROUTINE_1] ?: "" }
     val hobbyRoutineSecond = dataStore.data.map { it[HOBBY_ROUTINE_2] ?: "" }
     val hobbyRoutineThird = dataStore.data.map { it[HOBBY_ROUTINE_3] ?: "" }
@@ -142,12 +149,21 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit { it[IS_NICKNAME_SET] = isNicknameSet }
     }
 
+    suspend fun saveAiRoutineList(routines: List<AiRoutineItemState>) {
+        val json = Json.encodeToString(routines)
+        dataStore.edit { it[AI_ROUTINE_LIST] = json }
+    }
+
     suspend fun saveKakaoToken(accessToken: String, refreshToken: String, socialType: String) {
         dataStore.edit {
             it[ACCESS_TOKEN] = accessToken
             it[REFRESH_TOKEN] = refreshToken
             it[SOCIAL_TYPE] = socialType
         }
+    }
+
+    suspend fun saveNickname(nickname: String?) {
+        dataStore.edit { it[USER_NICKNAME] = nickname ?: "" }
     }
 
     suspend fun saveGuestTokenAndId(accessToken: String, refreshToken: String, userId: String, socialType: String) {
@@ -173,6 +189,8 @@ class UserLocalDataSource @Inject constructor(
 
     suspend fun saveOnboardingData(selectedHobbyId: Long?, selectedHobbyName: String?, selectedMinutes: Int?, selectedPurpose: String?, selectedFrequency: Int?, selectedPeriod: Boolean) {
         dataStore.edit {
+            it.remove(LEGACY_HOBBY_ID_1_STRING)
+            it.remove(LEGACY_HOBBY_INFO_1_LONG)
             it[HOBBY_ID_1] = selectedHobbyId ?: 0L  //0L이면 서버로 보낼 땐 null로 보내기 (아마..?)
             it[HOBBY_1] = selectedHobbyName ?: ""
             it[HOBBY_TAKE_TIME] = selectedMinutes ?: 0  //근데 애초에 null일 리가 없음.....
@@ -197,6 +215,17 @@ class UserLocalDataSource @Inject constructor(
                 executionCount = preferences[HOBBY_PER_WEEK],
                 durationSet = preferences[HOBBY_PERIOD]
             )
+        }
+    }
+
+    fun getAiRoutineList(): Flow<List<AiRoutineItemState>> {
+        return dataStore.data.map { preferences ->
+            val json = preferences[AI_ROUTINE_LIST] ?: return@map emptyList()
+            try {
+                Json.decodeFromString<List<AiRoutineItemState>>(json)
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
 

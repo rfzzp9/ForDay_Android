@@ -7,6 +7,7 @@ import com.forday.app.presentation.discovery.navigation.Discovery
 import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.story.navigation.Story
+import timber.log.Timber
 
 /**
  * 네비게이션 로직을 처리하는 클래스
@@ -20,13 +21,35 @@ class Navigator(val state: MainNavigationState) {
      * - 그렇지 않으면 → 현재 탭의 백스택에 추가
      */
     fun navigate(route: NavKey) {
+        val currentTop = state.topLevelRoute
+        val currentStackBefore = state.backStacks[currentTop]
+        Timber.e(
+            "Navigator.navigate(route=$route) currentTop=$currentTop stackSizeBefore=${currentStackBefore?.size} lastBefore=${currentStackBefore?.lastOrNull()}"
+        )
         if (route in state.backStacks.keys) {
             // 탭 전환
             state.topLevelRoute = route
         } else {
-            // 현재 탭의 스택에 새 화면 추가
-            state.backStacks[state.topLevelRoute]?.add(route)
+            // startRoute가 Login/온보딩처럼 Top-level이 아닌 경우,
+            // 현재 topLevelRoute가 Home 같은 탭으로 잡혀있더라도 startRoute 스택에 화면을 추가해야
+            // 실제 표시되고 있는 플로우(Login/온보딩)가 정상적으로 전환됩니다.
+            val activeStackKey =
+                if (state.startRoute !in TOP_LEVEL_DESTINATIONS.keys && state.topLevelRoute in TOP_LEVEL_DESTINATIONS.keys) {
+                    state.startRoute
+                } else {
+                    state.topLevelRoute
+                }
+
+            state.backStacks[activeStackKey]?.add(route)
         }
+
+        state.notifyNavChanged()
+
+        val currentTopAfter = state.topLevelRoute
+        val currentStackAfter = state.backStacks[currentTopAfter]
+        Timber.e(
+            "Navigator.navigate(route=$route) currentTopAfter=$currentTopAfter stackSizeAfter=${currentStackAfter?.size} lastAfter=${currentStackAfter?.lastOrNull()}"
+        )
     }
 
     /**
@@ -81,6 +104,7 @@ class Navigator(val state: MainNavigationState) {
      * 뒤로가기를 눌러도 이전 화면으로 돌아가지 않도록 하기 위해 사용합니다.
      */
     fun resetTo(route: NavKey) {
+        Timber.e("Navigator.resetTo(route=$route) startRoute=${state.startRoute} topLevelBefore=${state.topLevelRoute}")
         state.backStacks.forEach { (key, stack) ->
             while (stack.removeLastOrNull() != null) {
                 // removeLastOrNull()가 null이면 비어있는 상태
@@ -97,6 +121,12 @@ class Navigator(val state: MainNavigationState) {
         if (targetStack.lastOrNull() != route) {
             targetStack.add(route)
         }
+
+        state.notifyNavChanged()
+
+        Timber.e(
+            "Navigator.resetTo(route=$route) topLevelAfter=${state.topLevelRoute} stackSize=${targetStack.size} last=${targetStack.lastOrNull()}"
+        )
     }
 
     /**
@@ -109,6 +139,8 @@ class Navigator(val state: MainNavigationState) {
 
         currentStack.removeLastOrNull()
         currentStack.add(route)
+
+        state.notifyNavChanged()
     }
 }
 
@@ -126,23 +158,23 @@ data class BottomNavItem(
  */
 val TOP_LEVEL_DESTINATIONS = mapOf(
     Home to BottomNavItem(
-        icon = com.app.forday.R.drawable.home,
-        iconSelected = com.app.forday.R.drawable.home_selected,
+        icon = com.dayn.forday.R.drawable.home,
+        iconSelected = com.dayn.forday.R.drawable.home_selected,
         title = "홈"
     ),
     Discovery to BottomNavItem(
-        icon = com.app.forday.R.drawable.discovery,
-        iconSelected = com.app.forday.R.drawable.discovery_selected,
+        icon = com.dayn.forday.R.drawable.discovery,
+        iconSelected = com.dayn.forday.R.drawable.discovery_selected,
         title = "발견"
     ),
     Story to BottomNavItem(
-        icon = com.app.forday.R.drawable.ic_story_unselected,
-        iconSelected = com.app.forday.R.drawable.ic_story_unselected,  //selected로 수정해야 함
+        icon = com.dayn.forday.R.drawable.ic_story_unselected,
+        iconSelected = com.dayn.forday.R.drawable.ic_story_unselected,  //selected로 수정해야 함
         title = "소식"
     ),
     MyPage to BottomNavItem(
-        icon = com.app.forday.R.drawable.ic_my,
-        iconSelected = com.app.forday.R.drawable.ic_my_selected,
+        icon = com.dayn.forday.R.drawable.ic_my,
+        iconSelected = com.dayn.forday.R.drawable.ic_my_selected,
         title = "마이"
     ),
 )

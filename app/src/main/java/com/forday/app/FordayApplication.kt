@@ -2,8 +2,8 @@ package com.forday.app
 
 import android.app.Application
 import android.util.Log
-import com.app.forday.BuildConfig
-import com.app.forday.R
+import com.dayn.forday.BuildConfig
+import com.dayn.forday.R
 import com.forday.app.core.logger.crashlytics.CrashlyticsManager
 import com.forday.app.core.logger.timber.TimberInitializer
 import com.google.firebase.FirebaseApp

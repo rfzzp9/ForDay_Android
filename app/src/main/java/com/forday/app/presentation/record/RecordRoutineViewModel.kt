@@ -2,6 +2,7 @@ package com.forday.app.presentation.record
 
 import androidx.lifecycle.viewModelScope
 import com.forday.app.core.logger.analytics.AnalyticsManager
+import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
 import com.forday.app.domain.usecase.GetMyRoutineRecordDetailUseCase
 import com.forday.app.domain.usecase.GetPresignedUrlUseCase
@@ -11,6 +12,7 @@ import com.forday.app.domain.usecase.ModifyPostingUseCase
 import com.forday.app.domain.usecase.UploadImageToS3UseCase
 import com.forday.app.domain.usecase.WriteRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.model.toModifyPostingUiModel
 import com.forday.app.presentation.mypage.MyPageSideEffect
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +37,8 @@ class RecordRoutineViewModel @Inject constructor(
     private val modifyPostingUseCase: ModifyPostingUseCase,
     private val deleteS3ImageUseCase: DeleteS3ImageUseCase,   // S3에 등록된 이미지 삭제
     private val getMyRoutineRecordDetailUseCase: GetMyRoutineRecordDetailUseCase,
-) : BaseViewModel<RecordRoutineSideEffect>() {
+    private val snackbarManager: SnackbarManager,
+) : BaseViewModel<Unit>() {
 
     private val _uiState: MutableStateFlow<RecordRoutineUiState> = MutableStateFlow(RecordRoutineUiState())
     val uiState: StateFlow<RecordRoutineUiState> = _uiState.toStateIn()
@@ -53,7 +56,7 @@ class RecordRoutineViewModel @Inject constructor(
             emit(writeRoutineUseCase(routineId, sticker, memo, imageUrl, visibility).data.toPresentation())
         }.catch { throwable ->
             Timber.e("@#@####writeRoutine@#@ "+throwable)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@####writeRoutine@#@ "+data)
 
@@ -83,7 +86,7 @@ class RecordRoutineViewModel @Inject constructor(
             emit(modifyPostingUseCase(recordId, routineId, sticker, memo, imageUrl, visibility))
         }.catch { throwable ->
             Timber.e("@@@@@@@@@@2323@@@@@@@@"+throwable)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update { state ->
                 Timber.e("@@@@@@@@@@2323@@@@@@@@"+data.message)
@@ -104,7 +107,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(getMyRoutineRecordDetailUseCase(recordId))
         }.catch { throwable ->
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             data?.let { detail ->
                 _uiState.update { state ->
@@ -126,7 +129,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(modifyHobbyRoutineUseCase(routineId, content))
         }.catch { throwable ->
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             if (data.status == 200) {
                 // ✅ 성공 시 해당 routineId의 content 업데이트
@@ -142,7 +145,7 @@ class RecordRoutineViewModel @Inject constructor(
                     )
                 }
             } else {
-                _sideEffectChannel.send(RecordRoutineSideEffect.DomainError(data.data.message))
+                snackbarManager.show(data.data.message)
             }
         }
     }
@@ -153,7 +156,7 @@ class RecordRoutineViewModel @Inject constructor(
             emit(response.data.routines)
         }.catch { throwable ->
             Timber.e("@##@#@#@#@#@#@#@@ "+throwable)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { routines ->
             val routineUiModels = routines.map { item ->
                 RoutineUiModel(
@@ -180,7 +183,7 @@ class RecordRoutineViewModel @Inject constructor(
             emit(getPresignedUrlUseCase(images).data)
         }.catch { throwable ->
             Timber.e(throwable, "@#@############ Failed to get presigned URL   "+throwable)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@############ Success to get presigned URL"+data)
             _uiState.update { state ->
@@ -196,10 +199,10 @@ class RecordRoutineViewModel @Inject constructor(
             emit(deleteS3ImageUseCase(imageUrl))
         }.catch { throwable ->
             Timber.e(throwable, "@#@############ deleteS3Image  throwable : "+throwable)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+            snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             Timber.e("@#@############ deleteS3Image  data : "+data)
-            if (data.status == 404) _sideEffectChannel.send(RecordRoutineSideEffect.DomainError(data.data.message))
+            if (data.status == 404) snackbarManager.show(data.data.message)
         }
     }
 
@@ -229,12 +232,12 @@ class RecordRoutineViewModel @Inject constructor(
             }.onFailure { throwable ->
                 Timber.e(throwable, "Image upload failed: ${file.name}, order: $order")
                 updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-                _sideEffectChannel.send(RecordRoutineSideEffect.Exception(throwable))
+                snackbarManager.show(throwable.toUserMessage())
             }
         } catch (e: Exception) {
             Timber.e(e, "Unexpected error during upload")
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-            _sideEffectChannel.send(RecordRoutineSideEffect.Exception(e))
+            snackbarManager.show(e.toUserMessage())
         }
     }
 

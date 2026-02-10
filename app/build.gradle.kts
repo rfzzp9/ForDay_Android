@@ -14,15 +14,15 @@ plugins {
 }
 
 android {
-    namespace = "com.app.forday"
+    namespace = "com.dayn.forday"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.app.forday"
+        applicationId = "com.dayn.forday"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -30,20 +30,33 @@ android {
         resValue("string", "KAKAO_REDIRECT_URI", getProperty("KAKAO_REDIRECT_URI"))
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file(getProperty("KEYSTORE"))
+            storePassword = "wony2401"
+//            storePassword = getProperty("KEYSTORE_PASSWORD")
+            keyAlias = getProperty("KEY_ALIAS")
+//            keyPassword = getProperty("KEY_PASSWORD")
+            keyPassword = "wony2401"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL_PROD"))
         }
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL_DEV"))
         }
     }
 
@@ -82,6 +95,7 @@ fun getProperty(key: String): String {
 dependencies {
     // Android Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.appcompat)
 
     // Lifecycle
@@ -91,6 +105,7 @@ dependencies {
 
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
+    implementation("androidx.compose.material:material")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
