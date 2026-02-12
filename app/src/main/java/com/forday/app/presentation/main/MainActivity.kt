@@ -15,14 +15,19 @@ import java.security.MessageDigest
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val onboardingViewModel: OnboardingViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
-        installSplashScreen()
+        installSplashScreen().setKeepOnScreenCondition {
+            onboardingViewModel.uiState.value.isSplashLoading ||
+                onboardingViewModel.uiState.value.initialRoute == null
+        }
         super.onCreate(savedInstanceState)
         getReleaseKeyHash()
         setContent {
             Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
-            AppEntryPoint()
+            AppEntryPoint(onboardingViewModel = onboardingViewModel)
         }
     }
 

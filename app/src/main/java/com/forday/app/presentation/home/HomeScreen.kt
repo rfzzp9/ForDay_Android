@@ -510,8 +510,14 @@ fun HomeScreen(
                     )
             ) {
                 FloatingMenuPopup(
-                    onAddActivity = { onRoutineCreate(state.aiCallRemaining) },
-                    onShowActivityList = onShowRoutineList,
+                    onAddActivity = {
+                        showFloatingMenu = false
+                        onRoutineCreate(state.aiCallRemaining)
+                    },
+                    onShowActivityList = {
+                        showFloatingMenu = false
+                        onShowRoutineList()
+                    },
                     onDismiss = { showFloatingMenu = false },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -585,7 +591,7 @@ fun HomeHeader(
                 }
             } else {
                 Text(
-                    text = currentHobby?.name ?: "",
+                    text = state.inProgressHobbies.getOrNull(0)?.name ?: "",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = ForDayTheme.color.Gray800,
@@ -607,7 +613,7 @@ fun HomeHeader(
                     )
 
                     Text(
-                        text = otherHobby.name,
+                        text = state.inProgressHobbies.getOrNull(1)?.name ?: "",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = ForDayTheme.color.Gray500,

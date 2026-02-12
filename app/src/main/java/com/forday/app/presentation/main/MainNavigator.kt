@@ -87,6 +87,7 @@ class Navigator(val state: MainNavigationState) {
                         return false
                     }
                     state.topLevelRoute = state.startRoute
+                    state.notifyNavChanged()
                     true
                 } else {
                     false
@@ -95,6 +96,7 @@ class Navigator(val state: MainNavigationState) {
         } else {
             // 백스택에서 제거
             currentStack.removeLastOrNull()
+            state.notifyNavChanged()
             true
         }
     }

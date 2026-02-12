@@ -429,6 +429,8 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun loginWithGuest() = viewModelScope.launch {
+        Log.d("@#@#@#@ ", "######## loginWithGuest")
+        Timber.e("@#@#@#@#@#@#@#@#@ ")
         _uiState.update { it.copy(isLoading = true, error = "") }
         try {
             guestLoginUseCase()
@@ -443,6 +445,8 @@ class OnboardingViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    Log.d("@#@#@#@ ", "########error "+error)
+                    Timber.e("@#@#@#@#@#@#@#@#@ error "+error)
                     Timber.d("error " + error.message)
                     val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
                     _uiState.update {
@@ -455,7 +459,10 @@ class OnboardingViewModel @Inject constructor(
                     snackbarManager.show(errorMessage)
                 }
         } catch (e: Exception) {
+
             val errorMessage = e.toUserMessage(UserMessageCategory.AUTH)
+            Log.d("@#@#@#@ ", "########Exception "+e)
+            Timber.e("@#@#@#@#@#@#@#@#@ errorMessage "+errorMessage)
             _uiState.update {
                 it.copy(
                     isLoading = false,

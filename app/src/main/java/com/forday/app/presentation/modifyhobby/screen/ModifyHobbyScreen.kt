@@ -196,7 +196,8 @@ fun ModifyHobbyScreen(
                                 selectedHobby = Pair(hobby.hobbyId, hobby.hobbyName)
                                 showStorageDialog = true
                             },
-                            dimensions = dimensions
+                            dimensions = dimensions,
+                            isArchived = selectedStatus == HobbyStatus.ARCHIVED
                         )
 
                         // 편집 버튼들
@@ -589,7 +590,8 @@ private fun HobbyCard(
     frequency: String,
     journeyDays: String,
     onStorageClick: () -> Unit,
-    dimensions: ResponsiveDimensions
+    dimensions: ResponsiveDimensions,
+    isArchived: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -662,14 +664,14 @@ private fun HobbyCard(
                     modifier = Modifier.size(20.dp)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.icon_archive),
-                        contentDescription = "보관",
+                        painter = painterResource(if (isArchived) R.drawable.ic_out else R.drawable.icon_archive),
+                        contentDescription = if (isArchived) "꺼내기" else "보관",
                         tint = Color(0xFF3A3A3A),
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Text(
-                    text = "보관",
+                    text = if (isArchived) "꺼내기" else "보관",
                     style = TextStyle(
                         fontSize = 12.sp,
                         color = Color(0xFF3A3A3A)

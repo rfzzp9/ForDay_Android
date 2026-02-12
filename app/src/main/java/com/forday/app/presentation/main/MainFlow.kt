@@ -5,8 +5,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -528,12 +528,10 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                key(navigationState.changeId) {
-                    NavDisplay(
-                        entries = navigationState.toEntries(entryProvider),
-                        onBack = { navigator.goBack() },
-                    )
-                }
+                NavDisplay(
+                    entries = navigationState.toEntries(entryProvider),
+                    onBack = { navigator.goBack() },
+                )
 
                 SnackbarHost(
                     hostState = snackbarHostState,
@@ -555,9 +553,10 @@ private fun MainTabScaffold(
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
         bottomBar = {
             BottomBar(
-                modifier = Modifier.navigationBarsPadding(),
+                modifier = Modifier,
                 selectedTab = navigationState.topLevelRoute.toBottomBarTab(),
                 onTabSelected = onTabSelected,
                 onRecordClick = onRecordClick,

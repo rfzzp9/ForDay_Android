@@ -1,21 +1,14 @@
 package com.forday.app.presentation.record.screen
 
-import android.Manifest.permission.READ_EXTERNAL_STORAGE
-import android.Manifest.permission.READ_MEDIA_IMAGES
-import android.Manifest.permission.READ_MEDIA_VIDEO
-import android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -119,76 +112,7 @@ fun RecordRoutineScreenRoot(
     var existingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var removedExistingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    // ✅ 권한 관련 상태 추가
     var shouldOpenGallery by remember { mutableStateOf(false) }
-
-    // ✅ 1. 권한 요청 Launcher
-    val requestPermissions = rememberLauncherForActivityResult(RequestMultiplePermissions()) { results ->
-        Timber.d("Permission results: $results")
-        val allGranted = results.values.all { it }
-        if (allGranted) {
-            Timber.d("All permissions granted - opening gallery")
-            shouldOpenGallery = true
-        } else {
-            Timber.w("Permission denied by user")
-            // TODO: 토스트 메시지 표시 (예: "갤러리 접근 권한이 필요합니다")
-        }
-    }
-
-    // ✅ 2. 권한 체크 함수
-    fun hasRequiredPermissions(): Boolean {
-        return when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
-                // Android 14+ : READ_MEDIA_IMAGES 또는 READ_MEDIA_VISUAL_USER_SELECTED 중 하나만 있어도 OK
-                ContextCompat.checkSelfPermission(context, READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(context, READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Android 13
-                ContextCompat.checkSelfPermission(context, READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-            }
-            else -> {
-                // Android 12 이하
-                ContextCompat.checkSelfPermission(context, READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            }
-        }
-    }
-
-    // ✅ 3. 권한 체크 및 요청 함수
-    fun checkAndRequestPermissions() {
-        Timber.d("Checking permissions for Android API ${Build.VERSION.SDK_INT}")
-
-        // 이미 권한이 있으면 바로 갤러리 열기
-        if (hasRequiredPermissions()) {
-            Timber.d("Permissions already granted - opening gallery directly")
-            shouldOpenGallery = true
-            return
-        }
-
-        // 권한이 없으면 요청
-        Timber.d("Requesting permissions...")
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
-                // Android 14 (API 34) 이상
-                requestPermissions.launch(arrayOf(
-                    READ_MEDIA_IMAGES,
-                    READ_MEDIA_VIDEO,
-                    READ_MEDIA_VISUAL_USER_SELECTED
-                ))
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Android 13 (API 33)
-                requestPermissions.launch(arrayOf(
-                    READ_MEDIA_IMAGES,
-                    READ_MEDIA_VIDEO
-                ))
-            }
-            else -> {
-                // Android 12 (API 32) 이하
-                requestPermissions.launch(arrayOf(READ_EXTERNAL_STORAGE))
-            }
-        }
-    }
 
     // ✅ 수정모드 초기화: memo, visibility, sticker, existingImageUrls
     LaunchedEffect(modifyMode, modifyData) {
@@ -387,9 +311,8 @@ fun RecordRoutineScreenRoot(
         },
         onPhotoClick = {
             if (totalImageCount < 1) {
-                // ✅ 갤러리 열기 전 권한 체크 및 요청
-                Timber.d("Photo button clicked - checking permissions")
-                checkAndRequestPermissions()
+                Timber.d("Photo button clicked - opening gallery")
+                shouldOpenGallery = true
             }
         },
         onImageRemove = { uri ->
