@@ -32,6 +32,7 @@ import com.forday.app.remote.model.request.HobbyStatusRequest
 import com.forday.app.remote.model.request.ModifyHobbyDurationRequest
 import com.forday.app.remote.model.request.ModifyHobbyExecutionCountRequest
 import com.forday.app.remote.model.request.ModifyHobbyTimeRequest
+import com.forday.app.remote.model.request.RecreateHobbyRequest
 import com.forday.app.remote.model.request.RoutineItem
 import com.forday.app.remote.model.request.RoutineRequest
 import com.forday.app.remote.model.request.WriteRoutineRequest
@@ -138,7 +139,6 @@ class HobbyDataSourceImpl @Inject constructor(
         return hobbyApi.getStickers(hobbyId, page, size).data.toData()
     }
 
-
     override suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodEntity =
         hobbyApi.extendHobbyPeriod(hobbyId, ExtendHobbyRequest(type)).toData()
 
@@ -154,5 +154,25 @@ class HobbyDataSourceImpl @Inject constructor(
 
     override suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity =
         hobbyApi.getHobbyCardDataAgain().toData()
+
+    override suspend fun reCreateHobby(
+        hobbyId: Long?,
+        hobbyInfoId: Long?,
+        hobbyName: String?,
+        hobbyPurpose: String?,
+        hobbyTimeMinutes: Int?,
+        executionCount: Int?,
+        durationSet: Boolean?
+    ) = hobbyApi.reCreateHobby(
+        hobbyId = hobbyId,
+        body = RecreateHobbyRequest(
+            hobbyInfoId = hobbyInfoId,
+            hobbyName = hobbyName,
+            hobbyPurpose = hobbyPurpose,
+            hobbyTimeMinutes = hobbyTimeMinutes,
+            executionCount = executionCount,
+            durationSet = durationSet
+        )
+    ).toData()
 
 }

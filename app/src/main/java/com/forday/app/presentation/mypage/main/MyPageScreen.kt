@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -103,6 +105,7 @@ data class HobbyCard(
     val rotation: Float = 0f
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyPageScreen(
     modifier: Modifier = Modifier,
@@ -169,7 +172,11 @@ fun MyPageScreen(
         )
     }
 
-    Box(
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = {
+            viewModel.refresh(selectedTab, selectedHobbyIds.toList())
+        },
         modifier = modifier
             .fillMaxSize()
             .background(MyPageColors.Background001)
@@ -177,7 +184,7 @@ fun MyPageScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)  // ✅ scrollState 연결
+                .verticalScroll(scrollState)
         ) {
             MyPageHeader(
                 onSettingsClick = { showSettingsMenu = !showSettingsMenu }

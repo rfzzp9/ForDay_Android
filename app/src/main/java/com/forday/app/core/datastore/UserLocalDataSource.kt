@@ -48,6 +48,8 @@ class UserLocalDataSource @Inject constructor(
         private val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
         private val IS_NICKNAME_SET = booleanPreferencesKey("is_nickname_set")
 
+        private val CREATED_HOBBY_ID = longPreferencesKey("created_hobby_id")
+
         private val AI_ROUTINE_LIST = stringPreferencesKey("ai_routine_list")
 
         private val LEGACY_HOBBY_ID_1_STRING = stringPreferencesKey("hobby_id_1")
@@ -187,11 +189,15 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit { it[HOBBY_ID_1] = hobbyId ?: 0L }
     }
 
+    suspend fun saveCreatedHobbyId(hobbyId: Long) {
+        dataStore.edit { it[HOBBY_ID_1] = hobbyId }
+    }
+
     suspend fun saveOnboardingData(selectedHobbyId: Long?, selectedHobbyName: String?, selectedMinutes: Int?, selectedPurpose: String?, selectedFrequency: Int?, selectedPeriod: Boolean) {
         dataStore.edit {
             it.remove(LEGACY_HOBBY_ID_1_STRING)
             it.remove(LEGACY_HOBBY_INFO_1_LONG)
-            it[HOBBY_ID_1] = selectedHobbyId ?: 0L  //0L이면 서버로 보낼 땐 null로 보내기 (아마..?)
+            it[HOBBY_INFO_1] = selectedHobbyId?.toInt() ?: 0  // 취미카드 id
             it[HOBBY_1] = selectedHobbyName ?: ""
             it[HOBBY_TAKE_TIME] = selectedMinutes ?: 0  //근데 애초에 null일 리가 없음.....
             it[HOBBY_PURPOSE] = selectedPurpose ?: ""
@@ -262,6 +268,7 @@ class UserLocalDataSource @Inject constructor(
             it.remove(HOBBY_ROUTINE_2)
             it.remove(HOBBY_ROUTINE_3)
             it.remove(HOBBY_INFO_1)
+            it.remove(CREATED_HOBBY_ID)
         }
     }
 

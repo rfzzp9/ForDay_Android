@@ -21,6 +21,7 @@ import com.forday.app.data.model.UpdateHobbyTimeEntity
 import com.forday.app.data.model.UpdateRoutineEntity
 import com.forday.app.data.model.UserHobbyTabEntity
 import com.forday.app.data.model.WriteRoutineEntity
+import com.forday.app.data.model.RecreateHobbyEntity
 import com.forday.app.remote.model.response.UpdateHobbyDurationResponse
 
 interface HobbyDataSource {
@@ -62,4 +63,14 @@ interface HobbyDataSource {
     suspend fun getUsersProgressHobbyTabs(): UserHobbyTabEntity
     suspend fun setHobbyMainImage(hobbyId: Long?, coverImageUrl: String?, recordId: Long?): HobbyMainImageEntity
     suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity
+
+    suspend fun reCreateHobby(
+        hobbyId: Long?,
+        hobbyInfoId: Long?,
+        hobbyName: String?,
+        hobbyPurpose: String?,
+        hobbyTimeMinutes: Int?,
+        executionCount: Int?,
+        durationSet: Boolean?
+    ): RecreateHobbyEntity
 }

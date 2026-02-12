@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -70,7 +71,7 @@ fun getHobbyIconResource(hobbyInfoId: Int?): Int {
         6 -> R.drawable.ic_cook
         7 -> R.drawable.ic_cafe
         8 -> R.drawable.ic_movie
-        9 -> R.drawable.ic_camera
+        9 -> R.drawable.ic_camera2
         10 -> R.drawable.ic_write
         else -> R.drawable.ic_etc_hobby // 기본값
     }
@@ -449,15 +450,16 @@ fun JourneyModeSelector(
     selectedMode: JourneyMode?,
     onModeSelect: (JourneyMode) -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         options.forEach { option ->
             JourneyModeCard(
                 option = option,
                 isSelected = selectedMode == option.mode,
-                onClick = { onModeSelect(option.mode) }
+                onClick = { onModeSelect(option.mode) },
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -467,94 +469,94 @@ fun JourneyModeSelector(
 fun JourneyModeCard(
     option: JourneyOption,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
-            .then(
-                if (isSelected) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = ForDayTheme.color.Primary001,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                } else {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = ForDayTheme.color.Gray03,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-            ),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = ForDayTheme.color.White)
+    Box(
+        modifier = modifier
     ) {
-        Box(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = option.characterIcon),
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = Color.Unspecified
+                .height(156.dp)
+                .clickable(
+                    onClick = onClick,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
                 )
+                .border(
+                    width = 1.dp,
+                    color = if (isSelected) ForDayTheme.color.Primary001 else ForDayTheme.color.Gray03,
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = ForDayTheme.color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Radio button + "추천" 배지
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) ForDayTheme.color.Primary001 else ForDayTheme.color.Border,
+                                shape = CircleShape
+                            )
+                            .background(
+                                color = if (isSelected) ForDayTheme.color.Primary001 else ForDayTheme.color.White,
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_check),
+                            contentDescription = if (isSelected) "선택됨" else "선택 안됨",
+                            modifier = Modifier.size(10.dp),
+                            tint = if (isSelected) ForDayTheme.color.White else Color(0xFFD1D1D1)
+                        )
+                    }
 
+                    if (option.mode == JourneyMode.FORDAY_66) {
+                        Text(
+                            text = "추천",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = ForDayTheme.color.Primary001,
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+
+                // Text content
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = option.title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = ForDayTheme.color.Neutral900
+                        color = ForDayTheme.color.Neutral900,
+                        lineHeight = 19.sp
                     )
                     Text(
                         text = option.description,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
-                        color = if (isSelected) ForDayTheme.color.Gray500 else ForDayTheme.color.Gray500,
+                        color = ForDayTheme.color.Gray500,
                         lineHeight = 16.8.sp
                     )
-                }
-            }
-
-            // Radio button (top right)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(16.dp)
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) ForDayTheme.color.Primary001 else ForDayTheme.color.Border,
-                        shape = CircleShape
-                    )
-                    .background(
-                        color = if (isSelected) ForDayTheme.color.Primary001 else ForDayTheme.color.White,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_check),
-                        contentDescription = "선택됨",
-                        modifier = Modifier.size(10.dp),
-                        tint = ForDayTheme.color.White
-                    )
+                    Spacer(Modifier.height(37.dp))
                 }
             }
         }

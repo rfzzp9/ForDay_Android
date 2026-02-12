@@ -21,6 +21,7 @@ import com.forday.app.domain.model.UpdateHobbyTimeDomain
 import com.forday.app.domain.model.UpdateRoutineDomain
 import com.forday.app.domain.model.UserHobbyTabDomain
 import com.forday.app.domain.model.WriteRoutineDomain
+import com.forday.app.domain.model.RecreateHobbyDomain
 
 interface HobbyRepository {
     suspend fun getHobbyCardData(): HobbyCardDomain
@@ -62,4 +63,14 @@ interface HobbyRepository {
     suspend fun getUsersProgressHobbyTabs(): UserHobbyTabDomain
     suspend fun setHobbyMainImage(hobbyId: Long?, coverImageUrl: String?, recordId: Long?): HobbyMainImageDomain
     suspend fun getHobbyCardDataAgain(): HobbyCardAgainDomain
+
+    suspend fun reCreateHobby(
+        hobbyId: Long?,
+        hobbyInfoId: Long?,
+        hobbyName: String?,
+        hobbyPurpose: String?,
+        hobbyTimeMinutes: Int?,
+        executionCount: Int?,
+        durationSet: Boolean?
+    ): RecreateHobbyDomain
 }

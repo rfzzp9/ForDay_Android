@@ -23,6 +23,7 @@ import com.forday.app.domain.model.UpdateHobbyTimeDomain
 import com.forday.app.domain.model.UpdateRoutineDomain
 import com.forday.app.domain.model.UserHobbyTabDomain
 import com.forday.app.domain.model.WriteRoutineDomain
+import com.forday.app.domain.model.RecreateHobbyDomain
 import com.forday.app.domain.repository.HobbyRepository
 import javax.inject.Inject
 
@@ -134,4 +135,23 @@ class HobbyRepositoryImpl @Inject constructor(
 
     override suspend fun getHobbyCardDataAgain(): HobbyCardAgainDomain =
         hobbyDataSource.getHobbyCardDataAgain().toDomain()
+
+    override suspend fun reCreateHobby(
+        hobbyId: Long?,
+        hobbyInfoId: Long?,
+        hobbyName: String?,
+        hobbyPurpose: String?,
+        hobbyTimeMinutes: Int?,
+        executionCount: Int?,
+        durationSet: Boolean?
+    ): RecreateHobbyDomain =
+        hobbyDataSource.reCreateHobby(
+            hobbyId = hobbyId,
+            hobbyInfoId = hobbyInfoId,
+            hobbyName = hobbyName,
+            hobbyPurpose = hobbyPurpose,
+            hobbyTimeMinutes = hobbyTimeMinutes,
+            executionCount = executionCount,
+            durationSet = durationSet
+        ).toDomain()
 }

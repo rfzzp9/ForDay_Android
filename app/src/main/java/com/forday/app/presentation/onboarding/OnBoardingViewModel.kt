@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
@@ -48,6 +49,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import retrofit2.HttpException
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -56,6 +60,8 @@ import kotlin.coroutines.suspendCoroutine
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.GetHobbyCardDataAgainUseCase
+import com.forday.app.domain.usecase.RecreateHobbyUseCase
+import com.forday.app.domain.usecase.SaveCreatedHobbyIdUseCase
 import com.forday.app.presentation.common.SnackbarManager
 
 @HiltViewModel
@@ -71,6 +77,7 @@ class OnboardingViewModel @Inject constructor(
     private val getOnboardingDataUseCase: GetOnboardingDataUseCase,
     private val getIsNicknameDuplicateUseCase: GetIsNicknameDuplicateUseCase,
     private val registerNicknameUseCase: RegisterNicknameUseCase,
+    private val recreateHobbyUseCase: RecreateHobbyUseCase,
     private val saveNicknameUseCase: SaveNicknameUseCase,
     private val saveOnboardingDataUseCase: SaveOnboardingDataUseCase,
     private val createHobbyUseCase: CreateHobbyUseCase,
@@ -79,6 +86,7 @@ class OnboardingViewModel @Inject constructor(
     private val modifyHobbyTimeUseCase: ModifyHobbyTimeUseCase, // 취미 정보 수정 - 취미 시간
     private val modifyHobbyExecutionCountUseCase: ModifyHobbyExecutionCountUseCase, // 취미 정보 수정 - 취미 주당 횟수
     private val modifyHobbyDurationUseCase: ModifyHobbyDurationUseCase,
+    private val saveCreatedHobbyIdUseCase: SaveCreatedHobbyIdUseCase,
     private val snackbarManager: SnackbarManager,
 ) : BaseViewModel<Unit>() {
 
@@ -403,21 +411,15 @@ class OnboardingViewModel @Inject constructor(
         selectedPeriod: JourneyMode?
     ) = viewModelScope.launch {
         Timber.e("@@@@@@@@@@@@@ 호출 " + selectedHobbyId + ", " + selectedHobbyName + ", " + selectedMinutes + ", " + selectedPurpose + ", " + selectedFrequency + ", " + (selectedPeriod == JourneyMode.FORDAY_66))
-        flow {
-            emit(
-                createHobbyUseCase(
-                    selectedHobbyId,
-                    selectedHobbyName,
-                    selectedMinutes,
-                    selectedPurpose,
-                    selectedFrequency,
-                    selectedPeriod == JourneyMode.FORDAY_66
-                )
+        try {
+            val result = createHobbyUseCase(
+                selectedHobbyId,
+                selectedHobbyName,
+                selectedMinutes,
+                selectedPurpose,
+                selectedFrequency,
+                selectedPeriod == JourneyMode.FORDAY_66
             )
-        }.catch { throwable ->
-            Timber.e("@@@@@@@@@@@@@ " + throwable.stackTrace + ", " + throwable.cause + ", " + throwable)
-            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
-        }.collect { result ->
             Timber.e("@@@@@@@@@@@@@ " + result.data.message)
             _uiState.update {
                 it.copy(
@@ -425,6 +427,114 @@ class OnboardingViewModel @Inject constructor(
                     hobbyId = result.data.hobbyId
                 )
             }
+            saveCreatedHobbyIdUseCase(result.data.hobbyId.toLong())
+        } catch (e: HttpException) {
+            val errorClassName = parseErrorClassName(e)
+            if (errorClassName == "DUPLICATE_HOBBY_REQUEST") {
+                Timber.d("DUPLICATE_HOBBY_REQUEST detected, attempting recreateHobby")
+                handleDuplicateHobby(
+                    selectedHobbyId, selectedHobbyName, selectedMinutes,
+                    selectedPurpose, selectedFrequency, selectedPeriod
+                )
+            } else {
+                Timber.e("@@@@@@@@@@@@@ " + e.stackTrace + ", " + e.cause + ", " + e)
+                snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
+            }
+        } catch (e: Exception) {
+            Timber.e("@@@@@@@@@@@@@ " + e.stackTrace + ", " + e.cause + ", " + e)
+            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
+        }
+    }
+
+    private fun parseErrorClassName(e: HttpException): String? {
+        return try {
+            val errorBody = e.response()?.errorBody()?.string()
+            val json = Gson().fromJson(errorBody, JsonObject::class.java)
+            json?.get("errorClassName")?.asString
+                ?: json?.getAsJsonObject("data")?.get("errorClassName")?.asString
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private suspend fun handleDuplicateHobby(
+        selectedHobbyId: Long?,
+        selectedHobbyName: String?,
+        selectedMinutes: Int?,
+        selectedPurpose: String?,
+        selectedFrequency: Int?,
+        selectedPeriod: JourneyMode?
+    ) {
+
+        try {
+            val onboardingData = getOnboardingDataUseCase().first()
+            val hobbyId = onboardingData.hobbyId?.toLong()
+            Timber.e("@@@@@23@@@@recreateHobbyUseCase@@@@@@@@ "+hobbyId+", "+selectedHobbyId+", "+selectedHobbyName+", "+selectedPurpose+", "+selectedMinutes+", "+selectedFrequency+","+(selectedPeriod==JourneyMode.FORDAY_66))
+            val result = recreateHobbyUseCase(
+                hobbyId = hobbyId,
+                hobbyInfoId = selectedHobbyId,
+                hobbyName = selectedHobbyName,
+                hobbyPurpose = selectedPurpose,
+                hobbyTimeMinutes = selectedMinutes,
+                executionCount = selectedFrequency,
+                durationSet = selectedPeriod == JourneyMode.FORDAY_66
+            )
+
+            val isSuccess = result.status == 200 && result.isSuccess
+            if (isSuccess) {
+                saveCreatedHobbyIdUseCase(result.data.hobbyId)
+                saveOnboardingDataUseCase(
+                    selectedHobbyId,
+                    selectedHobbyName,
+                    selectedMinutes,
+                    selectedPurpose,
+                    selectedFrequency,
+                    selectedPeriod == JourneyMode.FORDAY_66
+                )
+                _uiState.update {
+                    it.copy(isOnboardingDataSaved = true, isHobbyRecreated = true)
+                }
+            } else {
+                snackbarManager.show("취미 수정에 실패했어요. 잠시 후 다시 시도해주세요.")
+                _uiState.update { it.copy(isHobbyRecreated = false) }
+            }
+        } catch (e: Exception) {
+            Timber.e("handleDuplicateHobby error: $e")
+            _uiState.update { it.copy(isHobbyRecreated = false) }
+            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
+        }
+    }
+
+    fun recreateHobby(
+        hobbyId: Long?,
+        hobbyInfoId: Long?,
+        hobbyName: String?,
+        hobbyPurpose: String?,
+        hobbyTimeMinutes: Int?,
+        executionCount: Int?,
+        durationSet: Boolean?
+    ) = viewModelScope.launch {
+        flow {
+            emit(
+                recreateHobbyUseCase(
+                    hobbyId = hobbyId,
+                    hobbyInfoId = hobbyInfoId,
+                    hobbyName = hobbyName,
+                    hobbyPurpose = hobbyPurpose,
+                    hobbyTimeMinutes = hobbyTimeMinutes,
+                    executionCount = executionCount,
+                    durationSet = durationSet
+                )
+            )
+        }.catch { throwable ->
+            _uiState.update { it.copy(isHobbyRecreated = false) }
+            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
+        }.collect { result ->
+            val isSuccess = result.status == 200 && result.isSuccess
+            if (!isSuccess) {
+                snackbarManager.show("취미 수정에 실패했어요. 잠시 후 다시 시도해주세요.")
+            }
+            _uiState.update { it.copy(isHobbyRecreated = isSuccess) }
         }
     }
 

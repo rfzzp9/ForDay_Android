@@ -9,6 +9,7 @@ import com.forday.app.remote.model.request.HobbyStatusRequest
 import com.forday.app.remote.model.request.ModifyHobbyDurationRequest
 import com.forday.app.remote.model.request.ModifyHobbyExecutionCountRequest
 import com.forday.app.remote.model.request.ModifyHobbyTimeRequest
+import com.forday.app.remote.model.request.RecreateHobbyRequest
 import com.forday.app.remote.model.request.RoutineRequest
 import com.forday.app.remote.model.request.WriteRoutineRequest
 import com.forday.app.remote.model.response.AiRecommendedResponse
@@ -33,11 +34,13 @@ import com.forday.app.remote.model.response.UpdateHobbyTimeResponse
 import com.forday.app.remote.model.response.UpdateRoutineResponse
 import com.forday.app.remote.model.response.UserHobbyTabResponse
 import com.forday.app.remote.model.response.WriteRoutineResponse
+import com.forday.app.remote.model.response.RecreateHobbyResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -151,4 +154,10 @@ interface HobbyApi {
 
     @GET("/hobbies/info/re-check")
     suspend fun getHobbyCardDataAgain(): HobbyCardAgainResponse  // 취미 정보 재조회
+
+    @PUT("/hobbies/{hobbyId}/update")  // 생성 완료된 취미 수정
+    suspend fun reCreateHobby(
+        @Path("hobbyId") hobbyId: Long?,
+        @Body body: RecreateHobbyRequest
+    ): RecreateHobbyResponse
 }

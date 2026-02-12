@@ -34,6 +34,7 @@ data class OnboardingUiState(
     val isNicknameChecked: Boolean = false, // 중복 확인 완료 여부
     val nicknameRegisterSuccess: Boolean = false,
     val isOnboardingDataSaved: Boolean = false, // 온보딩 데이터 서버에 저장됐는지 여부
+    val isHobbyRecreated: Boolean = false,
     val initialRoute: NavKey? = null,
     val isSplashLoading: Boolean = true,
     val isLoginSuccess: Boolean = false// ✅ 로그인 성공 플래그

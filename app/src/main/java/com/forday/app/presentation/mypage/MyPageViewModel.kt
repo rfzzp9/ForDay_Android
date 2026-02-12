@@ -29,12 +29,14 @@ import com.forday.app.presentation.mypage.main.UserInfoUiModel
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -75,6 +77,35 @@ class MyPageViewModel @Inject constructor(
     ))
     val uiState: StateFlow<MyPageUiState> = _uiState.toStateIn()
 
+
+    fun refresh(selectedTab: Int, selectedHobbyIds: List<Int?>) = viewModelScope.launch {
+        _uiState.update { it.copy(isRefreshing = true) }
+        try {
+            withTimeout(4_000L) {
+                val jobs = mutableListOf(
+                    launch { getUserInfo().join() },
+                    launch { getUsersProgressHobbyTabs().join() },
+                    launch {
+                        getUserFeedList(
+                            hobbyIds = selectedHobbyIds,
+                            lastRecordId = null,
+                            feedSize = 24
+                        ).join()
+                    }
+                )
+                if (selectedTab == 2) {
+                    jobs += launch {
+                        getUserScrapList(lastScrapId = null, size = 24, userId = null).join()
+                    }
+                }
+                jobs.forEach { it.join() }
+            }
+        } catch (_: TimeoutCancellationException) {
+            Timber.d("MyPage refresh timed out after 4s")
+        } finally {
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
 
     fun markGuestBottomSheetShown() {
         _uiState.update { currentState ->

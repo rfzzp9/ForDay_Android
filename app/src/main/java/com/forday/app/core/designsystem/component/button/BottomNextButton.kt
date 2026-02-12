@@ -44,13 +44,12 @@ fun BottomNextButton(
     text: String,
     state: BottomButtonState = BottomButtonState.ENABLED,
     onClick: () -> Unit = {},
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.background(Color.White),
     showBackgroundGradient: Boolean = true
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(ForDayTheme.color.White)
             .height(88.dp)
             .then(
                 if (showBackgroundGradient) {

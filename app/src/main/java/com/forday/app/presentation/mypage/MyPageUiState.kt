@@ -25,5 +25,6 @@ data class MyPageUiState(
     val scrapListUiModel: ScrapListUiModel = ScrapListUiModel(),  // 사용자 스크랩 목록
     val scrapCount: Int? = 0,  // 스크랩 카운트 (임시방편. 수정하기)
     val hasShownGuestBottomSheet: Boolean = false,  // 게스트 체크 - 최초 접속 시에만 바텀 시트 표시
-    val isScraped: Boolean?= null  //활동기록 상세보기에서 북마크 여부
+    val isScraped: Boolean?= null,  //활동기록 상세보기에서 북마크 여부
+    val isRefreshing: Boolean = false  // Pull-to-Refresh 상태
 )

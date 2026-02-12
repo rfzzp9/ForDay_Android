@@ -454,7 +454,7 @@ fun PurposeCard(
             .then(
                 if (isSelected) {
                     Modifier.border(
-                        width = 2.dp,
+                        width = 1.dp,
                         color = ForDayTheme.color.Primary001,
                         shape = RoundedCornerShape(16.dp)
                     )
@@ -493,7 +493,7 @@ fun PurposeCard(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_check),
                         contentDescription = if (isSelected) "선택됨" else "선택 안됨",
-                        modifier = Modifier.width(10.45455.dp).height(5.90909.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = if (isSelected) ForDayTheme.color.White else ForDayTheme.color.Border
                     )
                 }

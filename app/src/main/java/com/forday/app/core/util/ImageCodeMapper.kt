@@ -5,16 +5,16 @@ import com.dayn.forday.R
 object ImageCodeMapper {
 
     private val imageCodeMap = mapOf(
-        "drawing.png" to R.drawable.hobbycard_drawing,
-        "gym.png" to R.drawable.hobbycard_gym,
-        "reading.png" to R.drawable.hobbycard_reading,
-        "music.png" to R.drawable.hobbycard_listeningmusic,
-        "running.png" to R.drawable.hobbycard_running,
-        "cooking.png" to R.drawable.hobbycard_cooking,
-        "cafe.png" to R.drawable.hobbycard_cafe,
-        "movie.png" to R.drawable.hobbycard_watchingmovie,
-        "photo.png" to R.drawable.hobbycard_pictures,
-        "writing.png" to R.drawable.hobbycard_writing
+        "drawing.png" to R.drawable.hobby_draw,
+        "gym.png" to R.drawable.hobby_health,
+        "reading.png" to R.drawable.hobby_book,
+        "music.png" to R.drawable.hobby_music,
+        "running.png" to R.drawable.hobby_running,
+        "cooking.png" to R.drawable.hobby_cook,
+        "cafe.png" to R.drawable.hobby_cafe,
+        "movie.png" to R.drawable.hobby_movie,
+        "photo.png" to R.drawable.hobby_camera,
+        "writing.png" to R.drawable.hobby_pencil
     )
 
     fun getDrawableResId(imageCode: String): Int {

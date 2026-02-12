@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -174,7 +173,7 @@ fun SelectHobbyScreen(
                     BottomButtonState.DISABLED
                 },
                 onClick = onNext,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.BottomCenter).background(ForDayTheme.color.Neutral50)
             )
 
             if (showCustomHobbyDialog) {
@@ -229,8 +228,8 @@ fun HobbyCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = Modifier
+    Column(
+        modifier = modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(16.dp))
             .border(
@@ -238,64 +237,62 @@ fun HobbyCard(
                 color = if (isSelected) Color(0xFFF4A261) else Color(0xFFE5E5E5),
                 shape = RoundedCornerShape(16.dp)
             )
+            .background(Color.White)
             .clickable(onClick = onClick)
     ) {
-        Image(
-            painter = painterResource(id = hobby.imageResId),
-            contentDescription = hobby.name,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
+        // Image section
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.36f),
-                            Color.Black.copy(alpha = 0.6f)
-                        ),
-                        startY = 0f,
-                        endY = Float.POSITIVE_INFINITY
-                    )
-                )
-        )
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = hobby.imageResId),
+                contentDescription = hobby.name,
+                modifier = Modifier
+                    .padding(top = 32.dp)
+                    .padding(bottom = 14.dp)
+                    .padding(horizontal = 48.dp)
+                    .aspectRatio(1f),
+                contentScale = ContentScale.Crop
+            )
 
+            HobbyCheckbox(
+                isSelected = isSelected,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 9.dp, end = 11.dp)
+            )
+        }
+
+        // Text section
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 9.dp, bottom = 12.dp, end = 9.dp)
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 9.dp, vertical = 8.dp)
         ) {
             Text(
                 text = hobby.name,
                 style = TextStyle(
-
                     fontWeight = FontWeight.Medium,
                     fontSize = 16.sp,
-                    color = Color.White
+                    color = Color(0xFF1E1E1E)
                 )
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = hobby.description,
                 style = TextStyle(
-
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
                     lineHeight = 16.8.sp,
-                    color = Color(0xFFF9F9F9)
-                )
+                    color = Color(0xFF7A7A7A)
+                ),
+                maxLines = 1
             )
         }
-
-        HobbyCheckbox(
-            isSelected = isSelected,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 9.dp, end = 11.dp)
-        )
     }
 }
 
@@ -341,16 +338,10 @@ private fun AddCustomHobbyButton(customHobbyText: String, onClick: () -> Unit) {
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isCustomHobbySelected) {
-                    Color(0xFFFFF4E6)  // 선택 시 연한 주황색 배경
-                } else {
-                    Color.White
-                }
-            ),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(
-                width = if (isCustomHobbySelected) 2.dp else 1.dp,
+                width = 1.dp,
                 color = if (isCustomHobbySelected) {
                     ForDayTheme.color.Primary001  // 선택 시 주황색 border
                 } else {
@@ -389,8 +380,7 @@ private fun AddCustomHobbyButton(customHobbyText: String, onClick: () -> Unit) {
                         painter = painterResource(id = R.drawable.ic_check),
                         contentDescription = "선택됨",
                         modifier = Modifier
-                            .width(7.333.dp)
-                            .height(11.611.dp),
+                            .size(16.dp),
                         tint = Color(0xFFEE9449)
                     )
                 }

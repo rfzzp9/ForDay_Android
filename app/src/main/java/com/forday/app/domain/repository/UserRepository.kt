@@ -17,4 +17,5 @@ interface UserRepository {
     suspend fun setProfileImage(imageUrl: String): ProfileImageDomain
     suspend fun getUserNickname(): Flow<String?>
     suspend fun saveNickname(nickname: String)
+    suspend fun saveCreatedHobbyId(hobbyId: Long)
 }

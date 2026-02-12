@@ -50,4 +50,7 @@ internal class UserRepositoryImpl @Inject constructor(
     override suspend fun saveNickname(nickname: String) =
         userLocalDataSource.saveUserNickname(nickname)
 
+    override suspend fun saveCreatedHobbyId(hobbyId: Long) =
+        userLocalDataSource.saveCreatedHobbyId(hobbyId)
+
 }
