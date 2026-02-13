@@ -1,5 +1,6 @@
 package com.forday.app.presentation.common
 
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -10,7 +11,8 @@ import javax.inject.Singleton
 class SnackbarManager @Inject constructor() {
 
     private val _sideEffects = MutableSharedFlow<AppSideEffect>(
-        extraBufferCapacity = 64
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val sideEffects: SharedFlow<AppSideEffect> = _sideEffects.asSharedFlow()
 

@@ -57,6 +57,7 @@ class HomeViewModel @Inject constructor(
             val uiModel = domain.data?.toPresentation()
             emit(uiModel)
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("HomeHobbyData Fetch Error: $throwable")
             _uiState.update { it.copy(isLoading = false) } // 에러 시 로딩 종료
             val message = when (throwable) {
@@ -102,6 +103,7 @@ class HomeViewModel @Inject constructor(
                 val response = getSpecificRoutineListUseCase(hobbyId, size)
                 emit(response.data.routines)
             }.catch { throwable ->
+                throwable.printStackTrace()
                 Timber.e("@##@#@#@#@#@#@#@@ " + throwable)
                 val message = when (throwable) {
                     is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchSpecificRoutineList")
@@ -140,6 +142,7 @@ class HomeViewModel @Inject constructor(
             Timber.e("UseCase response: $response")
             emit(response)
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("ERROR fetching stickers: $throwable")
             throwable.printStackTrace()
             val message = when (throwable) {
@@ -226,6 +229,7 @@ class HomeViewModel @Inject constructor(
         flow {
             emit(getAiRecommendedRoutinesUseCase(hobbyId))
         }.catch { throwable ->
+            throwable.printStackTrace()
             when (throwable) {
                 is HttpException -> {
                     val errorBody = throwable.response()?.errorBody()?.string()
@@ -264,6 +268,7 @@ class HomeViewModel @Inject constructor(
             flow {
                 emit(createRoutinesUseCase.invoke(hobbyId, routineList))
             }.catch { throwable ->
+                throwable.printStackTrace()
                 routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
                 Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+throwable)
                 Timber.e(throwable)
@@ -288,6 +293,7 @@ class HomeViewModel @Inject constructor(
     fun getUserNickname() = viewModelScope.launch {
         getUserNicknameUseCase()
             .catch { throwable ->
+                throwable.printStackTrace()
                 val message = when (throwable) {
                     is HttpException -> throwable.logAndExtractServerMessage(tag = "getUserNickname")
                     else -> null

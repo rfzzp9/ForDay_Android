@@ -31,6 +31,7 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             .onFailure { throwable ->
+                throwable.printStackTrace()
                 snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
     }
@@ -41,6 +42,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.value = SettingsUiState(isAccountCancelled = true)
             }
             .onFailure { throwable ->
+                throwable.printStackTrace()
                 snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
     }

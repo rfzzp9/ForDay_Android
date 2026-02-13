@@ -46,9 +46,11 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
             flow {
                 emit(getHobbyMateRoutines(selectedHobbyId))
             }.catch { throwable ->
+                throwable.printStackTrace()
                 Timber.e("@#@나와 취미가 비슷한 사람들의 루틴 추천#@#@ " + throwable)
                 _sideEffectChannel.send(InputRoutinesAndAiRecommendSideEffect.Exception(throwable))
             }.collect { result ->
+
                 result.data.activities.map { Timber.e("@#@나와 취미가 비슷한 사람들의 루틴 추천#@#@ " + it.content) }
                 _uiState.update {
                     it.copy(
@@ -70,6 +72,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
     private fun getOnboardingData() = viewModelScope.launch {
         getOnboardingDataUseCase()
             .catch { throwable ->
+                throwable.printStackTrace()
                 _sideEffectChannel.send(InputRoutinesAndAiRecommendSideEffect.Exception(throwable))
             }
             .collect { onboardingData ->
@@ -87,6 +90,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
             flow {
                 emit(createRoutinesUseCase.invoke(hobbyId, routineList))
             }.catch { throwable ->
+                throwable.printStackTrace()
                 routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
                 Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+throwable)
                 Timber.e(throwable)
@@ -113,6 +117,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
         flow {
             emit(getAiRecommendedRoutinesUseCase(hobbyId))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.d("🔵 AI routines 에러 발생: %s", throwable)
 
             when (throwable) {
@@ -196,6 +201,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
     fun getUserNickname() = viewModelScope.launch {
         getUserNicknameUseCase()
             .catch { throwable ->
+                throwable.printStackTrace()
                 _sideEffectChannel.send(InputRoutinesAndAiRecommendSideEffect.Exception(throwable))
             }.collect { data ->
                 _uiState.update { state ->

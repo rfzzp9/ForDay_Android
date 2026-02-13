@@ -38,6 +38,7 @@ class ModifyHobbyViewModel @Inject constructor(
         flow {
             emit(getMyHobbyListUseCase(inProgress).data)
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@@@@@@@@"+throwable)
             _sideEffectChannel.send(ModifyHobbySideEffect.Exception(throwable))
         }.collect { data ->
@@ -59,6 +60,7 @@ class ModifyHobbyViewModel @Inject constructor(
         flow {
             emit(changeHobbyStatusUseCase(hobbyId, hobbyStatus))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@@@@@@@@"+throwable)
             _sideEffectChannel.send(ModifyHobbySideEffect.Exception(throwable))
         }.collect { data ->

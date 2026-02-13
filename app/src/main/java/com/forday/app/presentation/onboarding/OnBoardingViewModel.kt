@@ -123,6 +123,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(getHobbyDataUseCase().toPresentation())
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 " + throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
@@ -307,6 +308,7 @@ class OnboardingViewModel @Inject constructor(
     fun getOnboardingData() = viewModelScope.launch {
         getOnboardingDataUseCase()
             .catch { throwable ->
+                throwable.printStackTrace()
                 snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
             }
             .collect { onboardingData ->
@@ -327,6 +329,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(getIsNicknameDuplicateUseCase(nickName))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@@@@@@@@@@@@@@@@ " + throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { result ->
@@ -345,6 +348,8 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(getHobbyCardDataAgainUseCase().toPresentation())
         }.catch { throwable ->
+            throwable.printStackTrace()
+//            Log.e("@@@@@@@@@@", ""+throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
             _uiState.update {
@@ -368,6 +373,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(registerNicknameUseCase(nickName))
         }.catch { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
             _uiState.update {
@@ -398,6 +404,7 @@ class OnboardingViewModel @Inject constructor(
                 selectedPeriod == JourneyMode.FORDAY_66
             )
         }.onFailure { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }
     }
@@ -429,6 +436,7 @@ class OnboardingViewModel @Inject constructor(
             }
             saveCreatedHobbyIdUseCase(result.data.hobbyId.toLong())
         } catch (e: HttpException) {
+            e.printStackTrace()
             val errorClassName = parseErrorClassName(e)
             if (errorClassName == "DUPLICATE_HOBBY_REQUEST") {
                 Timber.d("DUPLICATE_HOBBY_REQUEST detected, attempting recreateHobby")
@@ -441,6 +449,7 @@ class OnboardingViewModel @Inject constructor(
                 snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             Timber.e("@@@@@@@@@@@@@ " + e.stackTrace + ", " + e.cause + ", " + e)
             snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
         }
@@ -499,6 +508,7 @@ class OnboardingViewModel @Inject constructor(
                 _uiState.update { it.copy(isHobbyRecreated = false) }
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             Timber.e("handleDuplicateHobby error: $e")
             _uiState.update { it.copy(isHobbyRecreated = false) }
             snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
@@ -555,6 +565,7 @@ class OnboardingViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    error.printStackTrace()
                     Log.d("@#@#@#@ ", "########error "+error)
                     Timber.e("@#@#@#@#@#@#@#@#@ error "+error)
                     Timber.d("error " + error.message)
@@ -654,6 +665,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(modifyHobbyTimeUseCase(hobbyId, minutes))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@modifyHobbyTime@@@@@@@" + throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
@@ -668,6 +680,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(modifyHobbyExecutionCountUseCase(hobbyId, executionCount))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@modifyHobbyExecutionCount@@@@@@@" + throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
@@ -682,6 +695,7 @@ class OnboardingViewModel @Inject constructor(
         flow {
             emit(modifyHobbyDurationUseCase(hobbyId, goalDays))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@@@modifyHobbyGoalDays@@@@@@@" + throwable)
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
@@ -696,6 +710,7 @@ class OnboardingViewModel @Inject constructor(
         runCatching {
             saveIsNicknameSetUseCase(isNicknameSet)
         }.onFailure { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }
     }
@@ -704,6 +719,7 @@ class OnboardingViewModel @Inject constructor(
         runCatching {
             saveIsOnboardingCompletedUseCase(isOnboardingCompleted)
         }.onFailure { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }
     }
@@ -731,6 +747,7 @@ class OnboardingViewModel @Inject constructor(
                     Log.e("OnboardingViewModel", "UI State 업데이트 완료 - isLoginSuccess: true")
                 }
                 .onFailure { error ->
+                    error.printStackTrace()
                     Log.e("OnboardingViewModel", "========== 카카오 로그인 실패 (onFailure) ==========")
                     Log.e("OnboardingViewModel", "Error type: ${error.javaClass.name}")
                     Log.e("OnboardingViewModel", "Error message: ${error.cause}")
@@ -749,6 +766,7 @@ class OnboardingViewModel @Inject constructor(
                     snackbarManager.show(errorMessage)
                 }
         } catch (e: Exception) {
+            e.printStackTrace()
             Log.e("OnboardingViewModel", "========== 카카오 로그인 실패 (Exception) ==========")
             Log.e("OnboardingViewModel", "Exception type: ${e.javaClass.simpleName}")
             Log.e("OnboardingViewModel", "Exception message: ${e.message}")

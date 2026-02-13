@@ -55,6 +55,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(writeRoutineUseCase(routineId, sticker, memo, imageUrl, visibility).data.toPresentation())
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@#@####writeRoutine@#@ "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -85,6 +86,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(modifyPostingUseCase(recordId, routineId, sticker, memo, imageUrl, visibility))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@@@@@@@@@@2323@@@@@@@@"+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -107,6 +109,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(getMyRoutineRecordDetailUseCase(recordId))
         }.catch { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             data?.let { detail ->
@@ -129,6 +132,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(modifyHobbyRoutineUseCase(routineId, content))
         }.catch { throwable ->
+            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             if (data.status == 200) {
@@ -155,6 +159,7 @@ class RecordRoutineViewModel @Inject constructor(
             val response = getSpecificRoutineListUseCase(hobbyId, size)
             emit(response.data.routines)
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e("@##@#@#@#@#@#@#@@ "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { routines ->
@@ -182,6 +187,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(getPresignedUrlUseCase(images).data)
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e(throwable, "@#@############ Failed to get presigned URL   "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -198,6 +204,7 @@ class RecordRoutineViewModel @Inject constructor(
         flow {
             emit(deleteS3ImageUseCase(imageUrl))
         }.catch { throwable ->
+            throwable.printStackTrace()
             Timber.e(throwable, "@#@############ deleteS3Image  throwable : "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -230,11 +237,13 @@ class RecordRoutineViewModel @Inject constructor(
                 Timber.d("Image upload successful: ${file.name}, order: $order")
                 updateImageUploadStatus(order, isUploading = false, isSuccess = true)
             }.onFailure { throwable ->
+                throwable.printStackTrace()
                 Timber.e(throwable, "Image upload failed: ${file.name}, order: $order")
                 updateImageUploadStatus(order, isUploading = false, isSuccess = false)
                 snackbarManager.show(throwable.toUserMessage())
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             Timber.e(e, "Unexpected error during upload")
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
             snackbarManager.show(e.toUserMessage())
