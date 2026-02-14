@@ -11,7 +11,7 @@ import com.google.gson.annotations.SerializedName
 data class HobbyStickerHistoryWrapperResponse(
     @SerializedName("status") val status: Int,
     @SerializedName("success") val success: Boolean,
-    @SerializedName("data") val data: HobbyStickerHistoryResponse
+    @SerializedName("data") val data: HobbyStickerHistoryResponse? = null,
 )
 
 /**

@@ -12,6 +12,7 @@ import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -190,13 +191,13 @@ class UserLocalDataSource @Inject constructor(
     }
 
     suspend fun saveCreatedHobbyId(hobbyId: Long) {
-        dataStore.edit { it[HOBBY_ID_1] = hobbyId }
+        dataStore.edit { it[HOBBY_ID_1] = hobbyId }  //서버로부터 받은 취미 id
     }
 
     suspend fun saveOnboardingData(selectedHobbyId: Long?, selectedHobbyName: String?, selectedMinutes: Int?, selectedPurpose: String?, selectedFrequency: Int?, selectedPeriod: Boolean) {
         dataStore.edit {
-            it.remove(LEGACY_HOBBY_ID_1_STRING)
-            it.remove(LEGACY_HOBBY_INFO_1_LONG)
+//            it.remove(LEGACY_HOBBY_ID_1_STRING)  // 주석 풀면 hobbyId가 없어짐
+//            it.remove(LEGACY_HOBBY_INFO_1_LONG)
             it[HOBBY_INFO_1] = selectedHobbyId?.toInt() ?: 0  // 취미카드 id
             it[HOBBY_1] = selectedHobbyName ?: ""
             it[HOBBY_TAKE_TIME] = selectedMinutes ?: 0  //근데 애초에 null일 리가 없음.....
@@ -212,6 +213,7 @@ class UserLocalDataSource @Inject constructor(
 
     fun getOnboardingData(): Flow<OnboardingDataEntity> {
         return dataStore.data.map { preferences ->
+            Timber.e("@@@@@@@@@@@@@@@@@@@getOnboardingData : "+preferences[HOBBY_ID_1]+", "+preferences[HOBBY_INFO_1]+", "+preferences[HOBBY_1]+", "+preferences[HOBBY_TAKE_TIME]+", "+preferences[HOBBY_PURPOSE]+", "+preferences[HOBBY_PER_WEEK]+", "+preferences[HOBBY_PERIOD])
             OnboardingDataEntity(
                 hobbyId = preferences[HOBBY_ID_1],
                 hobbyInfoId = preferences[HOBBY_INFO_1],
@@ -232,6 +234,17 @@ class UserLocalDataSource @Inject constructor(
             } catch (e: Exception) {
                 emptyList()
             }
+        }
+    }
+
+    suspend fun removeOnboardingData() {
+        dataStore.edit {
+            it.remove(HOBBY_INFO_1)
+            it.remove(HOBBY_1)
+            it.remove(HOBBY_TAKE_TIME)
+            it.remove(HOBBY_PURPOSE)
+            it.remove(HOBBY_PER_WEEK)
+            it.remove(HOBBY_PERIOD)
         }
     }
 

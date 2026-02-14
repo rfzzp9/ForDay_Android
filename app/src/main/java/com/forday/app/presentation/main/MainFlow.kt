@@ -4,19 +4,21 @@ import androidx.activity.compose.BackHandler
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,8 +27,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import kotlinx.coroutines.delay
 import com.forday.app.core.designsystem.component.navigationbar.BottomBar
 import com.forday.app.core.designsystem.component.navigationbar.BottomBarTab
+import com.forday.app.core.designsystem.dialog.RoutineOnlyOneHaveDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.navigation.*
 import com.forday.app.presentation.discovery.navigation.Discovery
@@ -73,8 +77,10 @@ import com.forday.app.presentation.onboarding.timeselect.navigation.SelectPerTim
 import com.forday.app.presentation.record.navigation.RecordRoutine
 import com.forday.app.presentation.record.screen.RecordRoutineScreenRoot
 import com.forday.app.presentation.story.navigation.Story
-import android.widget.Toast
+import android.widget.Toast as AndroidToast
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.forday.app.core.session.AuthEvent
@@ -90,6 +96,7 @@ import com.forday.app.presentation.allsettings.termsofservice.navigation.TermsOf
 import com.forday.app.presentation.allsettings.termsofservice.screen.TermsOfServiceScreen
 import com.forday.app.presentation.common.AppSideEffect
 import com.forday.app.presentation.common.SnackbarHostViewModel
+import com.forday.app.core.designsystem.toast.ErrorToast
 import timber.log.Timber
 
 private fun Context.findActivity(): Activity? {
@@ -118,13 +125,17 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val snackbarHostViewModel: SnackbarHostViewModel = hiltViewModel()
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var currentHobbyId by remember { mutableStateOf<Long?>(null) }
+    var isRecordedToday by remember { mutableStateOf(false) }
+    var todayRecordId by remember { mutableStateOf<Int?>(null) }
+    var showAlreadyRecordedDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         snackbarHostViewModel.sideEffects.collect { effect ->
             when (effect) {
                 is AppSideEffect.ShowSnackbar -> {
-                    snackbarHostState.showSnackbar(effect.message)
+                    toastMessage = effect.message
                 }
             }
         }
@@ -241,7 +252,8 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             BackHandler(enabled = true) { }
 
             ShowPobbiesScreen(
-                onNext = { navigator.navigate(InputNickname) }
+                onNext = { navigator.navigate(InputNickname) },
+                viewModel = onboardingViewModel
             )
         }
 
@@ -260,7 +272,13 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             MainTabScaffold(
                 navigationState = navigationState,
                 onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
-                onRecordClick = { navigator.navigate(RecordRoutine()) },
+                onRecordClick = {
+                    if (isRecordedToday) {
+                        showAlreadyRecordedDialog = true
+                    } else {
+                        navigator.navigate(RecordRoutine(currentHobbyId))
+                    }
+                },
             ) { padding ->
                 HomeScreenRoot(
                     modifier = Modifier.padding(padding),
@@ -280,6 +298,11 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     },
                     onAddHobbyClick = { navigator.navigate(SelectHobbyFromModify) },
                     onSelectHobby = { navigator.navigate(SelectHobbyFromModify) },
+                    onCurrentHobbyIdChanged = { hobbyId -> currentHobbyId = hobbyId },
+                    onRecordStateChanged = { recorded, recordId ->
+                        isRecordedToday = recorded
+                        todayRecordId = recordId
+                    },
                 )
             }
         }
@@ -288,7 +311,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             MainTabScaffold(
                 navigationState = navigationState,
                 onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
-                onRecordClick = { navigator.navigate(RecordRoutine()) },
+                onRecordClick = { navigator.navigate(RecordRoutine(currentHobbyId)) },
             ) { _ ->
                 // DiscoveryScreenRoot()
             }
@@ -298,7 +321,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             MainTabScaffold(
                 navigationState = navigationState,
                 onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
-                onRecordClick = { navigator.navigate(RecordRoutine()) },
+                onRecordClick = { navigator.navigate(RecordRoutine(currentHobbyId)) },
             ) { _ ->
                 // StoryScreenRoot()
             }
@@ -308,7 +331,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
             MainTabScaffold(
                 navigationState = navigationState,
                 onTabSelected = { tab -> navigator.navigate(tab.toNavKey()) },
-                onRecordClick = { navigator.navigate(RecordRoutine()) },
+                onRecordClick = { navigator.navigate(RecordRoutine(currentHobbyId)) },
             ) { padding ->
                 MyPageScreen(
                     modifier = Modifier.padding(padding),
@@ -343,7 +366,15 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     Timber.e("routineId@@@@@@@@@@@@@ : "+routineId)
                 },
                 onClose = { navigator.goBack() },
-                viewModel = recordRoutineViewModel
+                viewModel = recordRoutineViewModel,
+                onRoutineCreate = {
+                    navigator.goBack()
+                    navigator.navigate(InputRoutine(hobbyId, null))
+                },
+                onAddHobbyClick = {
+                    navigator.goBack()
+                    navigator.navigate(SelectHobbyFromModify)
+                }
             )
         }
 
@@ -470,7 +501,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
     ForDayTheme {
         val context = LocalContext.current
         var lastBackPressedAt by remember { mutableLongStateOf(0L) }
-        var exitToast by remember { mutableStateOf<Toast?>(null) }
+        var exitToast by remember { mutableStateOf<AndroidToast?>(null) }
 
         LaunchedEffect(navigationState.changeId) {
             val activeKeys = navigationState.stacksInUse
@@ -510,7 +541,7 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     lastBackPressedAt = now
                     exitToast?.view?.animate()?.cancel()
                     exitToast?.cancel()
-                    exitToast = Toast.makeText(context, "한 번 더 누르면 종료됩니다", Toast.LENGTH_SHORT).also { toast ->
+                    exitToast = AndroidToast.makeText(context, "한 번 더 누르면 종료됩니다", AndroidToast.LENGTH_SHORT).also { toast ->
                         toast.view?.alpha = 0f
                         toast.show()
                         toast.view?.animate()?.alpha(1f)?.setDuration(1000L)?.start()
@@ -533,14 +564,41 @@ fun MainFlow(initialRoute: NavKey, onboardingViewModel: OnboardingViewModel) {
                     onBack = { navigator.goBack() },
                 )
 
-                SnackbarHost(
-                    hostState = snackbarHostState,
+                val isTabRootScreen = navigationState.topLevelRoute in TOP_LEVEL_DESTINATIONS.keys &&
+                        navigationState.backStacks[navigationState.topLevelRoute]?.lastOrNull() == navigationState.topLevelRoute
+                val toastBottomPadding = if (isTabRootScreen) 72.dp else 20.dp
+
+                AnimatedVisibility(
+                    visible = toastMessage != null,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 20.dp)
-                )
+                        .padding(bottom = toastBottomPadding)
+                ) {
+                    ErrorToast(message = toastMessage.orEmpty())
+                }
+
+                LaunchedEffect(toastMessage) {
+                    if (toastMessage != null) {
+                        delay(2000L)
+                        toastMessage = null
+                    }
+                }
             }
         }
+    }
+
+    if (showAlreadyRecordedDialog) {
+        RoutineOnlyOneHaveDialog(
+            onDismiss = { showAlreadyRecordedDialog = false },
+            onViewRecords = {
+                showAlreadyRecordedDialog = false
+                todayRecordId?.let { recordId ->
+                    navigator.navigate(RoutineDetail(recordId.toLong()))
+                }
+            }
+        )
     }
 }
 

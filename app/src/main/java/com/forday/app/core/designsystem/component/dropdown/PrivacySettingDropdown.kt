@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 
 enum class VisibilityOption(val label: String) {
     PUBLIC("전체공개"),
-    FRIEND("친구공개"),
+//    FRIEND("친구공개"),  //TODO 나중에 소식탭..? 생기면 그때 비활성화 풀기
     PRIVATE("나만보기")
 }
 

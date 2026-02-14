@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -43,7 +45,8 @@ fun RoutineDropdown(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 10.dp)
         ) {
             items.forEachIndexed { index, item ->
                 DropdownItemRow(
@@ -63,6 +66,7 @@ private fun DropdownItemRow(
 ) {
     Box(
         modifier = modifier
+            .padding(horizontal = 16.dp)
             .fillMaxWidth()
             .then(
                 if (item.isSelected) {
@@ -75,7 +79,7 @@ private fun DropdownItemRow(
             .clickable(onClick = onClick,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null)
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 29.5.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(

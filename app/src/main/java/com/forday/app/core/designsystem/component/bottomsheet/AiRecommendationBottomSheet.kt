@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,7 +38,13 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -138,7 +145,8 @@ fun AiRecommendationBottomSheet(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-            dragHandle = null
+            dragHandle = null,
+            sheetMaxWidth = Dp.Unspecified
         ) {
             Box(
                 modifier = Modifier
@@ -187,6 +195,12 @@ fun AiRecommendationBottomSheet(
                                 onToggleSelection = { activityId ->
                                     recommendations = recommendations.map { activity ->
                                         activity.copy(isSelected = activity.id == activityId)
+                                    }
+                                },
+                                onTitleChange = { activityId, newTitle ->
+                                    recommendations = recommendations.map { activity ->
+                                        if (activity.id == activityId) activity.copy(title = newTitle)
+                                        else activity
                                     }
                                 },
                                 onRegenerate = {
@@ -444,17 +458,25 @@ private fun ResultScreen(
     aiCallCount: Int?,
     selectedCount: Int,
     onToggleSelection: (Int) -> Unit,
+    onTitleChange: (Int, String) -> Unit,
     onRegenerate: () -> Unit,
     onAdd: () -> Unit
 ) {
     var showTooltip by remember { mutableStateOf(false) }
-    var iconPosition by remember { mutableStateOf(IntOffset.Zero) }
+    var tooltipHeightPx by remember { mutableIntStateOf(0) }
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
             .background(Color.White)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
             .padding(top = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -504,44 +526,39 @@ private fun ResultScreen(
                                     lineHeight = 21.6.sp
                                 )
 
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_tooltip),
-                                    contentDescription = "정보",
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .onGloballyPositioned { coordinates ->
-                                            iconPosition = IntOffset(
-                                                coordinates.positionInWindow().x.toInt(),
-                                                coordinates.positionInWindow().y.toInt()
+                                Box {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_tooltip),
+                                        contentDescription = "정보",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                showTooltip = !showTooltip
+                                            },
+                                        tint = Color(0xFFB5B5B5)
+                                    )
+
+                                    if (showTooltip) {
+                                        Popup(
+                                            alignment = Alignment.TopCenter,
+                                            offset = IntOffset(
+                                                x = 0,
+                                                y = -tooltipHeightPx
+                                            ),
+                                            onDismissRequest = { showTooltip = false }
+                                        ) {
+                                            TooltipBubble(
+                                                text = "사용자의 취미취향과 다른 유저의\n데이터 기반 추천을 기반하여\n선별된 포데이 AI 추천 취미활동입니다.",
+                                                onDismiss = { showTooltip = false },
+                                                onHeightMeasured = { tooltipHeightPx = it }
                                             )
                                         }
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            showTooltip = !showTooltip
-                                        },
-                                    tint = Color(0xFFB5B5B5)
-                                )
-
-                            }
-
-                            if (showTooltip) {
-                                Popup(
-                                    alignment = Alignment.TopCenter,
-                                    offset = IntOffset(
-                                        x = 0,
-                                        y = iconPosition.y - with(LocalDensity.current) {
-                                            1.dp.toPx().toInt()
-                                        }
-                                    ),
-                                    onDismissRequest = { showTooltip = false }
-                                ) {
-                                    TooltipBubble(
-                                        text = "사용자의 취미취향과 다른 유저의\n데이터 기반 추천을 기반하여\n선별된 포데이 AI 추천 취미활동입니다.",
-                                        onDismiss = { showTooltip = false }
-                                    )
+                                    }
                                 }
+
                             }
                         }
                     }
@@ -555,7 +572,8 @@ private fun ResultScreen(
                 recommendations.forEach { activity ->
                     RecommendationCard(
                         activity = activity,
-                        onToggle = { onToggleSelection(activity.id) }
+                        onToggle = { onToggleSelection(activity.id) },
+                        onTitleChange = { newTitle -> onTitleChange(activity.id, newTitle) }
                     )
                 }
             }
@@ -577,12 +595,16 @@ private fun ResultScreen(
 @Composable
 private fun TooltipBubble(
     text: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onHeightMeasured: (Int) -> Unit = {}
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .wrapContentWidth()
+            .onGloballyPositioned { coordinates ->
+                onHeightMeasured(coordinates.size.height)
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -608,15 +630,15 @@ private fun TooltipBubble(
             )
         }
 
-        // 꼬리 (삼각형)
+        // 꼬리 (삼각형 - 아래를 가리킴 ▽)
         Canvas(
             modifier = Modifier
                 .size(width = 12.dp, height = 6.dp)
         ) {
             val path = Path().apply {
-                moveTo(size.width / 2, 0f)
-                lineTo(0f, size.height)
-                lineTo(size.width, size.height)
+                moveTo(0f, 0f)
+                lineTo(size.width, 0f)
+                lineTo(size.width / 2, size.height)
                 close()
             }
             drawPath(
@@ -662,14 +684,32 @@ private fun LoadingDots() {
     }
 }
 
-/**
- * 추천 활동 카드
- */
 @Composable
 private fun RecommendationCard(
     activity: RecommendedActivity,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onTitleChange: (String) -> Unit = {}
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var hasFocused by remember { mutableStateOf(false) }
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(activity.title))
+    }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            hasFocused = false
+            textFieldValue = textFieldValue.copy(
+                selection = TextRange(textFieldValue.text.length)
+            )
+            focusRequester.requestFocus()
+        } else {
+            focusManager.clearFocus()
+        }
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -692,20 +732,58 @@ private fun RecommendationCard(
             ) {
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = activity.title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E1E1E),
-                        lineHeight = 19.09.sp
-                    )
+                    if (isEditing) {
+                        BasicTextField(
+                            value = textFieldValue,
+                            onValueChange = { newValue ->
+                                if (newValue.text.length <= 20) {
+                                    textFieldValue = newValue
+                                    onTitleChange(newValue.text)
+                                }
+                            },
+                            modifier = Modifier
+                                .widthIn(min = 1.dp)
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { state ->
+                                    if (state.isFocused) {
+                                        hasFocused = true
+                                    } else if (hasFocused) {
+                                        isEditing = false
+                                        hasFocused = false
+                                    }
+                                },
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF1E1E1E),
+                                lineHeight = 19.09.sp
+                            ),
+                            singleLine = true
+                        )
+                    } else {
+                        Text(
+                            text = activity.title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1E1E1E),
+                            lineHeight = 19.09.sp
+                        )
+                    }
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_edit),
-                        contentDescription = "수정",
-                        modifier = Modifier.size(24.dp),
+                        painter = painterResource(
+                            id = R.drawable.ic_edit
+                        ),
+                        contentDescription = if (isEditing) "완료" else "수정",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                isEditing = !isEditing
+                            },
                         tint = Color(0xFFB5B5B5)
                     )
                 }
@@ -727,6 +805,10 @@ private fun RecommendationCard(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
+                            if (isEditing) {
+                                isEditing = false
+                                focusManager.clearFocus()
+                            }
                             onToggle()
                         },
                     contentAlignment = Alignment.Center
@@ -872,6 +954,7 @@ private fun ResultScreenPreview() {
         ),
         selectedCount = 1,
         onToggleSelection = {},
+        onTitleChange = { _, _ -> },
         onRegenerate = {},
         onAdd = {},
         aiCallCount = 0

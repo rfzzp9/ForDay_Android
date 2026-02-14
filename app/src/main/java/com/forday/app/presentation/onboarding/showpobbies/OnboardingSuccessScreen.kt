@@ -140,8 +140,8 @@ fun PobbiesLottieAnimation(
 @Composable
 private fun OnboardingSuccessScreenPreview() {
     ForDayTheme {
-        ShowPobbiesScreen(
-            onNext = {},
-        )
+//        ShowPobbiesScreen(
+//            onNext = {},
+//        )
     }
 }

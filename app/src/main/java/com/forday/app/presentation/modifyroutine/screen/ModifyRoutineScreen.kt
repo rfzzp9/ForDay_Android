@@ -1,6 +1,7 @@
 package com.forday.app.presentation.modifyroutine.screen
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +22,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.modifyroutine.ModifyRoutineViewModel
 import com.forday.app.presentation.modifyroutine.RoutineUiModel
 import kotlinx.coroutines.delay
@@ -63,7 +68,9 @@ fun ModifyRoutineScreenRoot(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.fetchHobbyRoutineList(hobbyId)
+        if (hobbyId != null) {
+            viewModel.fetchHobbyRoutineList(hobbyId)
+        }
     }
 
     ModifyRoutineScreen(
@@ -95,6 +102,7 @@ fun ModifyRoutineScreenRoot(
                 viewModel.deleteRoutine(routine.routineId)  // 여기서 삭제!
                 showDeleteDialog = false
                 selectedRoutineForDelete = null
+                showToast = true
             }
         },
         showEditDialog = showEditDialog,
@@ -131,16 +139,16 @@ fun ModifyRoutineScreen(
     onBack: () -> Unit,
     onAddRoutine: () -> Unit,
     onEditRoutine: (Long) -> Unit,
-    onEditClick: (RoutineUiModel) -> Unit,  // 추가
+    onEditClick: (RoutineUiModel) -> Unit,
     onDeleteClick: (RoutineUiModel) -> Unit,
     showDeleteDialog: Boolean,
     onDismissDeleteDialog: () -> Unit,
     onConfirmDelete: () -> Unit,
-    showEditDialog: Boolean,  // 추가
-    editText: String,  // 추가
-    onEditTextChange: (String) -> Unit,  // 추가
-    onDismissEditDialog: () -> Unit,  // 추가
-    onConfirmEdit: () -> Unit,  // 추가
+    showEditDialog: Boolean,
+    editText: String,
+    onEditTextChange: (String) -> Unit,
+    onDismissEditDialog: () -> Unit,
+    onConfirmEdit: () -> Unit,
     showToast: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -158,19 +166,7 @@ fun ModifyRoutineScreen(
                 onAdd = onAddRoutine
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 설명 텍스트
-            Text(
-                text = "현재 진행하고 있는 활동들이에요.",
-                modifier = Modifier.padding(horizontal = 20.dp),
-                fontSize = 14.sp,
-                color = Color(0xFF7A7A7A)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 로딩 상태 처리
+            // 로딩/에러/빈 상태/리스트 처리
             when {
                 isLoading -> {
                     Box(
@@ -210,20 +206,39 @@ fun ModifyRoutineScreen(
                         }
                     }
                 }
+                routineList.isEmpty() -> {
+                    // ✅ Empty State 추가
+                    EmptyRoutineContent(onAddRoutine = onAddRoutine)
+                }
                 else -> {
-                    // 활동 리스트
+                    // 기존 리스트
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        routineList.forEach { routine ->
-                            RoutineListItem(
-                                routine = routine,
-                                onEdit = { onEditClick(routine) },  // 수정
-                                onDelete = { onDeleteClick(routine) }
-                            )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "현재 진행하고 있는 활동들이에요.",
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            fontSize = 14.sp,
+                            color = Color(0xFF7A7A7A)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            routineList.forEach { routine ->
+                                RoutineListItem(
+                                    routine = routine,
+                                    onEdit = { onEditClick(routine) },
+                                    onDelete = { onDeleteClick(routine) }
+                                )
+                            }
                         }
                     }
                 }
@@ -247,17 +262,89 @@ fun ModifyRoutineScreen(
                 onConfirm = onConfirmEdit
             )
         }
+    }
+}
 
-        // 토스트 메시지
-        AnimatedVisibility(
-            visible = showToast,
-            enter = fadeIn() + slideInVertically(),
-            exit = fadeOut() + slideOutVertically(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 66.dp)
+@Composable
+private fun EmptyRoutineContent(
+    onAddRoutine: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 111.dp), // 헤더 아래 여백
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(40.dp)
+    ) {
+        // 일러스트 (슬픈 아이콘 + 박스)
+        Box(
+            modifier = Modifier.size(width = 160.dp, height = 162.dp),
+            contentAlignment = Alignment.TopCenter
         ) {
-            DeleteSuccessToast()
+            // ✅ 슬픈 표정 아이콘 (박스 위에 - 먼저 그려짐)
+            Image(
+                painter = painterResource(R.drawable.icon_sad),
+                contentDescription = "활동 없음",
+                modifier = Modifier
+                    .size(48.dp)
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-24).dp) // ✅ 박스 위로 올리기 (아이콘 절반만큼)
+            )
+
+            // 박스 일러스트 (나중에 그려짐)
+            Image(
+                painter = painterResource(R.drawable.box_img),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(width = 160.dp, height = 140.dp)
+                    .align(Alignment.BottomCenter)
+            )
+        }
+
+        // 텍스트 + 버튼
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = "진행 중인 활동이 없어요.",
+                style = TextStyle(
+                    fontFamily = FontFamily.Default, // Pretendard
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    lineHeight = 19.6.sp, // 14 * 1.4
+                    color = Color(0xFF7A7A7A),
+                    textAlign = TextAlign.Center
+                )
+            )
+
+            // 활동 추가하기 버튼
+            Button(
+                onClick = onAddRoutine,
+                modifier = Modifier
+                    .width(288.dp)
+                    .heightIn(min = 40.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFF1E6) // Primary/003
+                ),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(
+                    horizontal = 40.dp,
+                    vertical = 11.5.dp
+                )
+            ) {
+                Text(
+                    text = "활동 추가하기",
+                    style = TextStyle(
+                        fontFamily = FontFamily.Default, // Pretendard
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        lineHeight = 16.8.sp, // 14 * 1.2
+                        color = Color(0xFFFF9447)
+                    )
+                )
+            }
         }
     }
 }
@@ -446,7 +533,13 @@ private fun RoutineListItem(
                                 Text(
                                     text = routine.collectedStickerNum.toString(),
                                     fontSize = 12.sp,
-                                    color = Color(0xFF9E9E9E)
+                                    lineHeight = 12.sp,
+                                    color = Color(0xFF9E9E9E),
+                                    style = LocalTextStyle.current.copy(
+                                        platformStyle = PlatformTextStyle(
+                                            includeFontPadding = false
+                                        )
+                                    )
                                 )
                             }
                         }
@@ -485,8 +578,6 @@ private fun RoutineListItem(
                             ),
                         tint = Color(0xFFB5B5B5)
                     )
-                } else {
-                    Spacer(modifier = Modifier.width(40.dp))
                 }
             }
         }

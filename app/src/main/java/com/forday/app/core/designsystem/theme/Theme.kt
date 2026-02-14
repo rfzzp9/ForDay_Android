@@ -1,7 +1,6 @@
 package com.forday.app.core.designsystem.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -12,7 +11,6 @@ import androidx.core.view.WindowCompat
 
 @Composable
 fun ForDayTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
     if (!LocalInspectionMode.current) {
@@ -27,8 +25,8 @@ fun ForDayTheme(
             window.statusBarColor = FordayColor.White.toArgb()
             window.navigationBarColor = FordayColor.White.toArgb()
 
-            insetsController.isAppearanceLightStatusBars = !darkTheme
-            insetsController.isAppearanceLightNavigationBars = !darkTheme
+            insetsController.isAppearanceLightStatusBars = true
+            insetsController.isAppearanceLightNavigationBars = true
         }
     }
 

@@ -10,6 +10,7 @@ import com.forday.app.domain.model.RegisterNicknameDomain
 import com.forday.app.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 
 internal class UserRepositoryImpl @Inject constructor(
@@ -50,7 +51,13 @@ internal class UserRepositoryImpl @Inject constructor(
     override suspend fun saveNickname(nickname: String) =
         userLocalDataSource.saveUserNickname(nickname)
 
-    override suspend fun saveCreatedHobbyId(hobbyId: Long) =
+    override suspend fun saveCreatedHobbyId(hobbyId: Long) {
         userLocalDataSource.saveCreatedHobbyId(hobbyId)
+        Timber.e("@@@@@@@@@@@@@@@@@@@saveCreatedHobbyId : "+hobbyId)
+    }
+
+    override suspend fun removeOnboardingData() {
+        userLocalDataSource.removeOnboardingData()
+    }
 
 }

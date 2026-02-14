@@ -27,7 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.button.AddHobbyButton
 import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.dropdown.DropdownItem
@@ -65,13 +69,15 @@ fun RecordRoutineScreenRoot(
     modifyData: RoutineRecordDetailUiModel?,
     modifyMode: Boolean,
     viewModel: RecordRoutineViewModel,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onRoutineCreate: () -> Unit = {},
+    onAddHobbyClick: () -> Unit = {}
 ) {
     viewModel.logEvent("record_routine_screen")
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     Timber.e("@@@@@@@@########## "+modifyData?.recordId)
-
+    Timber.e("@@@@@@@@########## hobbyId : "+hobbyId)
     fun getStickerFileName(iconRes: Int): String {
         return when (iconRes) {
             R.drawable.ic_sticker_smile -> "smile.jpg"
@@ -83,9 +89,13 @@ fun RecordRoutineScreenRoot(
     }
 
     LaunchedEffect(Unit) {
+        state.routines.size
         val effectiveHobbyId = hobbyId ?: modifyData?.hobbyId?.toLong()
         Timber.d("fetchSpecificRoutineList - hobbyId: $hobbyId, modifyData.hobbyId: ${modifyData?.hobbyId}, effectiveHobbyId: $effectiveHobbyId")
-        viewModel.fetchSpecificRoutineList(effectiveHobbyId, null)
+        if (effectiveHobbyId != null) {
+            viewModel.fetchSpecificRoutineList(effectiveHobbyId, null)
+        }
+
     }
 
     var stickers by remember {
@@ -340,6 +350,9 @@ fun RecordRoutineScreenRoot(
         modifyData = modifyData,
         uploadComplete = uploadComplete,
         modifyMode = modifyMode,
+        onRoutineCreate = onRoutineCreate,
+        hobbyId = hobbyId,
+        onAddHobbyClick = onAddHobbyClick,
         onComplete = {
             Timber.d("Complete button clicked, modifyMode: $modifyMode")
 
@@ -432,9 +445,15 @@ fun RecordRoutineScreen(
     onComplete: () -> Unit,
     onClose: () -> Unit = {},
     modifier: Modifier = Modifier,
-    modifyData: RoutineRecordDetailUiModel?
+    modifyData: RoutineRecordDetailUiModel?,
+    hobbyId: Long? = null,
+    onAddHobbyClick: () -> Unit = {},
+    onRoutineCreate: () -> Unit = {}
 ) {
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    var activitySelectorBottomY by remember { mutableFloatStateOf(0f) }
+    var containerTopY by remember { mutableFloatStateOf(0f) }
 
     val selectedActivity = if (modifyMode && modifyData != null && selectedRoutineIndex == null) {
         modifyData.content
@@ -457,6 +476,7 @@ fun RecordRoutineScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .onGloballyPositioned { containerTopY = it.positionInRoot().y }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -507,10 +527,28 @@ fun RecordRoutineScreen(
                         color = Color(0xFF3A3A3A)
                     )
 
-                    ActivitySelector(
-                        selectedActivity = selectedActivity,
-                        onClick = onActivityClick
-                    )
+                    if (hobbyId == null) {
+                        AddHobbyButton(
+                            text = "취미 추가하기",
+                            onClick = onAddHobbyClick
+                        )
+                    } else if (routineList.isEmpty()) {
+                        AddHobbyButton(
+                            text = "취미활동 추가하기",
+                            onClick = onRoutineCreate
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                activitySelectorBottomY = coords.positionInRoot().y + coords.size.height
+                            }
+                        ) {
+                            ActivitySelector(
+                                selectedActivity = selectedActivity,
+                                onClick = onActivityClick
+                            )
+                        }
+                    }
                 }
 
                 Column(
@@ -576,7 +614,8 @@ fun RecordRoutineScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .offset(y = (44 + 7 + 8 + 54 + 8).dp)
+                        .offset(y = with(density) { (activitySelectorBottomY - containerTopY).toDp() } + 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     RoutineDropdown(
                         items = routineList.mapIndexed { index, routine ->
@@ -589,7 +628,7 @@ fun RecordRoutineScreen(
                         onItem = { index ->
                             onRoutineSelected(index)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.width(IntrinsicSize.Max)
                     )
                 }
             }
@@ -722,11 +761,16 @@ private fun StickerItem(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        onClick = onClick,
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier
+            .aspectRatio(1f)
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
         shape = RoundedCornerShape(8.dp),
-        color = if (sticker.isSelected) Color(0xFFFFE6D1) else Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE5E5E5))
+        color = Color.White,
+        border = if (sticker.isSelected) BorderStroke(1.dp, Color(0xFFFF9447)) else BorderStroke(1.dp, Color(0xFFE5E5E5))
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -878,12 +922,12 @@ private fun MemoInputField(
                                 tint = Color(0xFF7A7A7A)
                             )
                         } else {
-                            Text(
-                                text = "$totalImageCount/1",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (totalImageCount >= 1) Color(0xFFB5B5B5) else Color(0xFF7A7A7A)
-                            )
+//                            Text(
+//                                text = "$totalImageCount/1",
+//                                fontSize = 12.sp,
+//                                fontWeight = FontWeight.Medium,
+//                                color = if (totalImageCount >= 1) Color(0xFFB5B5B5) else Color(0xFF7A7A7A)
+//                            )
                         }
                     }
                 }

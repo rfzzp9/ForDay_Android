@@ -4,7 +4,11 @@
       "Bash(adb devices:*)",
       "Bash(adb:*)",
       "Bash(findstr:*)",
-      "Bash(more:*)"
+      "Bash(more:*)",
+      "Bash(cmd /c \"gradlew.bat assembleDebug 2>&1\")",
+      "Bash(C:UsersuserAndroidStudioProjectsForday_Androidgradlew.bat assembleDebug)",
+      "Bash(./gradlew.bat testDebugUnitTest:*)",
+      "Bash(./gradlew assembleDebug:*)"
     ]
   }
 }

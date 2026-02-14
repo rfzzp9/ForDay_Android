@@ -27,8 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -115,7 +120,7 @@ fun RoutineDetailScreen(
     onBackClick: () -> Unit = {},
     routineId: Long,
     onNavigateToMyPage: () -> Unit = {},
-    onNavigateToHome: () -> Unit = {},  // ✅ 새로 추가
+    onNavigateToHome: () -> Unit = {},  //
     onMoreMenuClick: () -> Unit = {},
     isNewRecord: Boolean = false,
     modifier: Modifier = Modifier,
@@ -144,18 +149,20 @@ fun RoutineDetailScreen(
     var reactionListJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     var showMoreMenu by remember { mutableStateOf(false) }
+    var moreIconBottomPx by remember { mutableFloatStateOf(0f) }
+    var containerTopPx by remember { mutableFloatStateOf(0f) }
     var showToast by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf("") }
     var showPrivacyBottomSheet by remember { mutableStateOf(false) }
     var selectedPrivacy by remember { mutableStateOf(routine?.isPublic) }
 
-    // ✅ Lottie 애니메이션 상태 추가
+    //
     var showSuccessAnimation by remember { mutableStateOf(isNewRecord) }
 
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
 
-    // ✅ 애니메이션 자동 종료 (3초 후)
+    //
     LaunchedEffect(showSuccessAnimation) {
         if (showSuccessAnimation) {
             delay(3000)
@@ -165,10 +172,14 @@ fun RoutineDetailScreen(
 
     Timber.e("@@@@@@@@@@@@content "+state.value.myRoutineDetails?.content)
 
+    val density = LocalDensity.current
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(ActivityDetailColors.Background001)
+            .onGloballyPositioned { coords ->
+                containerTopPx = coords.positionInRoot().y
+            }
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -178,7 +189,8 @@ fun RoutineDetailScreen(
                 title = "내 활동 보기",
                 onBackClick = onBackClick,
                 onMoreMenuClick = { showMoreMenu = !showMoreMenu },
-                isNewRecord = isNewRecord
+                isNewRecord = isNewRecord,
+                onMoreIconPositioned = { bottomPx -> moreIconBottomPx = bottomPx }
             )
 
             // Content
@@ -193,16 +205,16 @@ fun RoutineDetailScreen(
                 ActivityContent(routine = routine)
             }
 
-            // ✅ 조건부 렌더링: isNewRecord에 따라 다른 하단 UI 표시
+            //
             if (isNewRecord) {
-                // ✅ 새 기록일 때: 홈으로 가기 버튼만 표시
+                //
                 BottomNextButton(
                     text = "홈으로 가기",
                     state = BottomButtonState.ENABLED,
                     onClick = onNavigateToHome
                 )
             } else {
-                // ✅ 일반 조회일 때: 기존 리액션 UI 표시
+                //
                 AnimatedVisibility(
                     visible = showReactionUsers,
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -309,7 +321,10 @@ fun RoutineDetailScreen(
             MoreMenuDropdown(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 90.dp, end = 20.dp)
+                    .padding(
+                        top = with(density) { (moreIconBottomPx - containerTopPx).toDp() } + 8.dp,
+                        end = 20.dp
+                    )
                     .zIndex(10f),
                 onModifyPosting = {
                     showMoreMenu = false
@@ -408,7 +423,8 @@ fun ReactionUserItem(user: ReactionUserUiModel) {
                     model = user.profileImageUrl,
                     contentDescription = user.nickname,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center
                 )
             } else {
                 Icon(
@@ -461,7 +477,8 @@ fun RoutineDetailHeader(
     title: String,
     onBackClick: () -> Unit,
     onMoreMenuClick: () -> Unit,
-    isNewRecord: Boolean = false
+    isNewRecord: Boolean = false,
+    onMoreIconPositioned: (Float) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -500,10 +517,14 @@ fun RoutineDetailHeader(
         } else {
             IconButton(
                 onClick = onMoreMenuClick,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .onGloballyPositioned { coords ->
+                        onMoreIconPositioned(coords.positionInRoot().y + coords.size.height)
+                    }
             ) {
                 Icon(
-                    imageVector = Icons.Default.MoreVert,
+                    painter = painterResource(R.drawable.ic_more),
                     contentDescription = "더보기",
                     tint = ActivityDetailColors.Neutral800
                 )
@@ -530,13 +551,13 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
     val painter = rememberAsyncImagePainter(model = routine?.imageUrl)
     val imageState by painter.state.collectAsState()  // ✅ collectAsState로 상태 관찰 → recomposition 트리거
 
-    val dynamicHeight = if (imageState is AsyncImagePainter.State.Success) {
+    val imageAspectRatio = if (imageState is AsyncImagePainter.State.Success) {
         val image = (imageState as AsyncImagePainter.State.Success).result.image
         val width = image.width.toFloat()
         val height = image.height.toFloat()
-        if (width > 0f) (320.dp * height / width) else 320.dp
+        if (height > 0f) width / height else 1f
     } else {
-        320.dp
+        1f
     }
 
     if (hasNoImageAndMemo) {
@@ -636,8 +657,8 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(320.dp)
-                                .height(dynamicHeight)                   // ✅ 이제 로드 완료 시 높이 갱신됨
+                                .fillMaxWidth()
+                                .aspectRatio(imageAspectRatio)
                                 .clip(RoundedCornerShape(16.dp))
                                 .border(
                                     1.dp,
@@ -942,22 +963,22 @@ fun MoreMenuDropdown(
         ) {
             // Privacy Setting
             if (!state.myRoutineDetails?.imageUrl.isNullOrEmpty()) {
-                MoreMenuItem(
-                    icon = Icons.Default.Lock,
-                    text = "대표사진 설정",
-                    onClick = onSetThumbnailClick
-                )
+//                MoreMenuItem(  // TODO 추후에 대표사진 설정 기능 다 하면 주석 풀기
+//                    icon = painterResource(R.drawable.ic_profile_main),
+//                    text = "대표사진 설정",
+//                    onClick = onSetThumbnailClick
+//                )
             }
 
             // Set Thumbnail
             MoreMenuItem(
-                icon = Icons.Default.AccountCircle,
+                icon = painterResource(R.drawable.ic_pencil_bold),
                 text = "수정하기",
                 onClick = onModifyPosting
             )
 
             MoreMenuItem(
-                icon = Icons.Default.AccountCircle,
+                icon = painterResource(R.drawable.ic_trash_bold),
                 text = "삭제하기",
                 onClick = onDeletePosting
             )
@@ -967,20 +988,19 @@ fun MoreMenuDropdown(
 
 @Composable
 fun MoreMenuItem(
-    icon: ImageVector,
+    icon: Painter,
     text: String,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = ActivityDetailColors.Neutral800

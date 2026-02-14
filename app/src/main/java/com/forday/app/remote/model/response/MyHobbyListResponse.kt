@@ -29,7 +29,7 @@ data class MyHobbyListData(
         currentHobbyStatus = currentHobbyStatus,
         inProgressHobbyCount = inProgressHobbyCount,
         archivedHobbyCount = archivedHobbyCount,
-        hobbies = hobbies.map { it.toData() } // 빈 리스트인 경우 자동으로 빈 리스트 반환
+        hobbies = hobbies.map { it.toData() }
     )
 }
 
@@ -38,13 +38,17 @@ data class MyHobbyListItem(
     @SerializedName("hobbyName") val hobbyName: String,
     @SerializedName("hobbyTimeMinutes") val hobbyTimeMinutes: Int,
     @SerializedName("executionCount") val executionCount: Int,
-    @SerializedName("goalDays") val goalDays: Int
+    @SerializedName("goalDays") val goalDays: Int,
+    @SerializedName("hobbyInfoId") val hobbyInfoId: Int?, // ✅ 추가
+    @SerializedName("imageCode") val imageCode: String // ✅ 추가
 ) : RemoteMapper<MyHobbyListItemEntity> {
     override fun toData(): MyHobbyListItemEntity = MyHobbyListItemEntity(
         hobbyId = hobbyId,
         hobbyName = hobbyName,
         hobbyTimeMinutes = hobbyTimeMinutes,
         executionCount = executionCount,
-        goalDays = goalDays
+        goalDays = goalDays,
+        hobbyInfoId = hobbyInfoId, // ✅ 추가
+        imageCode = imageCode // ✅ 추가
     )
 }

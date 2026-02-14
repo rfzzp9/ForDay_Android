@@ -136,7 +136,19 @@ class HobbyDataSourceImpl @Inject constructor(
         page: Int?,
         size: Int?
     ): HobbyStickerHistoryEntity {
-        return hobbyApi.getStickers(hobbyId, page, size).data.toData()
+        return hobbyApi.getStickers(hobbyId, page, size).data?.toData()
+            ?: HobbyStickerHistoryEntity(
+                hobbyId = 0,
+                durationSet = false,
+                activityRecordedToday = false,
+                currentPage = 0,
+                totalPage = 0,
+                pageSize = 0,
+                totalStickerNum = 0,
+                hasPrevious = false,
+                hasNext = false,
+                stickers = emptyList()
+            )
     }
 
     override suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodEntity =

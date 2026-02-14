@@ -86,6 +86,38 @@
 -keepclassmembers class com.forday.app.domain.model.** { <fields>; }
 
 # ===================================
+# Navigation 파라미터로 사용되는 UI 모델 - 필드명 보존 필수
+# ===================================
+-keep class com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel { *; }
+-keep class com.forday.app.presentation.mypage.routinedetail.RoutineReactionUiModel { *; }
+-keep class com.forday.app.presentation.mypage.routinedetail.RoutineUserReactionUiModel { *; }
+-keep class com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams { *; }
+
+-keepclassmembers class com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel { <fields>; }
+-keepclassmembers class com.forday.app.presentation.mypage.routinedetail.RoutineReactionUiModel { <fields>; }
+-keepclassmembers class com.forday.app.presentation.mypage.routinedetail.RoutineUserReactionUiModel { <fields>; }
+-keepclassmembers class com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams { <fields>; }
+
+# ===================================
+# Navigation 파라미터로 사용되는 Enum - 직렬화 필수
+# ===================================
+-keep enum com.forday.app.presentation.onboarding.timeselect.ScreenMode { *; }
+-keepclassmembers enum com.forday.app.presentation.onboarding.timeselect.ScreenMode { <fields>; }
+
+# ===================================
+# NavKey 구현체 필드명 보존 (파라미터가 있는 라우트)
+# ===================================
+-keepclassmembers class com.forday.app.presentation.record.navigation.RecordRoutine { <fields>; }
+-keepclassmembers class com.forday.app.presentation.mypage.routinedetail.navigation.RoutineDetail { <fields>; }
+-keepclassmembers class com.forday.app.presentation.modifyroutine.navigation.ModifyRoutine { <fields>; }
+-keepclassmembers class com.forday.app.presentation.inputhobbyroutines.navigation.InputRoutine { <fields>; }
+-keepclassmembers class com.forday.app.presentation.onboarding.timeselect.navigation.SelectPerTime { <fields>; }
+-keepclassmembers class com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek { <fields>; }
+-keepclassmembers class com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod { <fields>; }
+-keepclassmembers class com.forday.app.core.navigation.LoadingRoutines { <fields>; }
+-keepclassmembers class com.forday.app.core.navigation.RoutineAiRecommend { <fields>; }
+
+# ===================================
 # Repository & UseCase
 # ===================================
 -keep class com.forday.app.domain.repository.** { *; }
@@ -284,3 +316,18 @@
 
 # BottomNavItem 보존
 -keep class com.forday.app.presentation.main.BottomNavItem { *; }
+
+# ===================================
+# Navigation 파라미터로 사용되는 Serializable 클래스
+# ===================================
+-keep class com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState { *; }
+-keepclassmembers class com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState { <fields>; }
+
+# ===================================
+# 도메인/프레젠테이션 Enum 보존
+# ===================================
+-keep enum com.forday.app.domain.model.VisibilityType { *; }
+-keepclassmembers enum com.forday.app.domain.model.VisibilityType { <fields>; }
+
+-keep enum com.forday.app.presentation.onboarding.purposeselect.Purpose { *; }
+-keepclassmembers enum com.forday.app.presentation.onboarding.purposeselect.Purpose { <fields>; }

@@ -18,4 +18,5 @@ interface UserRepository {
     suspend fun getUserNickname(): Flow<String?>
     suspend fun saveNickname(nickname: String)
     suspend fun saveCreatedHobbyId(hobbyId: Long)
+    suspend fun removeOnboardingData()
 }

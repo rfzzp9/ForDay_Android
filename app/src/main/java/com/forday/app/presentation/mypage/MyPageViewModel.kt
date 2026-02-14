@@ -100,8 +100,7 @@ class MyPageViewModel @Inject constructor(
                 }
                 jobs.forEach { it.join() }
             }
-        } catch (e: TimeoutCancellationException) {
-            e.printStackTrace()
+        } catch (_: TimeoutCancellationException) {
             Timber.d("MyPage refresh timed out after 4s")
         } finally {
             _uiState.update { it.copy(isRefreshing = false) }
@@ -119,7 +118,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getMyRoutineRecordDetailUseCase(routineId.toInt()))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -135,7 +133,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(reactionToRoutinePostingUseCase(recordId.toInt(), reactionType))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -147,7 +144,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(cancelMyReactionUseCase(recordId, reactionType))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -159,7 +155,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(modifyPostingVisibilityUseCase(recordId, visibility))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -173,7 +168,6 @@ class MyPageViewModel @Inject constructor(
             // 1. UseCase 호출 (Domain 모델 반환)
             emit(deletePostingUseCase(recordId))
         }.catch { throwable ->
-            throwable.printStackTrace()
             // 네트워크 에러나 예상치 못한 예외 처리
             Timber.e("@#@@@@@@@@@@@@111 deletePosting Delete Posting Error $throwable")
             Timber.e("Delete Posting Error: $throwable")
@@ -200,10 +194,17 @@ class MyPageViewModel @Inject constructor(
     }
 
     fun getReactionUsers(recordId: Int, reactionType: String, lastUserId: String, size: Int) = viewModelScope.launch {  // 활동 기록에 새로 반응한 사용자 목록 조회
+        _uiState.update { state ->
+            state.copy(
+                reactionUsers = com.forday.app.presentation.mypage.routinedetail.ReactionDetailUiModel(
+                    reactionType = reactionType,
+                    users = emptyList()
+                )
+            )
+        }
         flow {
             emit(getReactionUsersUseCase(recordId, reactionType, lastUserId, size))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -221,7 +222,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getUserInfoUseCase())
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -253,7 +253,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(setProfileImageUseCase(imageUrl))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e(throwable, "Failed to set profile image")
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -279,7 +278,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getUsersProgressHobbyTabsUseCase())
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -300,7 +298,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getUserFeedListUseCase(hobbyIds, lastRecordId, feedSize))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("getUserFeedList Error: $throwable")
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -340,7 +337,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getPresignedUrlUseCase(images).data)
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e(throwable, "@#@############ Failed to get presigned URL   "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -365,7 +361,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(deleteS3ImageUseCase(imageUrl))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e(throwable, "@#@############ deleteS3Image  throwable : "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -404,7 +399,6 @@ class MyPageViewModel @Inject constructor(
                 snackbarManager.show(throwable.toUserMessage())
             }
         } catch (e: Exception) {
-            e.printStackTrace()
             Timber.e(e, "Unexpected error during upload")
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
             snackbarManager.show(e.toUserMessage())
@@ -430,7 +424,6 @@ class MyPageViewModel @Inject constructor(
     fun getNickname() = viewModelScope.launch {
         getNicknameUseCase()  // 이미 Flow를 반환하므로 그대로 사용
             .catch { throwable ->
-                throwable.printStackTrace()
                 snackbarManager.show(throwable.toUserMessage())
             }
             .collect { nickname ->  // nickname은 String? 타입
@@ -449,7 +442,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(getUserScrapListUseCase(lastScrapId, size, userId))
         }.catch { throwable ->
-            throwable.printStackTrace()
             Timber.e("@#@#@#@#@#@getUserScrapList"+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
@@ -466,7 +458,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(scrapPostingUseCase(routineId))
         }.catch { throwable ->
-            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update {
@@ -482,7 +473,6 @@ class MyPageViewModel @Inject constructor(
         flow {
             emit(cancelScrapPostingUseCase(routineId))
         }.catch { throwable ->
-            throwable.printStackTrace()
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             _uiState.update {
@@ -577,7 +567,6 @@ class MyPageViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    error.printStackTrace()
                     Timber.e("@@@@@@@@@@@@@@@@@ error "+error.message+", "+kakaoAccessToken)
                     val errorMessage = error.toUserMessage(UserMessageCategory.AUTH)
                     _uiState.update {

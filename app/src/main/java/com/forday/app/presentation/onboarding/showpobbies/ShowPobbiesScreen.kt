@@ -1,6 +1,7 @@
 package com.forday.app.presentation.onboarding.showpobbies
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import androidx.annotation.DrawableRes
+import com.forday.app.presentation.onboarding.OnboardingViewModel
 
 data class PobyCharacter(
     val gradientColors: List<Color>,
@@ -32,8 +34,13 @@ data class PobyCharacter(
 
 @Composable
 fun ShowPobbiesScreen(
-    onNext: () -> Unit = {}
+    onNext: () -> Unit = {},
+    viewModel: OnboardingViewModel
 ) {
+
+    LaunchedEffect(Unit) {
+        viewModel.resetOnboardingState()
+    }
 
     val characters = listOf(
         PobyCharacter(
@@ -245,12 +252,12 @@ fun BoxScope.BottomButton(onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ShowPobbiesScreenPreview() {
-    ForDayTheme {
-        ShowPobbiesScreen(
-            onNext = {}
-        )
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun ShowPobbiesScreenPreview() {
+//    ForDayTheme {
+//        ShowPobbiesScreen(
+//            onNext = {}
+//        )
+//    }
+//}

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,6 +68,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -121,6 +123,8 @@ fun HomeScreenRoot(
     onSelectHobby: () -> Unit,
     onAllSettingsClick: () -> Unit,
     onAddHobbyClick: () -> Unit,
+    onCurrentHobbyIdChanged: (Long?) -> Unit = {},
+    onRecordStateChanged: (isRecordedToday: Boolean, todayRecordId: Int?) -> Unit = { _, _ -> },
     viewModel: HomeViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -133,12 +137,21 @@ fun HomeScreenRoot(
     }
 
     LaunchedEffect(currentHobbyId) {
+        onCurrentHobbyIdChanged(currentHobbyId)
         if (currentHobbyId != null) {
             Timber.e("@#@#@#@#@###@#@ "+currentHobbyId)
             viewModel.fetchSpecificRoutineList(currentHobbyId, 5)
             viewModel.fetchStickerHistory(currentHobbyId, 28, null)
         }
         viewModel.getUserNickname()
+    }
+
+    val isRecordedToday = state.stickerInfo?.activityRecordedToday == true &&
+            state.stickers.lastOrNull()?.deleted != true
+    val todayRecordId = state.stickers.lastOrNull()?.activityRecordId
+
+    LaunchedEffect(isRecordedToday, todayRecordId) {
+        onRecordStateChanged(isRecordedToday, todayRecordId)
     }
 
     LaunchedEffect(state.routineId) {  // TODO ai 취미활동 생성했을 때 routineId가 트리거되어야 하는데 안되는 오류 -> 지나님한테 말씀드랴놓음
@@ -237,6 +250,7 @@ fun HomeScreen(
     val listState = rememberLazyListState()
 
     var settingsIconBottomPx by remember { mutableFloatStateOf(0f) }
+    var containerTopPx by remember { mutableFloatStateOf(0f) }
 
     var showFloatingMenu by remember { mutableStateOf(false) }
     var showDropdown by remember { mutableStateOf(false) }
@@ -308,6 +322,7 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .pullRefresh(pullRefreshState)
+            .onGloballyPositioned { containerTopPx = it.positionInRoot().y }
     ) {
         Image(
             painter = painterResource(id = R.drawable.mainframe),
@@ -370,7 +385,8 @@ fun HomeScreen(
                             },
                             onRoutineActionButtonBottomChanged = { bottomPx ->
                                 routineActionButtonBottomPx = bottomPx
-                            }
+                            },
+                            onAddHobbyClick = onAddHobbyClick
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -402,7 +418,8 @@ fun HomeScreen(
                         onClick = { showFloatingMenu = !showFloatingMenu },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 20.dp, bottom = 16.dp)
+                            .padding(end = 20.dp, bottom = 16.dp),
+                        isHobbyEmpty = state.inProgressHobbies.isEmpty()
                     )
                 }
             }
@@ -430,7 +447,7 @@ fun HomeScreen(
                 val minHeightDp = with(density) {
                     (routineActionButtonBottomPx - dropdownTopPx).coerceAtLeast(0f).toDp()
                 }
-                val dropdownHeightDp = if (minHeightDp > 197.dp) minHeightDp else 197.dp
+                val dropdownMaxHeightDp = if (minHeightDp > 197.dp) minHeightDp else 197.dp
 
                 Box(
                     modifier = Modifier
@@ -460,7 +477,7 @@ fun HomeScreen(
                                 ambientColor = Color(0x1F000000)
                             )
                             .width(210.dp)
-                            .height(dropdownHeightDp)
+                            .heightIn(max = dropdownMaxHeightDp)
                     )
                 }
             }
@@ -484,7 +501,7 @@ fun HomeScreen(
                     item != SettingsMenuItem.ADD_HOBBY || inProgressHobbyCount <= 1
                 }
             }
-            val dropdownTopDp = with(density) { settingsIconBottomPx.toDp() } + 5.dp
+            val dropdownTopDp = with(density) { (settingsIconBottomPx - containerTopPx).toDp() } + 8.dp
             SettingsDropdown(
                 items = settingsMenuItems,
                 onItemClick = { menuItem ->
@@ -526,7 +543,7 @@ fun HomeScreen(
             }
         }
 
-        if (showAiBottomSheet) {
+        if (showAiBottomSheet && !state.inProgressHobbies.isEmpty()) {
             AiRecommendationBottomSheet(
                 showBottomSheet = showAiBottomSheet,
                 userName = state.nickName ?: "포비",
@@ -681,6 +698,7 @@ fun MyHobbySection(
     onShowRoutineList: () -> Unit,
     onRoutineDropdownAnchorBottomChanged: (Float) -> Unit,
     onRoutineActionButtonBottomChanged: (Float) -> Unit,
+    onAddHobbyClick: () -> Unit = {},
 ) {
     Column(
         modifier = modifier,
@@ -693,7 +711,9 @@ fun MyHobbySection(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    onShowRoutineList()
+                    if (!state.inProgressHobbies.isEmpty()) {
+                        onShowRoutineList()
+                    }
                 },
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
@@ -743,11 +763,20 @@ fun MyHobbySection(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (state.routinePreview?.isAiRecommended == true) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_ai_list),
+                                contentDescription = "AI",
+                                modifier = Modifier.size(14.dp),
+                                tint = Color.Unspecified
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
                         Text(
-                            text = if (state.routinePreview?.routineId == null) {
-                                "등록된 취미활동이 없어요."
-                            } else {
-                                state.routinePreview?.content.orEmpty()
+                            text = when {
+                                state.inProgressHobbies.isEmpty() -> "등록된 취미가 없어요."
+                                state.routinePreview?.routineId == null -> "등록된 취미활동이 없어요."
+                                else -> state.routinePreview?.content.orEmpty()
                             },
                             modifier = Modifier.onGloballyPositioned { coordinates ->
                                 onRoutineDropdownAnchorBottomChanged(coordinates.boundsInRoot().bottom)
@@ -755,7 +784,7 @@ fun MyHobbySection(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.W500,
                             lineHeight = 19.6.sp,
-                            color = if (state.routinePreview?.routineId == null) ForDayTheme.color.Neutral600 else ForDayTheme.color.Neutral900
+                            color = if (state.inProgressHobbies.isEmpty() || state.routinePreview?.routineId == null) ForDayTheme.color.Neutral600 else ForDayTheme.color.Neutral900
                         )
 
                         if (state.routineList.isNotEmpty()) {
@@ -771,10 +800,10 @@ fun MyHobbySection(
 
                     Button(
                         onClick = {
-                            if (state.routinePreview?.routineId == null) {
-                                onRoutineCreate()
-                            } else {
-                                onRecordRoutine()
+                            when {
+                                state.inProgressHobbies.isEmpty() -> onAddHobbyClick()
+                                state.routinePreview?.routineId == null -> onRoutineCreate()
+                                else -> onRecordRoutine()
                             }
                         },
                         modifier = Modifier
@@ -784,7 +813,7 @@ fun MyHobbySection(
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp, vertical = 6.dp)
                             .then(
-                                if (state.routinePreview?.routineId != null) {
+                                if (!state.inProgressHobbies.isEmpty() && state.routinePreview?.routineId != null) {
                                     Modifier.background(
                                         brush = ForDayTheme.gradients.gradient002,
                                         shape = RoundedCornerShape(12.dp)
@@ -803,11 +832,15 @@ fun MyHobbySection(
                         contentPadding = PaddingValues(horizontal = 40.dp)
                     ) {
                         Text(
-                            text = if (state.routinePreview?.routineId == null) "취미활동 추가하기" else "오늘의 스티커 붙이기",
+                            text = when {
+                                state.inProgressHobbies.isEmpty() -> "취미 추가하기"
+                                state.routinePreview?.routineId == null -> "취미활동 추가하기"
+                                else -> "오늘의 스티커 붙이기"
+                            },
                             fontSize = 14.sp,
                             fontWeight = FontWeight.W700,
                             lineHeight = 16.8.sp,
-                            color = if (state.routinePreview?.routineId == null) Color(0xFFFF9447) else Color(0xFFFFFFFF)
+                            color = if (state.inProgressHobbies.isEmpty() || state.routinePreview?.routineId == null) Color(0xFFFF9447) else Color(0xFFFFFFFF)
                         )
                     }
                 }
@@ -977,6 +1010,7 @@ fun StickerRow(
             val isEmptySticker = sticker == null
 
             val imageRes = when {
+                state.inProgressHobbies.isEmpty() -> R.drawable.ic_main_character2
                 sticker != null -> getStickerDrawable(sticker.sticker)
                 localIndex == stickers.size -> {
                     if (activityRecordedToday) R.drawable.ic_main_character2 else R.drawable.ic_empty_sticker
@@ -1026,7 +1060,8 @@ fun StickerRow(
 fun FloatingBottomButton(
     isExpanded: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isHobbyEmpty: Boolean = false
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isExpanded) 45f else 0f,
@@ -1043,7 +1078,7 @@ fun FloatingBottomButton(
             )
             .padding(1.dp)
             .size(52.dp)
-            .background(color = Color(0xCC000000), shape = CircleShape)
+            .background(color = if (isHobbyEmpty) Color(0xCCB5B5B5) else Color(0xCC000000), shape = CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null

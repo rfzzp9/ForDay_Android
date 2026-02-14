@@ -106,29 +106,22 @@ class Navigator(val state: MainNavigationState) {
      * 뒤로가기를 눌러도 이전 화면으로 돌아가지 않도록 하기 위해 사용합니다.
      */
     fun resetTo(route: NavKey) {
-        Timber.e("Navigator.resetTo(route=$route) startRoute=${state.startRoute} topLevelBefore=${state.topLevelRoute}")
         state.backStacks.forEach { (key, stack) ->
-            while (stack.removeLastOrNull() != null) {
-                // removeLastOrNull()가 null이면 비어있는 상태
-            }
+            while (stack.removeLastOrNull() != null) { }
             stack.add(key)
         }
 
         state.topLevelRoute = route
+        state.startRoute = route  // ← startRoute도 갱신 (val → var로 변경 필요)
 
         val targetStack = state.backStacks[route]
             ?: error("Back stack for $route doesn't exist")
 
-        // key(route)를 넣어둔 상태이므로, 같은 route가 아니면 push
         if (targetStack.lastOrNull() != route) {
             targetStack.add(route)
         }
 
         state.notifyNavChanged()
-
-        Timber.e(
-            "Navigator.resetTo(route=$route) topLevelAfter=${state.topLevelRoute} stackSize=${targetStack.size} last=${targetStack.lastOrNull()}"
-        )
     }
 
     /**

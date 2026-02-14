@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -386,47 +387,11 @@ fun LoggedInEmptyState(
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
 
-            // ✅ HobbyCardTabContent와 동일한 구조
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 400.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // 반투명 박스 이미지 (뒤쪽)
-                Image(
-                    painter = painterResource(id = R.drawable.box_img),
-                    contentDescription = "활동 기록 없음",
-                    modifier = Modifier.size(240.dp),
-                    contentScale = ContentScale.Fit,
-                    alpha = 0.3f
-                )
-
-                // 안내 메시지 (위쪽에 겹쳐서 표시)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Spacer(modifier = Modifier.height(147.dp))
-
-                    Text(
-                        text = "활동을 기록해보세요!",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MyPageColors.Neutral900,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Text(
-                        text = "당신의 활동기록이 궁금해요.",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = MyPageColors.Neutral600,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 19.6.sp
-                    )
-
-                    // ✅ 버튼은 유지 (LoggedInEmptyState에만 필요)
+            EmptyStateBox(
+                title = "활동을 기록해보세요!",
+                description = "당신의 활동기록이 궁금해요.",
+                topSpacerHeight = 147.dp,
+                button = {
                     Button(
                         onClick = onRecordActivity,
                         modifier = Modifier
@@ -448,7 +413,7 @@ fun LoggedInEmptyState(
                         )
                     }
                 }
-            }
+            )
         }
     }
 }
@@ -753,14 +718,23 @@ fun ProfileSection(
                     .background(MyPageColors.Stroke001),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = profileImageUrl.takeIf { !it.isNullOrEmpty() },
-                    contentDescription = "사용자 프로필 이미지",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.ic_profile_empty),
-                    error = painterResource(id = R.drawable.ic_profile_empty)
-                )
+                if (!profileImageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = profileImageUrl,
+                        contentDescription = "사용자 프로필 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.ic_profile_empty),
+                        error = painterResource(id = R.drawable.ic_profile_empty)
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_profile_empty),
+                        contentDescription = "사용자 프로필 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
             Column(
@@ -928,48 +902,12 @@ fun ScrapTabContent(
     val items = scrapListUiModel?.items ?: emptyList()
 
     if (items.isEmpty()) {
-        Spacer(Modifier.height(100.dp))
-        // ✅ HobbyCardTabContent와 동일한 구조
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // 반투명 박스 이미지 (뒤쪽)
-            Image(
-                painter = painterResource(id = R.drawable.box_img),
-                contentDescription = "빈 스크랩",
-                modifier = Modifier.size(240.dp),
-                contentScale = ContentScale.Fit,
-                alpha = 0.3f
-            )
-
-            // 안내 메시지 (위쪽에 겹쳐서 표시)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Spacer(Modifier.height(77.dp))
-
-                Text(
-                    text = "아직 스크랩한 기록이 없어요.",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MyPageColors.Neutral900,
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = "마음에 드는 취미활동을 둘러볼까요?",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = MyPageColors.Neutral600,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 19.6.sp
-                )
-            }
-        }
+        Spacer(Modifier.height(92.dp))
+        EmptyStateBox(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            title = "아직 스크랩한 기록이 없어요.",
+            description = "마음에 드는 취미활동을 둘러볼까요?"
+        )
     } else {
         // 스크랩 목록 UI
         ScrapGridSection(
@@ -1559,6 +1497,59 @@ fun StickerCardItem(
     }
 }
 
+// ==================== 공통 Empty State ====================
+@Composable
+fun EmptyStateBox(
+    modifier: Modifier = Modifier,
+    title: String,
+    description: String,
+    topSpacerHeight: Dp = 77.dp,
+    button: @Composable (() -> Unit)? = null
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 400.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.box_img),
+            contentDescription = null,
+            modifier = Modifier.size(240.dp),
+            contentScale = ContentScale.Fit,
+            alpha = 0.3f
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Spacer(modifier = Modifier.height(topSpacerHeight))
+
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MyPageColors.Neutral900,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = description,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = MyPageColors.Neutral600,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.6.sp
+            )
+
+            if (button != null) {
+                button()
+            }
+        }
+    }
+}
+
 // ==================== 취미카드 탭 콘텐츠 ====================
 @Composable
 fun HobbyCardTabContent() {
@@ -1568,57 +1559,11 @@ fun HobbyCardTabContent() {
             .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        // 상단 타이틀
-        Text(
-            text = "아직 생성된 취미카드가 없어요.",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = MyPageColors.Neutral900,
-            lineHeight = 28.sp,
-            modifier = Modifier.padding(top = 40.dp)
+        Spacer(Modifier.height(92.dp))
+        EmptyStateBox(
+            title = "취미카드를 준비 중이에요.",
+            description = "지금 하고 있는 취미를\n꾸준히 이어가 보세요!"
         )
-
-        // 중앙 일러스트레이션 + 메시지 (세로 중앙)
-        Box(
-            modifier = Modifier
-                .padding(top = 79.dp)
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            // 반투명 박스 이미지 (뒤쪽)
-            Image(
-                painter = painterResource(id = R.drawable.box_img),
-                contentDescription = "빈 취미카드",
-                modifier = Modifier.size(240.dp),
-                contentScale = ContentScale.Fit,
-                alpha = 0.3f
-            )
-
-            // 안내 메시지 (위쪽에 겹쳐서 표시)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Spacer(Modifier.height(77.dp))
-
-                Text(
-                    text = "취미카드를 준비 중이에요.",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MyPageColors.Neutral900,
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = "지금 하고 있는 취미를\n꾸준히 이어가 보세요!",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = MyPageColors.Neutral600,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 19.6.sp
-                )
-            }
-        }
     }
 }
 

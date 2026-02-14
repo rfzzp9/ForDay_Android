@@ -18,5 +18,7 @@ data class MyHobbyListItemDomain(
     val hobbyName: String,      // 취미 이름
     val hobbyTimeMinutes: Int,  // 1회 수행 기준 목표 시간(분)
     val executionCount: Int,    // 해당 취미의 누적 실행 횟수
-    val goalDays: Int           // 설정된 목표 일수
+    val goalDays: Int,          // 설정된 목표 일수
+    val hobbyInfoId: Int?,      // ✅ 추가: 취미 정보 ID (nullable)
+    val imageCode: String       // ✅ 추가: 취미 아이콘 코드
 )

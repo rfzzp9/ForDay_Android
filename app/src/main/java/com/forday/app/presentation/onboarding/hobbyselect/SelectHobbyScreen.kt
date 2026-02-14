@@ -65,6 +65,7 @@ fun SelectHobbyScreenRoot(
 
     LaunchedEffect(fromModifyHobbyOrHome) {
         if (fromModifyHobbyOrHome) {
+            viewModel.resetOnboardingState()
             viewModel.getHobbyCardDataAgain()
         } else {
             viewModel.fetchHobbyData()

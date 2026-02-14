@@ -1,5 +1,10 @@
 package com.forday.app.presentation.modifyhobby.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -28,9 +33,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.ModifyHobbyUiState
 import com.forday.app.presentation.modifyhobby.ModifyHobbyViewModel
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import timber.log.Timber
 
@@ -118,9 +125,15 @@ fun ModifyHobbyScreenRoot(
         onTabChange = { status ->
             viewModel.fetchMyHobbyList(status.name)
         },
-        onConfirmStorage = { hobbyId, status ->
+        onConfirmStorage = { hobbyId, status, hobbyName ->
             Timber.e("@@@@@@@@@#########onConfirmStorage")
-            viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name)
+            viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name, hobbyName)
+        },
+        onDismissHobbyLimitDialog = {
+            viewModel.dismissHobbyLimitDialog()
+        },
+        onClearToast = {
+            viewModel.clearToast()
         }
     )
 }
@@ -134,7 +147,9 @@ fun ModifyHobbyScreen(
     onChangeFrequency: (HobbyModifyParams) -> Unit = {},
     onChangeJourneyDays: (HobbyModifyParams) -> Unit = {},
     onTabChange: (HobbyStatus) -> Unit = {},
-    onConfirmStorage: (Int, HobbyStatus) -> Unit = { _, _ -> },
+    onConfirmStorage: (Int, HobbyStatus, String) -> Unit = { _, _, _ -> },
+    onDismissHobbyLimitDialog: () -> Unit = {},
+    onClearToast: () -> Unit = {},
     state: ModifyHobbyUiState
 ) {
     val dimensions = rememberResponsiveDimensions()
@@ -148,123 +163,172 @@ fun ModifyHobbyScreen(
         },
         containerColor = Color(0xFFF9F9F9)
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 타이틀 섹션
-            TitleSection(
-                modifier = Modifier.padding(
-                    horizontal = dimensions.horizontalPadding,
-                    vertical = dimensions.spacing
-                )
-            )
-
-            TabMenu(
-                inProgressCount = state.inProgressHobbyCount,
-                archivedCount = state.archivedHobbyCount,
-                selectedStatus = selectedStatus,
-                onTabClick = { status ->
-                    selectedStatus = status
-                    onTabChange(status)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // LazyColumn으로 변경하여 스크롤 최적화
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(
-                    horizontal = dimensions.horizontalPadding,
-                    vertical = dimensions.spacing
-                ),
-                verticalArrangement = Arrangement.spacedBy(dimensions.spacing)
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(state.hobbies) { hobby ->
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        HobbyCard(
-                            hobbyName = hobby.hobbyName,
-                            duration = "${hobby.hobbyTimeMinutes}분",
-                            frequency = "주 ${hobby.executionCount}회",
-                            journeyDays = "${hobby.goalDays}일",
-                            onStorageClick = {
-                                selectedHobby = Pair(hobby.hobbyId, hobby.hobbyName)
-                                showStorageDialog = true
-                            },
-                            dimensions = dimensions,
-                            isArchived = selectedStatus == HobbyStatus.ARCHIVED
-                        )
+                // 타이틀 섹션
+                TitleSection(
+                    modifier = Modifier.padding(
+                        horizontal = dimensions.horizontalPadding,
+                        vertical = dimensions.spacing
+                    )
+                )
 
-                        // 편집 버튼들
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                TabMenu(
+                    inProgressCount = state.inProgressHobbyCount,
+                    archivedCount = state.archivedHobbyCount,
+                    selectedStatus = selectedStatus,
+                    onTabClick = { status ->
+                        selectedStatus = status
+                        onTabChange(status)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // LazyColumn으로 변경하여 스크롤 최적화
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(
+                        horizontal = dimensions.horizontalPadding,
+                        vertical = dimensions.spacing
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(dimensions.spacing)
+                ) {
+                    items(state.hobbies) { hobby ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            EditButton(
-                                text = "취미 시간 변경",
-                                onClick = {
-                                    onChangeDuration(
-                                        HobbyModifyParams(
-                                            hobbyId = hobby.hobbyId,
-                                            hobbyName = hobby.hobbyName,
-                                            hobbyTimeMinutes = hobby.hobbyTimeMinutes,
-                                            executionCount = hobby.executionCount,
-                                            goalDays = hobby.goalDays
-                                        )
-                                    )
+                            HobbyCard(
+                                hobbyName = hobby.hobbyName,
+                                hobbyInfoId = hobby.hobbyInfoId,
+                                duration = "${hobby.hobbyTimeMinutes}분",
+                                frequency = "주 ${hobby.executionCount}회",
+                                journeyDays = "${hobby.goalDays}일",
+                                onStorageClick = {
+                                    selectedHobby = Pair(hobby.hobbyId, hobby.hobbyName)
+                                    showStorageDialog = true
                                 },
-                                modifier = Modifier.weight(1f)
+                                dimensions = dimensions,
+                                isArchived = selectedStatus == HobbyStatus.ARCHIVED
                             )
-                            EditButton(
-                                text = "실행 횟수 변경",
-                                onClick = {
-                                    onChangeFrequency(
-                                        HobbyModifyParams(
-                                            hobbyId = hobby.hobbyId,
-                                            hobbyName = hobby.hobbyName,
-                                            hobbyTimeMinutes = hobby.hobbyTimeMinutes,
-                                            executionCount = hobby.executionCount,
-                                            goalDays = hobby.goalDays
+
+                            // 편집 버튼들
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                EditButton(
+                                    text = "취미 시간 변경",
+                                    onClick = {
+                                        onChangeDuration(
+                                            HobbyModifyParams(
+                                                hobbyId = hobby.hobbyId,
+                                                hobbyName = hobby.hobbyName,
+                                                hobbyTimeMinutes = hobby.hobbyTimeMinutes,
+                                                executionCount = hobby.executionCount,
+                                                goalDays = hobby.goalDays
+                                            )
                                         )
-                                    )
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            EditButton(
-                                text = "여정일 변경",
-                                onClick = {
-                                    onChangeJourneyDays(
-                                        HobbyModifyParams(
-                                            hobbyId = hobby.hobbyId,
-                                            hobbyName = hobby.hobbyName,
-                                            hobbyTimeMinutes = hobby.hobbyTimeMinutes,
-                                            executionCount = hobby.executionCount,
-                                            goalDays = hobby.goalDays
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                EditButton(
+                                    text = "실행 횟수 변경",
+                                    onClick = {
+                                        onChangeFrequency(
+                                            HobbyModifyParams(
+                                                hobbyId = hobby.hobbyId,
+                                                hobbyName = hobby.hobbyName,
+                                                hobbyTimeMinutes = hobby.hobbyTimeMinutes,
+                                                executionCount = hobby.executionCount,
+                                                goalDays = hobby.goalDays
+                                            )
                                         )
-                                    )
-                                },
-                                modifier = Modifier.weight(1f)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                EditButton(
+                                    text = "여정일 변경",
+                                    onClick = {
+                                        onChangeJourneyDays(
+                                            HobbyModifyParams(
+                                                hobbyId = hobby.hobbyId,
+                                                hobbyName = hobby.hobbyName,
+                                                hobbyTimeMinutes = hobby.hobbyTimeMinutes,
+                                                executionCount = hobby.executionCount,
+                                                goalDays = hobby.goalDays
+                                            )
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // 취미가 2개 미만일 때만 추가 버튼 표시 (진행중 탭일 때만)
+                    if (state.hobbies.size < 2 && selectedStatus == HobbyStatus.IN_PROGRESS) {
+                        item {
+                            AddHobbyButton(
+                                onClick = onAddHobbyClick,
+                                dimensions = dimensions
                             )
                         }
                     }
                 }
+            }
 
-                // 취미가 2개 미만일 때만 추가 버튼 표시 (진행중 탭일 때만)
-                if (state.hobbies.size < 2 && selectedStatus == HobbyStatus.IN_PROGRESS) {
-                    item {
-                        AddHobbyButton(
-                            onClick = onAddHobbyClick,
-                            dimensions = dimensions
-                        )
+            AnimatedVisibility(
+                visible = state.toastMessage != null,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 42.dp)
+            ) {
+                ErrorToast(
+                    message = state.toastMessage.orEmpty(),
+                    iconVisible = true,
+                    actionLabel = "이동하기",
+                    onActionClick = {
+                        val target = state.toastTargetTab
+                        if (target != null) {
+                            val hobbyStatus = HobbyStatus.valueOf(target)
+                            selectedStatus = hobbyStatus
+                            onTabChange(hobbyStatus)
+                        }
+                        onClearToast()
                     }
+                )
+            }
+
+            LaunchedEffect(state.toastMessage) {
+                if (state.toastMessage != null) {
+                    delay(2000L)
+                    onClearToast()
                 }
             }
         }
+    }
+
+    // 진행중 취미 최대 초과 다이얼로그
+    if (state.showHobbyLimitDialog) {
+        HobbyLimitDialog(
+            onDismiss = onDismissHobbyLimitDialog,
+            onNavigateToInProgress = {
+                onDismissHobbyLimitDialog()
+                selectedStatus = HobbyStatus.IN_PROGRESS
+                onTabChange(HobbyStatus.IN_PROGRESS)
+            },
+            dimensions = rememberResponsiveDimensions()
+        )
     }
 
     // 다이얼로그 표시
@@ -281,12 +345,104 @@ fun ModifyHobbyScreen(
                     HobbyStatus.IN_PROGRESS -> HobbyStatus.ARCHIVED
                     HobbyStatus.ARCHIVED -> HobbyStatus.IN_PROGRESS
                 }
-                onConfirmStorage(selectedHobby!!.first, targetStatus)
+                onConfirmStorage(selectedHobby!!.first, targetStatus, selectedHobby!!.second)
                 showStorageDialog = false
                 selectedHobby = null
             },
             dimensions = rememberResponsiveDimensions()
         )
+    }
+}
+
+@Composable
+private fun HobbyLimitDialog(
+    onDismiss: () -> Unit,
+    onNavigateToInProgress: () -> Unit,
+    dimensions: ResponsiveDimensions
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(
+                    when {
+                        dimensions.screenWidth < 360.dp -> 0.95f
+                        dimensions.screenWidth > 600.dp -> 0.7f
+                        else -> 0.9f
+                    }
+                )
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(40.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "진행 중인 취미는 최대 2개까지 가능해요",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E1E1E),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "다른 취미를 보관한 후 다시 시도해주세요.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF7A7A7A),
+                    lineHeight = 20.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF2F2F2)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "닫기",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF7A7A7A)
+                        )
+                    }
+
+                    Button(
+                        onClick = onNavigateToInProgress,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ForDayTheme.color.Primary001
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "보관하러가기",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -586,6 +742,7 @@ private fun TabItem(
 @Composable
 private fun HobbyCard(
     hobbyName: String,
+    hobbyInfoId: Int?,
     duration: String,
     frequency: String,
     journeyDays: String,
@@ -593,6 +750,20 @@ private fun HobbyCard(
     dimensions: ResponsiveDimensions,
     isArchived: Boolean = false
 ) {
+    val iconRes = when (hobbyInfoId) {
+        1 -> R.drawable.ic_draw
+        2 -> R.drawable.ic_health
+        3 -> R.drawable.ic_book
+        4 -> R.drawable.ic_music
+        5 -> R.drawable.ic_running
+        6 -> R.drawable.ic_cook
+        7 -> R.drawable.ic_cafe
+        8 -> R.drawable.ic_movie
+        9 -> R.drawable.ic_camera2
+        10 -> R.drawable.ic_write
+        else -> R.drawable.ic_etc_hobby // null이거나 다른 값일 때 기본값
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -615,12 +786,11 @@ private fun HobbyCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // 책 아이콘
                 Icon(
-                    painter = painterResource(R.drawable.book),
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = Color(0xFFF25F59)
+                    tint = Color.Unspecified
                 )
 
                 Column(

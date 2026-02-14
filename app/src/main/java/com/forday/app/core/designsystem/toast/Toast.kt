@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -34,8 +36,11 @@ import com.dayn.forday.R
  * @param modifier Modifier
  */
 @Composable
-fun SuccessToast(
+fun ErrorToast(
     message: String = "AI 취미활동 담기 완료!",
+    iconVisible: Boolean = false,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -47,35 +52,58 @@ fun SuccessToast(
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 체크 아이콘이 있는 원형 배경
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .background(
-                    color = Color(0xFFEDFBF3),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_check), // 실제 체크 아이콘 리소스로 교체 필요
-                contentDescription = "Success",
-                tint = Color(0xFF00C853), // 녹색 체크 아이콘
-                modifier = Modifier.size(12.dp)
+            if (iconVisible) {
+                // 체크 아이콘이 있는 원형 배경
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(
+                            color = Color(0xFFEDFBF3),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_check),
+                        contentDescription = "Success",
+                        tint = Color(0xFF00C853),
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+
+            // 메시지 텍스트
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 16.8.sp,
+                color = Color.White
             )
         }
 
-        // 메시지 텍스트
-        Text(
-            text = message,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 16.8.sp, // lineHeight = fontSize * 1.2
-            color = Color.White
-        )
+        if (actionLabel != null && onActionClick != null) {
+            Text(
+                text = actionLabel,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.W400,
+                lineHeight = 16.8.sp,
+                color = Color(0xFFF2F2F2),
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onActionClick
+                )
+            )
+        }
     }
 }
 
@@ -118,7 +146,7 @@ fun SuccessToastHost(
             modifier = modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            SuccessToast(message = state.message)
+            ErrorToast(message = state.message)
         }
 
         // 자동으로 숨기기 (3초 후)
@@ -165,6 +193,6 @@ fun SuccessToastPreview() {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        SuccessToast(message = "AI 취미활동 담기 완료!")
+        ErrorToast(message = "AI 취미활동 담기 완료!")
     }
 }

@@ -5,7 +5,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
@@ -27,6 +26,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -37,6 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.offset
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.*
@@ -46,7 +50,7 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.AIRecommendationButton
-import com.forday.app.core.designsystem.toast.SuccessToast
+import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import com.forday.app.presentation.inputhobbyroutines.RoutinesState
 import timber.log.Timber
@@ -55,7 +59,7 @@ import timber.log.Timber
 data class RoutineInput(
     val id: String = UUID.randomUUID().toString(),
     val text: String = "",
-    val isAiRecommended: Boolean = false  // ✅ AI 추천 여부 추가
+    val isAiRecommended: Boolean = false  // AI 추천 여부 추가
 )
 
 @Composable
@@ -69,6 +73,9 @@ fun InputRoutineScreenRoot(
 ) {
 
     var showToast by remember { mutableStateOf(false) }
+    var aiRecommendationButtonTopY by remember { mutableStateOf<Float?>(null) }
+    var toastHeightPx by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,24 +116,39 @@ fun InputRoutineScreenRoot(
             state = state,
             getHobbyMatesRoutines = { viewModel.searchHobbyMatesRoutines(selectedHobbyId = hobbyId) },
             onExit = { onExit() },
-            aiCallRemaining = aiCallRemaining,  // ✅ 추가
+            aiCallRemaining = aiCallRemaining,  // 추가
             viewModel = viewModel,
+            onAiRecommendationButtonTopYChanged = { topY ->
+                aiRecommendationButtonTopY = topY
+            },
 //            resetTrigger = resetTrigger
         )
+
+        val toastYOffsetPx = aiRecommendationButtonTopY?.let { topY ->
+            val gapPx = with(density) { 8.dp.roundToPx() }
+            (topY.toInt() - toastHeightPx - gapPx).coerceAtLeast(0)
+        } ?: with(density) { 54.dp.roundToPx() }
 
         AnimatedVisibility(
             visible = showToast,
             enter = fadeIn(animationSpec = tween(300)),
             exit = fadeOut(animationSpec = tween(300)),
             modifier = Modifier
-                .padding(top = 54.dp)
+                .fillMaxWidth()
+                .offset { IntOffset(0, toastYOffsetPx) }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                SuccessToast("AI 취미활동 담기 완료!")
+                Box(
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        toastHeightPx = coordinates.size.height
+                    }
+                ) {
+                    ErrorToast(message = "AI 취미활동을 담았어요.", iconVisible = true)
+                }
             }
         }
     }
@@ -145,7 +167,8 @@ fun InputRoutineScreen(
     getHobbyMatesRoutines: () -> Unit,
     onExit: () -> Unit,
     resetTrigger: Int = 0,
-    viewModel: InputRoutinesAndAiRecommendViewModel
+    viewModel: InputRoutinesAndAiRecommendViewModel,
+    onAiRecommendationButtonTopYChanged: (Float) -> Unit = {}
 ) {
     val routineInputListSaver = Saver<List<RoutineInput>, List<List<Any>>>(
         save = { list ->
@@ -174,7 +197,7 @@ fun InputRoutineScreen(
             }
         }
     )
-    LaunchedEffect(hobbyId) {  // ✅ Unit 대신 hobbyId를 key로
+    LaunchedEffect(hobbyId) {  // Unit 대신 hobbyId를 key로
         Timber.e("@@@@@@@@@@@@############# " + hobbyId)
         viewModel.resetInputState()  // selectedAiRoutine 초기화
     }
@@ -202,7 +225,7 @@ fun InputRoutineScreen(
         }
     }
 
-    // ✅ AI 추천 루틴 선택 시 마지막 ActivityInputField에 자동 입력
+    // AI 추천 루틴 선택 시 마지막 ActivityInputField에 자동 입력
     // activities가 1개면 1개에, 2개면 2번째(마지막)에, 3개면 3번째(마지막)에 입력
     Timber.e("##@@@@@@@@@@@@1  " + selectedAiRoutine?.content)
     LaunchedEffect(selectedAiRoutine) {
@@ -298,7 +321,7 @@ fun InputRoutineScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // ✅ activities를 순회하며 ActivityInputField 표시
+                        // activities를 순회하며 ActivityInputField 표시
                         // 마지막 항목이 AI 추천을 받을 대상
                         activities.forEach { activity ->
                             key(activity.id) {
@@ -419,7 +442,11 @@ fun InputRoutineScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AIRecommendationButton(
-                onCreateAiRoutines = onAIRecommendationRoutines, enabled = true
+                onCreateAiRoutines = onAIRecommendationRoutines,
+                enabled = true,
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    onAiRecommendationButtonTopYChanged(coordinates.positionInRoot().y)
+                }
             )
             BottomButton2(
                 enabled = hasValidActivities,

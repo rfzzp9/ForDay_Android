@@ -55,7 +55,7 @@ import kotlinx.serialization.modules.polymorphic
  * 각 탭마다 독립적인 백스택을 유지
  */
 class MainNavigationState(
-    val startRoute: NavKey,
+    var startRoute: NavKey,
     topLevelRoute: MutableState<NavKey>,
     val backStacks: Map<NavKey, NavBackStack<NavKey>>
 ) {
@@ -167,11 +167,7 @@ val serializersConfig = SavedStateConfiguration {
             subclass(InputRoutine::class, InputRoutine.serializer())
             subclass(RoutineDetail::class, RoutineDetail.serializer())
             subclass(ModifyHobby::class, ModifyHobby.serializer())
-            subclass(ShowPobbies::class, ShowPobbies.serializer())
-            subclass(InputNickname::class, InputNickname.serializer())
-            subclass(OnboardingSuccess::class, OnboardingSuccess.serializer())
             subclass(ProfileSetting::class, ProfileSetting.serializer())
-            subclass(SelectPeriod::class, SelectPeriod.serializer())
 
         }
     }

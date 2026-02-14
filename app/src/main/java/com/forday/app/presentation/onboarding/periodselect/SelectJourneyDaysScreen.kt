@@ -128,14 +128,6 @@ fun SelectJourneyDaysScreenRoot(
                         state.selectedFrequency,
                         state.selectedJourneyMode
                     )
-                    viewModel.saveOnboardingData(
-                        selectedHobbyId = state.selectedHobbyId,
-                        selectedHobbyName = state.selectedHobbyName,
-                        selectedMinutes = state.selectedMinutes,
-                        selectedPurpose = state.selectedPurpose,
-                        selectedFrequency = state.selectedFrequency,
-                        selectedPeriod = state.selectedJourneyMode
-                    )
                 }
                 delay(400L)                                     // ✅ 공통 2초 지연
                 if (mode == ScreenMode.DEFAULT) {

@@ -107,10 +107,10 @@ class ModifyRoutineViewModel @Inject constructor(
                         }
                     )
                 }
-
-                data.data.message
-                    .takeIf { it.isNotBlank() }
-                    ?.let(snackbarManager::show)
+                snackbarManager.show("활동이 삭제되었어요.")
+//                data.data.message  // 원래 코드 (서버에서 에러메세지 그대로 보내주면 다시 이 코드 원복하면 됨)
+//                    .takeIf { it.isNotBlank() }
+//                    ?.let(snackbarManager::show)
             } else {
                 snackbarManager.show(data.data.message)
             }

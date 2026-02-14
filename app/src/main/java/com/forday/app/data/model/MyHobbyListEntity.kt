@@ -35,9 +35,17 @@ data class MyHobbyListItemEntity(
     val hobbyName: String,
     val hobbyTimeMinutes: Int,
     val executionCount: Int,
-    val goalDays: Int
+    val goalDays: Int,
+    val hobbyInfoId: Int?, // ✅ 추가
+    val imageCode: String // ✅ 추가
 ) : DataMapper<MyHobbyListItemDomain> {
     override fun toDomain(): MyHobbyListItemDomain = MyHobbyListItemDomain(
-        hobbyId, hobbyName, hobbyTimeMinutes, executionCount, goalDays
+        hobbyId = hobbyId,
+        hobbyName = hobbyName,
+        hobbyTimeMinutes = hobbyTimeMinutes,
+        executionCount = executionCount,
+        goalDays = goalDays,
+        hobbyInfoId = hobbyInfoId, // ✅ 추가
+        imageCode = imageCode // ✅ 추가
     )
 }

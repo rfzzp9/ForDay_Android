@@ -320,8 +320,6 @@ fun TermsOfServiceScreen(
                         append("서비스명: 포데이 (FORDAY)\n")
                         append("운영: 데이앤 (DayN)\n")
                         append("이메일: team.forday@gmail.com\n")
-                        append("대표자: 유지원\n")
-                        append("대표번호: 010-2127-7492\n")
                         append("제 1차 이용약관: ")
 
                         // 링크 부분을 파란색으로, 밑줄 추가
