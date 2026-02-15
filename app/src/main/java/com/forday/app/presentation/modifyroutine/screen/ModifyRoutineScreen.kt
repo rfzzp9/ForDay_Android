@@ -35,6 +35,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.state.ErrorContent
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.modifyroutine.ModifyRoutineViewModel
 import com.forday.app.presentation.modifyroutine.RoutineUiModel
@@ -62,72 +64,85 @@ fun ModifyRoutineScreenRoot(
 
     LaunchedEffect(showToast) {
         if (showToast) {
-            delay(2000)
+            delay(2_000)
             showToast = false
         }
     }
 
     LaunchedEffect(Unit) {
-        if (hobbyId != null) {
-            viewModel.fetchHobbyRoutineList(hobbyId)
-        }
+        viewModel.fetchHobbyRoutineList(hobbyId)
     }
 
-    ModifyRoutineScreen(
-        routineList = state.routines,
-        isLoading = state.isLoading,
-        error = state.error,
-        onBack = onBack,
-        onAddRoutine = onAddRoutine,
-        onEditRoutine = onEditRoutine,
-        onEditClick = { routine ->
-            selectedRoutineForEdit = routine
-            editText = routine.content
-            showEditDialog = true
-        },
-        // 삭제 클릭 - 다이얼로그만 표시
-        onDeleteClick = { routine ->
-            selectedRoutineForDelete = routine
-            showDeleteDialog = true
-            // viewModel.deleteRoutine(routine.routineId) 제거!
-        },
-        showDeleteDialog = showDeleteDialog,
-        onDismissDeleteDialog = {
-            showDeleteDialog = false
-            selectedRoutineForDelete = null
-        },
-        // 삭제 확인 - 실제로 삭제
-        onConfirmDelete = {
-            selectedRoutineForDelete?.let { routine ->
-                viewModel.deleteRoutine(routine.routineId)  // 여기서 삭제!
+    val errorData = state.errorData
+    if (errorData != null) {
+        ErrorContent(
+            errorData = errorData,
+            onAction = {
+                when (errorData.errorType) {
+                    ErrorDataUiState.ErrorType.TYPE_RETRY ->
+                        viewModel.fetchHobbyRoutineList(hobbyId)
+
+                    ErrorDataUiState.ErrorType.TYPE_BACK ->
+                        onBack()
+                }
+            },
+        )
+    } else {
+        ModifyRoutineScreen(
+            routineList = state.routines,
+            isLoading = state.isLoading,
+            onBack = onBack,
+            onAddRoutine = onAddRoutine,
+            onEditRoutine = onEditRoutine,
+            onEditClick = { routine ->
+                selectedRoutineForEdit = routine
+                editText = routine.content
+                showEditDialog = true
+            },
+            // 삭제 클릭 - 다이얼로그만 표시
+            onDeleteClick = { routine ->
+                selectedRoutineForDelete = routine
+                showDeleteDialog = true
+                // viewModel.deleteRoutine(routine.routineId) 제거!
+            },
+            showDeleteDialog = showDeleteDialog,
+            onDismissDeleteDialog = {
                 showDeleteDialog = false
                 selectedRoutineForDelete = null
-                showToast = true
-            }
-        },
-        showEditDialog = showEditDialog,
-        editText = editText,
-        onEditTextChange = { newText ->
-            if (newText.length <= 20) {
-                editText = newText
-            }
-        },
-        onDismissEditDialog = {
-            showEditDialog = false
-            selectedRoutineForEdit = null
-            editText = ""
-        },
-        onConfirmEdit = {
-            selectedRoutineForEdit?.let { routine ->
-                viewModel.modifyRoutine(routine.routineId, editText)
+            },
+            // 삭제 확인 - 실제로 삭제
+            onConfirmDelete = {
+                selectedRoutineForDelete?.let { routine ->
+                    viewModel.deleteRoutine(routine.routineId)  // 여기서 삭제!
+                    showDeleteDialog = false
+                    selectedRoutineForDelete = null
+                    showToast = true
+                }
+            },
+            showEditDialog = showEditDialog,
+            editText = editText,
+            onEditTextChange = { newText ->
+                if (newText.length <= 20) {
+                    editText = newText
+                }
+            },
+            onDismissEditDialog = {
                 showEditDialog = false
                 selectedRoutineForEdit = null
                 editText = ""
-            }
-        },
-        showToast = showToast,
-        modifier = modifier
-    )
+            },
+            onConfirmEdit = {
+                selectedRoutineForEdit?.let { routine ->
+                    viewModel.modifyRoutine(routine.routineId, editText)
+                    showEditDialog = false
+                    selectedRoutineForEdit = null
+                    editText = ""
+                }
+            },
+            showToast = showToast,
+            modifier = modifier
+        )
+    }
 
 }
 
@@ -135,7 +150,6 @@ fun ModifyRoutineScreenRoot(
 fun ModifyRoutineScreen(
     routineList: List<RoutineUiModel>,
     isLoading: Boolean,
-    error: String?,
     onBack: () -> Unit,
     onAddRoutine: () -> Unit,
     onEditRoutine: (Long) -> Unit,
@@ -180,36 +194,12 @@ fun ModifyRoutineScreen(
                         )
                     }
                 }
-                error != null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "오류가 발생했습니다",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF3A3A3A)
-                            )
-                            Text(
-                                text = error,
-                                fontSize = 14.sp,
-                                color = Color(0xFF7A7A7A),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
+
                 routineList.isEmpty() -> {
                     // ✅ Empty State 추가
                     EmptyRoutineContent(onAddRoutine = onAddRoutine)
                 }
+
                 else -> {
                     // 기존 리스트
                     Column(
@@ -740,6 +730,7 @@ private fun EditRoutineDialog(
         }
     }
 }
+
 @Composable
 private fun DeleteConfirmDialog(
     onDismiss: () -> Unit,

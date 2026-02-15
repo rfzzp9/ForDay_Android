@@ -1,9 +1,11 @@
 package com.forday.app.presentation.modifyroutine
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
+
 data class RoutinesUiState(
     val isLoading: Boolean = false,
     val routines: List<RoutineUiModel> = emptyList(),
-    val error: String? = null
+    val errorData: ErrorDataUiState? = null,
 )
 
 data class RoutineUiModel(

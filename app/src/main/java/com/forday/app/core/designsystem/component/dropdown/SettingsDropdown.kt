@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,9 +20,9 @@ import com.forday.app.presentation.home.SettingsMenuItem
 
 @Composable
 fun SettingsDropdown(
-    items: List<SettingsMenuItem> = SettingsMenuItem.values().toList(),
     onItemClick: (SettingsMenuItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    items: List<SettingsMenuItem> = SettingsMenuItem.entries,
 ) {
     Surface(
         modifier = modifier.wrapContentWidth(),

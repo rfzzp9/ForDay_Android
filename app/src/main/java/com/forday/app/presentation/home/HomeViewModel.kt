@@ -20,6 +20,7 @@ import com.forday.app.presentation.home.model.RoutinePreviewUiModel
 import com.forday.app.presentation.home.model.RoutineUiModel
 import com.forday.app.presentation.home.model.toPresentation
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -48,8 +49,7 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState: MutableStateFlow<HomeState> = MutableStateFlow(HomeState())
     val uiState: StateFlow<HomeState> = _uiState.toStateIn()
-
-    fun fetchHomeHobbyData(hobbyId: Long?) = viewModelScope.launch {
+    fun fetchHomeHobbyData(hobbyId: Long? = null) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true) }
 
         flow {
@@ -75,6 +75,7 @@ class HomeViewModel @Inject constructor(
                         isLoading = false,
                         // 리스트에서 첫 번째, 두 번째 취미 이름 추출
                         hobbyFirst = uiModel.inProgressHobbies.getOrNull(0)?.name ?: "",
+//                        hobbyFirst = runCatching { uiModel.inProgressHobbies[0] }.getOrDefault(""),
                         hobbySecond = uiModel.inProgressHobbies.getOrNull(1)?.name ?: "",
 
                         // 전체 리스트 데이터 업데이트
@@ -132,7 +133,7 @@ class HomeViewModel @Inject constructor(
         }
 
 
-    fun fetchStickerHistory(hobbyId: Long?, size: Int, page: Int? = null) = viewModelScope.launch {
+    fun fetchStickerHistory(hobbyId: Long?, size: Int = 28, page: Int? = null) = viewModelScope.launch {
         val requestPage = page
         Timber.e("=== fetchStickerHistory ===")
         Timber.e("hobbyId: $hobbyId, page: $requestPage, size: $size")

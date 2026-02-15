@@ -123,16 +123,16 @@ fun HomeScreenRoot(
     onSelectHobby: () -> Unit,
     onAllSettingsClick: () -> Unit,
     onAddHobbyClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onCurrentHobbyIdChanged: (Long?) -> Unit = {},
     onRecordStateChanged: (isRecordedToday: Boolean, todayRecordId: Int?) -> Unit = { _, _ -> },
     viewModel: HomeViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val currentHobbyId = state.inProgressHobbies.find { it.isCurrent }?.hobbyId
     var showAlreadyRecordedDialog by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        viewModel.fetchHomeHobbyData(null)
+        viewModel.fetchHomeHobbyData()
         viewModel.logEvent("home_screen")
     }
 
@@ -156,7 +156,7 @@ fun HomeScreenRoot(
 
     LaunchedEffect(state.routineId) {  // TODO ai 취미활동 생성했을 때 routineId가 트리거되어야 하는데 안되는 오류 -> 지나님한테 말씀드랴놓음
         viewModel.fetchHomeHobbyData(currentHobbyId)
-        viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+        viewModel.fetchStickerHistory(hobbyId = currentHobbyId, size = 28, page = null)
     }
 
     HomeScreen(
