@@ -1,11 +1,11 @@
 package com.forday.app.presentation.modifyroutine
 
 import androidx.lifecycle.viewModelScope
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.domain.usecase.DeleteHobbyRoutineUseCase
 import com.forday.app.domain.usecase.GetHobbyRoutineListUseCase
 import com.forday.app.domain.usecase.ModifyHobbyRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
-import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.httpCatch
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +30,7 @@ class ModifyRoutineViewModel @Inject constructor(
 
     fun fetchHobbyRoutineList(hobbyId: Long?) = viewModelScope.launch {  // 활동 리스트 조회
         if (hobbyId == null) {
+            Timber.w("fetchHobbyRoutineList: hobbyId is null")
             _uiState.update {
                 it.copy(
                     errorData = ErrorDataUiState(
@@ -43,7 +44,7 @@ class ModifyRoutineViewModel @Inject constructor(
 
         flow {
             emit(getHobbyRoutineListUseCase(hobbyId))
-        }.httpCatch { errorData ->
+        }.httpCatch(tag = "fetchHobbyRoutineList") { errorData ->
             _uiState.update {
                 it.copy(
                     errorData = errorData,
@@ -83,12 +84,8 @@ class ModifyRoutineViewModel @Inject constructor(
         flow {
             emit(modifyHobbyRoutineUseCase(routineId, content))
         }
-            .httpCatch { errorData ->
-                _uiState.update {
-                    it.copy(
-                        errorData = errorData,
-                    )
-                }
+            .httpCatch(tag = "modifyRoutine") { errorData ->
+                snackbarManager.show(errorData.message)
             }
 
 //            .catch { throwable ->
@@ -120,14 +117,9 @@ class ModifyRoutineViewModel @Inject constructor(
     fun deleteRoutine(routineId: Long) = viewModelScope.launch {
         flow {
             emit(deleteHobbyRoutineUseCase(routineId))
+        }.httpCatch(tag = "deleteRoutine") { errorData ->
+            snackbarManager.show(errorData.message)
         }
-            .httpCatch { errorData ->
-                _uiState.update {
-                    it.copy(
-                        errorData = errorData,
-                    )
-                }
-            }
 //        }.catch { throwable ->
 //            Timber.e("deleteRoutine throwable : "+throwable)
 //            val message = when (throwable) {
@@ -138,7 +130,7 @@ class ModifyRoutineViewModel @Inject constructor(
 //        }
         .collect { data ->
             Timber.e("deleteRoutine data.data.message : "+data.data.message)
-            if (data.status == 200) {
+//            if (data.status == 200) {
                 // ✅ 성공 시 해당 routineId를 가진 항목 삭제
                 _uiState.update { currentState ->
                     currentState.copy(
@@ -151,9 +143,9 @@ class ModifyRoutineViewModel @Inject constructor(
 //                data.data.message  // 원래 코드 (서버에서 에러메세지 그대로 보내주면 다시 이 코드 원복하면 됨)
 //                    .takeIf { it.isNotBlank() }
 //                    ?.let(snackbarManager::show)
-            } else {
-                snackbarManager.show(data.data.message)
-            }
+//            } else {
+//                snackbarManager.show(data.data.message)
+//            }
         }
     }
 

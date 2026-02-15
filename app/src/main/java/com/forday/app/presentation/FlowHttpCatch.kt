@@ -6,14 +6,27 @@ import com.forday.app.core.util.toUserMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import retrofit2.HttpException
+import timber.log.Timber
 
 inline fun <T> Flow<T>.httpCatch(
+    tag: String,
     crossinline body: (ErrorDataUiState) -> Unit,
+    noinline onThrowable: ((Throwable) -> Unit)? = null,
 ): Flow<T> {
     return this.catch { throwable ->
         val message = when (throwable) {
-            is HttpException -> throwable.logAndExtractServerErrorBody(tag = "fetchHobbyRoutineList")
-            else -> null
+            is HttpException -> throwable.logAndExtractServerErrorBody(tag = tag)
+            else -> {
+                Timber.e(
+                    throwable,
+                    "%sOtherException code=%d message=%s body=%s",
+                    "[$tag] ",
+                    999999,
+                    throwable.message ?: "",
+                    throwable.stackTraceToString(),
+                )
+                null
+            }
         }
 
         val errorType = when {
@@ -27,5 +40,7 @@ inline fun <T> Flow<T>.httpCatch(
                 errorType,
             )
         )
+
+        onThrowable?.invoke(throwable)
     }
 }
