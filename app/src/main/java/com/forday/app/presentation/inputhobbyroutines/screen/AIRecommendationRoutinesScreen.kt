@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -375,7 +376,7 @@ private fun RoutineCard(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,  // 리플 효과 제거
-                onClick = onSelect
+                onClick = rememberThrottledClick { onSelect() }
             ),
         shape = RoundedCornerShape(12.dp),
         shadowElevation = 4.dp,
@@ -436,7 +437,7 @@ private fun ToggleCheckbox(
                 color = ForDayTheme.color.Gray03,
                 shape = CircleShape
             )
-            .clickable { onClick() },
+            .clickable(onClick = rememberThrottledClick { onClick() }),
         contentAlignment = Alignment.Center
     ) {
         if (isChecked) {

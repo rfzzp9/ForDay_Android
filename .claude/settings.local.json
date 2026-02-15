@@ -8,7 +8,16 @@
       "Bash(cmd /c \"gradlew.bat assembleDebug 2>&1\")",
       "Bash(C:UsersuserAndroidStudioProjectsForday_Androidgradlew.bat assembleDebug)",
       "Bash(./gradlew.bat testDebugUnitTest:*)",
-      "Bash(./gradlew assembleDebug:*)"
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/allsettings/cancelaccount/screen/CancelAccountScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/allsettings/privacypolicy/screen/PrivacyPolicyScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/allsettings/settings/screen/SettingsScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/allsettings/termsofservice/screen/TermsOfServiceScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/inputhobbyroutines/screen/AIRecommendationRoutinesScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/inputhobbyroutines/screen/InputRoutineScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/modifyhobby/screen/ModifyHobbyScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/mypage/hobbyphotosetting/HobbyPhotoManagementScreen.kt\" )",
+      "Bash(\"/Users/taehwankwon/Library/CloudStorage/Dropbox/GitHub/f-lab/Forday_Android/app/src/main/java/com/forday/app/presentation/mypage/main/MyPageScreen.kt\")"
     ]
   }
 }

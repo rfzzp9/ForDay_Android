@@ -1,5 +1,6 @@
 package com.forday.app.presentation.modifyroutine
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.domain.model.HobbyRoutineListDomain
 import com.forday.app.domain.model.RoutineDataDomain
 
@@ -28,13 +29,16 @@ fun HobbyRoutineListDomain.toPresentation(): RoutinesUiState {
         RoutinesUiState(
             isLoading = false,
             routines = data.routines.toUiModelList(),
-            error = null
+            errorData = null,
         )
     } else {
         RoutinesUiState(
             isLoading = false,
             routines = emptyList(),
-            error = data.message
+            errorData = ErrorDataUiState( // todo 확인 필요
+                message = data.message,
+                errorType = ErrorDataUiState.ErrorType.TYPE_RETRY,
+            ),
         )
     }
 }

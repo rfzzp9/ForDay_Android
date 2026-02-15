@@ -3,6 +3,7 @@ package com.forday.app.presentation.onboarding.hobbyselect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,7 +98,7 @@ fun DirectInputHobbyDialog(
                                 contentDescription = "지우기",
                                 modifier = Modifier
                                     .size(18.dp)
-                                    .clickable { onValueChange("") }
+                                    .clickable(onClick = rememberThrottledClick { onValueChange("") })
                             )
                         }
                     }
@@ -126,9 +127,10 @@ fun DirectInputHobbyDialog(
                             else
                                 FordayColor.Neutral50
                         )
-                        .clickable(enabled = value.isNotBlank()) {
-                            onNext()
-                        },
+                        .clickable(
+                            onClick = rememberThrottledClick { onNext() },
+                            enabled = value.isNotBlank()
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

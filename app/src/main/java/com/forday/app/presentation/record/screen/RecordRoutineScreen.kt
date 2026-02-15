@@ -51,6 +51,7 @@ import com.forday.app.core.designsystem.component.dropdown.RoutineDropdown
 import com.forday.app.core.designsystem.component.dropdown.VisibilityOption
 import com.forday.app.core.designsystem.component.dropdown.VisibilitySelector
 import com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.presentation.record.RecordRoutineViewModel
 import com.forday.app.presentation.record.RoutineUiModel
 import timber.log.Timber
@@ -478,11 +479,10 @@ fun RecordRoutineScreen(
                 .padding(paddingValues)
                 .onGloballyPositioned { containerTopY = it.positionInRoot().y }
                 .clickable(
+                    onClick = rememberThrottledClick { softwareKeyboardController?.hide() },
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
-                ) {
-                    softwareKeyboardController?.hide()
-                }
+                )
         ) {
             if (isUploading) {
                 Box(
@@ -604,7 +604,7 @@ fun RecordRoutineScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = onActivityClick
+                            onClick = rememberThrottledClick { onActivityClick() }
                         )
                 )
             }
@@ -678,7 +678,7 @@ private fun RecordActivityTopBar(
             .background(Color.White)
     ) {
         IconButton(
-            onClick = onClose,
+            onClick = rememberThrottledClick { onClose() },
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 11.dp)
@@ -706,7 +706,7 @@ private fun ActivitySelector(
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
+        onClick = rememberThrottledClick { onClick() },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFFF2F2F2)
@@ -764,7 +764,7 @@ private fun StickerItem(
         modifier = modifier
             .aspectRatio(1f)
             .clickable(
-                onClick = onClick,
+                onClick = rememberThrottledClick { onClick() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ),
@@ -859,11 +859,10 @@ private fun MemoInputField(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .clickable(
+                                        onClick = rememberThrottledClick { onExistingImageRemove(url) },
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
-                                    ) {
-                                        onExistingImageRemove(url)
-                                    }
+                                    )
                             )
                         }
                     }
@@ -887,11 +886,10 @@ private fun MemoInputField(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .clickable(
+                                        onClick = rememberThrottledClick { onImageRemove(uri) },
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
-                                    ) {
-                                        onImageRemove(uri)
-                                    }
+                                    )
                             )
                         }
                     }
@@ -904,7 +902,7 @@ private fun MemoInputField(
                 verticalAlignment = Alignment.Bottom
             ) {
                 Surface(
-                    onClick = onPhotoClick,
+                    onClick = rememberThrottledClick { onPhotoClick() },
                     modifier = Modifier.size(48.dp),
                     shape = RoundedCornerShape(8.dp),
                     color = if (totalImageCount >= 1) Color(0xFFE5E5E5) else Color.White,
@@ -952,7 +950,7 @@ private fun PrivacySelector(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
-                onClick = onClick,
+                onClick = rememberThrottledClick { onClick() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ),
@@ -1013,7 +1011,7 @@ private fun CompleteButton(
         )
 
         Button(
-            onClick = onClick,
+            onClick = rememberThrottledClick { onClick() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

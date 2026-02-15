@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -380,7 +381,7 @@ private fun ModifyRoutineTopBar(
             modifier = Modifier
                 .size(24.dp)
                 .clickable(
-                    onClick = onAdd,
+                    onClick = rememberThrottledClick { onAdd() },
                     indication = null,  // ripple 효과 제거
                     interactionSource = remember { MutableInteractionSource() }
                 )
@@ -548,7 +549,7 @@ private fun RoutineListItem(
                     modifier = Modifier
                         .size(20.dp)
                         .clickable(
-                            onClick = onEdit,
+                            onClick = rememberThrottledClick { onEdit() },
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ),
@@ -562,7 +563,7 @@ private fun RoutineListItem(
                         modifier = Modifier
                             .size(20.dp)
                             .clickable(
-                                onClick = onDelete,
+                                onClick = rememberThrottledClick { onDelete() },
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ),
@@ -669,7 +670,7 @@ private fun EditRoutineDialog(
                                     modifier = Modifier
                                         .size(20.dp)
                                         .clickable(
-                                            onClick = { onTextChange("") },
+                                            onClick = rememberThrottledClick { onTextChange("") },
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() }
                                         ),

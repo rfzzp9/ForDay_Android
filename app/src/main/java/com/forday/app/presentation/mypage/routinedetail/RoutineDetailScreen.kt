@@ -1,11 +1,12 @@
 package com.forday.app.presentation.mypage.routinedetail
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.ui.tooling.preview.Preview
-import coil3.compose.AsyncImage
-import com.forday.app.core.designsystem.theme.ForDayTheme
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,15 +14,46 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,7 +61,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -38,26 +69,30 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
+import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.button.BottomButtonState
+import com.forday.app.core.designsystem.component.button.BottomNextButton
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.domain.model.ReactionDetailDomain
+import com.forday.app.domain.model.ReactionUserInfo
+import com.forday.app.presentation.mypage.MyPageUiState
 import com.forday.app.presentation.mypage.MyPageViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import com.dayn.forday.R
-import com.forday.app.core.designsystem.component.button.BottomButtonState
-import com.forday.app.core.designsystem.component.button.BottomNextButton
-import com.forday.app.domain.model.ReactionDetailDomain
-import com.forday.app.domain.model.ReactionUserInfo
-import com.forday.app.presentation.mypage.MyPageUiState
 
 // 색상 정의
 object ActivityDetailColors {
@@ -130,7 +165,7 @@ fun RoutineDetailScreen(
     BackHandler(enabled = isNewRecord) {
         onNavigateToHome()
     }
-    Timber.e("routineId2@@@@@@@@@@@@@ : "+routineId)
+    Timber.e("routineId2@@@@@@@@@@@@@ : " + routineId)
     LaunchedEffect(Unit) {
         viewModel.getMyRoutineRecordDetail(routineId.toInt())
         viewModel.getNickname()
@@ -170,7 +205,7 @@ fun RoutineDetailScreen(
         }
     }
 
-    Timber.e("@@@@@@@@@@@@content "+state.value.myRoutineDetails?.content)
+    Timber.e("@@@@@@@@@@@@content " + state.value.myRoutineDetails?.content)
 
     val density = LocalDensity.current
     Box(
@@ -272,7 +307,7 @@ fun RoutineDetailScreen(
                                     ReactionType.FIGHTING -> routine?.myReactions?.pressedFighting
                                 }
                                 val isCurrentlySelected = (isPressed == true && !canceledReactions.contains(reaction))
-                                        || selectedReactions.contains(reaction)
+                                    || selectedReactions.contains(reaction)
                                 val reactionString = when (reaction) {
                                     ReactionType.AWESOME -> "AWESOME"
                                     ReactionType.GREAT -> "GREAT"
@@ -493,7 +528,7 @@ fun RoutineDetailHeader(
             Spacer(modifier = Modifier.size(24.dp))
         } else {
             IconButton(
-                onClick = onBackClick,
+                onClick = rememberThrottledClick(onClick = onBackClick),
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(
@@ -516,7 +551,7 @@ fun RoutineDetailHeader(
             Spacer(modifier = Modifier.size(24.dp))
         } else {
             IconButton(
-                onClick = onMoreMenuClick,
+                onClick = rememberThrottledClick(onClick = onMoreMenuClick),
                 modifier = Modifier
                     .size(24.dp)
                     .onGloballyPositioned { coords ->
@@ -616,7 +651,9 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
     } else {
         // 기존 레이아웃 (이미지 또는 메모가 있을 때)
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Title
@@ -700,11 +737,13 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                         )
                     }
                 }
-                Timber.e("@@@@@@@@@@@@@@############# @#@#@#@ "+routine.memo)
+                Timber.e("@@@@@@@@@@@@@@############# @#@#@#@ " + routine.memo)
                 // Memo Content
                 if (!routine.memo.isNullOrEmpty()) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
                         shape = RoundedCornerShape(12.dp),
                         color = ActivityDetailColors.Background002
                     ) {
@@ -791,7 +830,6 @@ private fun RecordSuccessAnimation(
 }
 
 
-
 @Composable
 fun BottomReactionBar(
     selectedReactions: Set<ReactionType>,
@@ -826,7 +864,9 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedAwesome,
                     isCanceled = canceledReactions.contains(ReactionType.AWESOME),
                     hasNewReaction = reactions?.awesome,
-                    onClick = { onReactionClick(ReactionType.AWESOME) }
+                    onClick = rememberThrottledClick {
+                        onReactionClick(ReactionType.AWESOME)
+                    },
                 )
 
                 // Great Reaction (최고예요)
@@ -836,7 +876,9 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedGreat,
                     isCanceled = canceledReactions.contains(ReactionType.GREAT),
                     hasNewReaction = reactions?.great,
-                    onClick = { onReactionClick(ReactionType.GREAT) }
+                    onClick = rememberThrottledClick {
+                        onReactionClick(ReactionType.GREAT)
+                    },
                 )
 
                 // Amazing Reaction (놀라워요)
@@ -846,7 +888,9 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedAmazing,
                     isCanceled = canceledReactions.contains(ReactionType.AMAZING),
                     hasNewReaction = reactions?.amazing,
-                    onClick = { onReactionClick(ReactionType.AMAZING) }
+                    onClick = rememberThrottledClick {
+                        onReactionClick(ReactionType.AMAZING)
+                    },
                 )
 
                 // Fighting Reaction (응원해요)
@@ -856,13 +900,15 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedFighting,
                     isCanceled = canceledReactions.contains(ReactionType.FIGHTING),
                     hasNewReaction = reactions?.fighting,
-                    onClick = { onReactionClick(ReactionType.FIGHTING) }
+                    onClick = rememberThrottledClick {
+                        onReactionClick(ReactionType.FIGHTING)
+                    },
                 )
             }
 
             // ✅ 오른쪽: 북마크 아이콘 (end에 고정)
             IconButton(
-                onClick = onBookmarkClick,
+                onClick = rememberThrottledClick(onClick = onBookmarkClick),
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(
@@ -901,16 +947,19 @@ fun ReactionButton(
         } else {
             R.drawable.ic_cool_unselected
         }
+
         ReactionType.GREAT -> if (isActive) {
             R.drawable.ic_good_selected
         } else {
             R.drawable.ic_good_unselected
         }
+
         ReactionType.AMAZING -> if (isActive) {
             R.drawable.ic_excellent_selected
         } else {
             R.drawable.ic_excellent_unselected
         }
+
         ReactionType.FIGHTING -> if (isActive) {
             R.drawable.ic_fire_selected
         } else {
@@ -924,7 +973,7 @@ fun ReactionButton(
             .clip(CircleShape)
             .background(ActivityDetailColors.Background002)
             .clickable(
-                onClick = onClick,
+                onClick = rememberThrottledClick { onClick() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ),
@@ -994,7 +1043,7 @@ fun MoreMenuItem(
 ) {
     Row(
         modifier = Modifier
-            .clickable(onClick = onClick)
+            .clickable(onClick = rememberThrottledClick { onClick() })
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1131,7 +1180,7 @@ fun PrivacySettingBottomSheet(
 
             // Confirm Button
             Button(
-                onClick = onConfirmClick,
+                onClick = rememberThrottledClick { onConfirmClick() },
                 modifier = Modifier
                     .width(328.dp)
                     .height(56.dp)
@@ -1163,7 +1212,7 @@ fun PrivacyOptionCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = rememberThrottledClick { onClick() }),
         shape = RoundedCornerShape(12.dp),
         color = ActivityDetailColors.White,
         border = if (isSelected) {

@@ -50,6 +50,7 @@ import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -509,7 +510,7 @@ fun TimeSelector(
                         .weight(1f)
                         .fillMaxHeight()
                         .clickable(
-                            onClick = { onTimeSelected(minutes) },
+                            onClick = rememberThrottledClick { onTimeSelected(minutes) },
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ),

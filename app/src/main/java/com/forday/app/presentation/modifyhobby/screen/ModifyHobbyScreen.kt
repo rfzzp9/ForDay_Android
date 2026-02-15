@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -699,7 +700,7 @@ private fun TabItem(
     Box(
         modifier = modifier
             .heightIn(min = 54.dp)
-            .clickable(onClick = onClick)
+            .clickable(onClick = rememberThrottledClick { onClick() })
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -909,7 +910,7 @@ private fun AddHobbyButton(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = rememberThrottledClick { onClick() }),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(8.dp)

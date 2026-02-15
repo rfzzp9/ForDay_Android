@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.OnboardingUiState
@@ -166,14 +167,15 @@ fun InputNicknameScreen(
             .fillMaxSize()
             .background(ForDayTheme.color.White)
             .clickable(
+                onClick = rememberThrottledClick {
+                    val isValid = validateNickname()
+                    if (isValid) {
+                        focusManager.clearFocus()
+                    }
+                },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) {
-                val isValid = validateNickname()
-                if (isValid) {
-                    focusManager.clearFocus()
-                }
-            }
+            )
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -370,7 +372,7 @@ fun NicknameInputField(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Button(
-                    onClick = onCheckDuplicate,
+                    onClick = rememberThrottledClick { onCheckDuplicate() },
                     modifier = Modifier
                         .heightIn(min = 28.dp)
                         .padding(0.dp),
@@ -465,7 +467,7 @@ fun BoxScope.BottomButton(
 
         // Button
         Button(
-            onClick = onClick,
+            onClick = rememberThrottledClick { onClick() },
             enabled = enabled,
             modifier = Modifier
                 .align(Alignment.BottomCenter)

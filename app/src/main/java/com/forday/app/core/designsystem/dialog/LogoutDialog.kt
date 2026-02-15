@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 
 @Composable
 fun LogoutDialog(
@@ -70,7 +70,7 @@ fun LogoutDialog(
                 ) {
                     // 닫기 버튼
                     Button(
-                        onClick = onDismiss,
+                        onClick = rememberThrottledClick(onClick = onDismiss),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
@@ -91,7 +91,7 @@ fun LogoutDialog(
 
                     // 로그아웃 버튼
                     Button(
-                        onClick = onConfirm,
+                        onClick = rememberThrottledClick(onClick = onConfirm),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),

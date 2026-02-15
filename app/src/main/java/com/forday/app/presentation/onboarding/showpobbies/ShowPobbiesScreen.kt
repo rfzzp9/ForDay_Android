@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.forday.app.core.designsystem.component.button.BottomNextButton
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import androidx.annotation.DrawableRes
 import com.forday.app.presentation.onboarding.OnboardingViewModel
@@ -231,7 +232,7 @@ fun BoxScope.BottomButton(onClick: () -> Unit) {
 
         // Button
         Button(
-            onClick = onClick,
+            onClick = rememberThrottledClick { onClick() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp, vertical = 16.dp)

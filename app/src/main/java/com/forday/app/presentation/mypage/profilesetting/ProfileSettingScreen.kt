@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -182,7 +183,7 @@ fun ProfileSettingScreenRoot(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                TextButton(onClick = rememberThrottledClick { showDeleteConfirmDialog = false }) {
                     Text("취소")
                 }
             }
@@ -444,7 +445,7 @@ fun ProfileSettingHeader(
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = ProfileSettingColors.Neutral800,
-            modifier = Modifier.clickable { onCompleteClick() }
+            modifier = Modifier.clickable(onClick = rememberThrottledClick { onCompleteClick() })
         )
     }
 }
@@ -474,7 +475,7 @@ fun ProfileImageSection(
                     .clip(CircleShape)
                     .border(1.dp, ProfileSettingColors.Stroke001, CircleShape)
                     .background(ProfileSettingColors.Stroke001)
-                    .clickable { onProfileImageClick() },
+                    .clickable(onClick = rememberThrottledClick { onProfileImageClick() }),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -544,7 +545,7 @@ fun ProfileImageSection(
                         .offset(x = 0.dp, y = 0.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFFF4444))
-                        .clickable { onDeleteImageClick() },
+                        .clickable(onClick = rememberThrottledClick { onDeleteImageClick() }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -564,7 +565,7 @@ fun ProfileImageSection(
                     .offset(x = (-8).dp, y = (-8).dp)
                     .clip(CircleShape)
                     .background(ProfileSettingColors.White)
-                    .clickable { onProfileImageClick() },
+                    .clickable(onClick = rememberThrottledClick { onProfileImageClick() }),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -632,7 +633,7 @@ fun NicknameInputField(
                         .height(28.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(ProfileSettingColors.Neutral900)
-                        .clickable { onDuplicateCheckClick() }
+                        .clickable(onClick = rememberThrottledClick { onDuplicateCheckClick() })
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
                 ) {

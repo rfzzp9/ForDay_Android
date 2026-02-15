@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
 
 /**
@@ -74,7 +75,7 @@ fun BottomNavigationButtons(
         ) {
             // 이전 버튼 (항상 비활성화 스타일)
             Button(
-                onClick = onPreviousClick,
+                onClick = rememberThrottledClick(onClick = onPreviousClick),
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
@@ -98,7 +99,7 @@ fun BottomNavigationButtons(
 
             // 다음 버튼 (활성화 상태에 따라 변경)
             Button(
-                onClick = onNextClick,
+                onClick = rememberThrottledClick(onClick = onNextClick),
                 enabled = nextEnabled,
                 modifier = Modifier
                     .weight(1f)

@@ -50,6 +50,7 @@ import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.dialog.HobbyInputDialog
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 
@@ -239,7 +240,7 @@ fun HobbyCard(
                 shape = RoundedCornerShape(16.dp)
             )
             .background(Color.White)
-            .clickable(onClick = onClick)
+            .clickable(onClick = rememberThrottledClick { onClick() })
     ) {
         // Image section
         Box(
@@ -334,7 +335,7 @@ private fun AddCustomHobbyButton(customHobbyText: String, onClick: () -> Unit) {
     Column {
         Spacer(modifier = Modifier.height(14.dp))
         Button(
-            onClick = onClick,
+            onClick = rememberThrottledClick { onClick() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)

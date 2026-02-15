@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -515,7 +516,7 @@ fun GuestLoginBottomSheet(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { /* 배경 클릭 무시 */ }
+                    onClick = rememberThrottledClick { /* 배경 클릭 무시 */ }
                 ),
             contentAlignment = Alignment.BottomCenter
         ) {
@@ -528,7 +529,7 @@ fun GuestLoginBottomSheet(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { /* 시트 내부 클릭은 소비만 */ }
+                        onClick = rememberThrottledClick { /* 시트 내부 클릭은 소비만 */ }
                     )
                     .padding(top = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -780,7 +781,7 @@ fun TabSection(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clickable { onTabSelected(0) },
+                .clickable(onClick = rememberThrottledClick { onTabSelected(0) }),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -819,7 +820,7 @@ fun TabSection(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clickable { onTabSelected(1) },
+                .clickable(onClick = rememberThrottledClick { onTabSelected(1) }),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -857,7 +858,7 @@ fun TabSection(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable { onTabSelected(2) },
+                    .clickable(onClick = rememberThrottledClick { onTabSelected(2) }),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -1010,11 +1011,10 @@ fun ScrapCardItem(
         modifier = modifier
             .aspectRatio(106f / 128f)
             .clickable(
+                onClick = rememberThrottledClick { onClick() },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) {
-                onClick()
-            }
+            )
             .then(
                 if (isEmptyUrl && stickerGradientColors.isNotEmpty()) {
                     Modifier.background(
@@ -1222,11 +1222,10 @@ fun HobbyCategoryItem(
                     shape = CircleShape
                 )
                 .clickable(
+                    onClick = rememberThrottledClick { onClick() },
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
-                ) {
-                    onClick()
-                },
+                ),
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -1407,11 +1406,10 @@ fun StickerCardItem(
         modifier = modifier
             .aspectRatio(106f / 128f)
             .clickable(
+                onClick = rememberThrottledClick { onClick() },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) {
-                onClick()
-            }
+            )
             .then(
                 if (isEmptyUrl && stickerGradientColors.isNotEmpty()) {
                     Modifier.background(
@@ -1804,9 +1802,10 @@ fun SettingsMenuItem(
         modifier = Modifier
             .padding(vertical = 8.dp)
             .clickable(
+                onClick = rememberThrottledClick { onClick() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
+            )
     )
 }
 

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -144,7 +145,7 @@ fun CancelAccountScreen(
                         modifier = Modifier
                             .size(24.dp)
                             .clickable(
-                                onClick = { isAgreed = !isAgreed },
+                                onClick = rememberThrottledClick { isAgreed = !isAgreed },
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             )

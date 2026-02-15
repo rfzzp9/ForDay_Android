@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -439,7 +440,7 @@ fun HomeScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { showDropdown = false }
+                        onClick = rememberThrottledClick { showDropdown = false }
                     )
             ) {
                 val gapPx = with(density) { 8.dp.toPx() }
@@ -491,7 +492,7 @@ fun HomeScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { showSettingsDropdown = false }
+                        onClick = rememberThrottledClick { showSettingsDropdown = false }
                     )
             )
 
@@ -523,7 +524,7 @@ fun HomeScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { showFloatingMenu = false }
+                        onClick = rememberThrottledClick { showFloatingMenu = false }
                     )
             ) {
                 FloatingMenuPopup(
@@ -587,11 +588,10 @@ fun HomeHeader(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable(
+                        onClick = rememberThrottledClick { onAddHobbyClick() },
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) {
-                        onAddHobbyClick()
-                    }
+                    )
                 ) {
                     Text(
                         text = "취미 추가",
@@ -613,11 +613,10 @@ fun HomeHeader(
                     fontWeight = FontWeight.Bold,
                     color = ForDayTheme.color.Gray800,
                     modifier = Modifier.clickable(
+                        onClick = rememberThrottledClick { currentHobby?.hobbyId?.let { onCurrentHobbyClick(it) } },
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) {
-                        currentHobby?.hobbyId?.let { onCurrentHobbyClick(it) }
-                    }
+                    )
                 )
 
                 if (otherHobby != null) {
@@ -635,11 +634,10 @@ fun HomeHeader(
                         fontWeight = FontWeight.Bold,
                         color = ForDayTheme.color.Gray500,
                         modifier = Modifier.clickable(
+                            onClick = rememberThrottledClick { onOtherHobbyClick(otherHobby.hobbyId) },
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) {
-                            onOtherHobbyClick(otherHobby.hobbyId)
-                        }
+                        )
                     )
                 }
             }
@@ -675,11 +673,10 @@ fun HomeHeader(
                         onSettingsIconBottomChanged(coordinates.boundsInRoot().bottom)
                     }
                     .clickable(
+                        onClick = rememberThrottledClick { onSettingsClick() },
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) {
-                        onSettingsClick()
-                    },
+                    ),
                 tint = Color(0xFF1E1E1E)
             )
         }
@@ -708,13 +705,14 @@ fun MyHobbySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(
+                    onClick = rememberThrottledClick {
+                        if (!state.inProgressHobbies.isEmpty()) {
+                            onShowRoutineList()
+                        }
+                    },
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
-                ) {
-                    if (!state.inProgressHobbies.isEmpty()) {
-                        onShowRoutineList()
-                    }
-                },
+                ),
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -753,12 +751,11 @@ fun MyHobbySection(
                     Row(
                         modifier = Modifier
                             .clickable(
+                                onClick = rememberThrottledClick { onDropdownToggle() },
                                 enabled = state.routineList.isNotEmpty(),
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) {
-                                onDropdownToggle()
-                            }
+                            )
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -896,12 +893,11 @@ fun StickerBottomSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clickable(
+                                onClick = rememberThrottledClick { onPagePrevious() },
                                 enabled = canGoPrevious,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) {
-                                onPagePrevious()
-                            },
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -918,12 +914,11 @@ fun StickerBottomSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clickable(
+                                onClick = rememberThrottledClick { onPageNext() },
                                 enabled = canGoNext,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) {
-                                onPageNext()
-                            },
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1033,22 +1028,23 @@ fun StickerRow(
                     modifier = Modifier
                         .fillMaxSize()
                         .clickable(
+                            onClick = rememberThrottledClick {
+                                if (isFilledSticker) {
+                                    onStickerClick(sticker?.activityRecordId ?: return@rememberThrottledClick)
+                                } else if (isEmptySticker && state.routinePreview != null) {
+                                    onRecordRoutine()
+//                                    onStickerClick(state.routinePreview.routineId)
+                                    Timber.e("@#@#@#@#@# routineId : "+state.routinePreview?.routineId+", "+state.routinePreview?.content)
+                                }
+                                else {
+                                    Timber.e("@#@#@#@#@#"+isEmptySticker)
+                                    onCreateRoutine()
+                                }
+                            },
                             enabled = isClickable,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) {
-                            if (isFilledSticker) {
-                                onStickerClick(sticker?.activityRecordId ?: return@clickable)
-                            } else if (isEmptySticker && state.routinePreview != null) {
-                                onRecordRoutine()
-//                                onStickerClick(state.routinePreview.routineId)
-                                Timber.e("@#@#@#@#@# routineId : "+state.routinePreview?.routineId+", "+state.routinePreview?.content)
-                            }
-                            else {
-                                Timber.e("@#@#@#@#@#"+isEmptySticker)
-                                onCreateRoutine()
-                            }
-                        },
+                        ),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -1080,9 +1076,10 @@ fun FloatingBottomButton(
             .size(52.dp)
             .background(color = if (isHobbyEmpty) Color(0xCCB5B5B5) else Color(0xCC000000), shape = CircleShape)
             .clickable(
+                onClick = rememberThrottledClick { onClick() },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) { onClick() },
+            ),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -1162,9 +1159,10 @@ fun FloatingSettingsButton(
             .background(color = Color.White, shape = RoundedCornerShape(20.dp))
             .border(width = 1.dp, brush = ForDayTheme.gradients.gradient002, shape = RoundedCornerShape(20.dp))
             .clickable(
+                onClick = rememberThrottledClick { onShowAiRecommendBottomSheet() },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) { onShowAiRecommendBottomSheet() }
+            )
             .padding(horizontal = animatedHorizontalPadding),
         contentAlignment = Alignment.CenterStart
     ) {

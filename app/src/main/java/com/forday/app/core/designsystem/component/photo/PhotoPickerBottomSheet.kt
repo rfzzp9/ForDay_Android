@@ -2,7 +2,14 @@ package com.forday.app.core.designsystem.component.photo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -17,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 
 @Composable
 fun PhotoPickerBottomSheet(
@@ -50,10 +58,10 @@ fun PhotoPickerBottomSheet(
         PhotoPickerOption(
             icon = R.drawable.ic_camera,
             text = "사진 촬영",
-            onClick = {
+            onClick = rememberThrottledClick {
                 onCameraClick()
                 onDismiss()
-            }
+            },
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -62,10 +70,10 @@ fun PhotoPickerBottomSheet(
         PhotoPickerOption(
             icon = R.drawable.ic_camera, // 아이콘 추가 필요 (없으면 ic_camera 재사용)
             text = "갤러리에서 선택",
-            onClick = {
+            onClick = rememberThrottledClick {
                 onGalleryClick()
                 onDismiss()
-            }
+            },
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -92,7 +100,7 @@ private fun PhotoPickerOption(
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
+        onClick = rememberThrottledClick(onClick = onClick),
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFFF9F9F9)

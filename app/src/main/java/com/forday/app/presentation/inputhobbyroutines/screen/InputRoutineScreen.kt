@@ -1,13 +1,31 @@
 package com.forday.app.presentation.inputhobbyroutines.screen
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
@@ -15,10 +33,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,23 +65,23 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.foundation.layout.offset
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.util.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.AIRecommendationButton
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
+import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import com.forday.app.presentation.inputhobbyroutines.RoutinesState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.UUID
 
 
 data class RoutineInput(
@@ -261,11 +289,10 @@ fun InputRoutineScreen(
             .fillMaxSize()
             .background(ForDayTheme.color.White)
             .clickable(
+                onClick = rememberThrottledClick { focusManager.clearFocus() },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null  // 리플 효과 제거
-            ) {
-                focusManager.clearFocus()  // 포커스 해제 → 키보드 내림
-            }
+            )
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -410,13 +437,16 @@ fun InputRoutineScreen(
                                         alpha = 0.1f
                                     )
                                 )
-                                .clickable(enabled = canAddMore) {
-                                    val newActivity = RoutineInput()
-                                    activities = activities + newActivity
-                                    visibleActivities = visibleActivities + (newActivity.id to true)
-                                    recommendationIndex = (recommendationIndex + 1) % 3
-                                    getHobbyMatesRoutines()
-                                },
+                                .clickable(
+                                    onClick = rememberThrottledClick {
+                                        val newActivity = RoutineInput()
+                                        activities = activities + newActivity
+                                        visibleActivities = visibleActivities + (newActivity.id to true)
+                                        recommendationIndex = (recommendationIndex + 1) % 3
+                                        getHobbyMatesRoutines()
+                                    },
+                                    enabled = canAddMore
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -582,7 +612,7 @@ fun ActivityInputField(
                     Box(
                         modifier = Modifier
                             .size(20.dp)
-                            .clickable(onClick = onDelete),
+                            .clickable(onClick = rememberThrottledClick { onDelete() }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -624,7 +654,7 @@ fun RecommendationChip(
             )
             .clip(RoundedCornerShape(40.dp))
             .background(ForDayTheme.color.White)
-            .clickable { onClick() }
+            .clickable(onClick = rememberThrottledClick { onClick() })
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Text(
@@ -697,7 +727,7 @@ fun Header(title: String, onClose: () -> Unit) {
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onClose
+                    onClick = rememberThrottledClick { onClose() }
                 )
         )
         Text(
@@ -736,9 +766,7 @@ fun BottomButton2(
         )
 
         Button(
-            onClick = {
-                onCreateRoutines()
-            },
+            onClick = rememberThrottledClick(onClick = onCreateRoutines),
             enabled = enabled,
             modifier = Modifier
                 .align(Alignment.BottomCenter)

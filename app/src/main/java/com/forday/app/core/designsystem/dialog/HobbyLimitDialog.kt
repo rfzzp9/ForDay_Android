@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 
 @Composable
 fun HobbyLimitDialog(
@@ -132,7 +133,7 @@ fun HobbyLimitDialog(
 
                     // 보관하러 가기 Button
                     Button(
-                        onClick = onNavigateToStorage,
+                        onClick = rememberThrottledClick(onClick = onNavigateToStorage),
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp),

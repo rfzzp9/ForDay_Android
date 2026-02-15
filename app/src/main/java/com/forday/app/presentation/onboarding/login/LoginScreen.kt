@@ -3,6 +3,7 @@ package com.forday.app.presentation.onboarding.login
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -174,7 +175,7 @@ fun LoginScreen(
                 backgroundColor = ForDayTheme.color.KakaoYellow,
                 textColor = ForDayTheme.color.Neutral900,
                 iconRes = R.drawable.ic_kakao,
-                onClick = onKakaoLogin
+                onClick = rememberThrottledClick(onClick = onKakaoLogin),
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -211,7 +212,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(
-                        onClick = onGuestMode,
+                        onClick = rememberThrottledClick { onGuestMode() },
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     )
@@ -327,7 +328,7 @@ private fun SocialLoginButton(
     onClick: () -> Unit
 ) {
     Button(
-        onClick = onClick,
+        onClick = rememberThrottledClick { onClick() },
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),

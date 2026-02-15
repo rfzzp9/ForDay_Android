@@ -50,6 +50,7 @@ import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.dialog.HobbyInputDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -447,7 +448,7 @@ fun PurposeCard(
         modifier = modifier
             .size(156.dp)
             .clickable(
-                onClick = onClick,
+                onClick = rememberThrottledClick { onClick() },
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
@@ -543,7 +544,7 @@ private fun AddCustomHobbyButton(customHobbyText: String, onClick: () -> Unit) {
     Column {
         Spacer(modifier = Modifier.height(14.dp))
         Button(
-            onClick = onClick,
+            onClick = rememberThrottledClick { onClick() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)

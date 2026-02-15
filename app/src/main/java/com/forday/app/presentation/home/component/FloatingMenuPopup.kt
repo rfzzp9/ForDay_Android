@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
 
 @Composable
@@ -51,7 +52,7 @@ fun FloatingMenuPopup(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = {
+                        onClick = rememberThrottledClick {
                             onAddActivity()
                             onDismiss()
                         }
@@ -82,7 +83,7 @@ fun FloatingMenuPopup(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = {
+                        onClick = rememberThrottledClick {
                             onShowActivityList()
                             onDismiss()
                         }
