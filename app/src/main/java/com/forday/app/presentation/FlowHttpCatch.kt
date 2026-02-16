@@ -37,7 +37,8 @@ inline fun <T> Flow<T>.httpCatch(
         body(
             ErrorDataUiState(
                 message = message?.data?.message ?: throwable.toUserMessage(),
-                errorType,
+                errorType = errorType,
+                errorClassName = message?.data?.errorClassName
             )
         )
 

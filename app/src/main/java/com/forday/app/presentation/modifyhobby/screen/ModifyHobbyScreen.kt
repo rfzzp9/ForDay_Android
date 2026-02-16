@@ -286,7 +286,7 @@ fun ModifyHobbyScreen(
             }
 
             AnimatedVisibility(
-                visible = state.toastMessage != null,
+                visible = state.toastTargetTab != null,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                 modifier = Modifier
@@ -309,8 +309,8 @@ fun ModifyHobbyScreen(
                 )
             }
 
-            LaunchedEffect(state.toastMessage) {
-                if (state.toastMessage != null) {
+            LaunchedEffect(state.toastTargetTab) {
+                if (state.toastTargetTab != null) {
                     delay(2000L)
                     onClearToast()
                 }
@@ -327,7 +327,8 @@ fun ModifyHobbyScreen(
                 selectedStatus = HobbyStatus.IN_PROGRESS
                 onTabChange(HobbyStatus.IN_PROGRESS)
             },
-            dimensions = rememberResponsiveDimensions()
+            dimensions = rememberResponsiveDimensions(),
+            warningMessage = state.toastMessage.orEmpty(),
         )
     }
 
@@ -358,7 +359,8 @@ fun ModifyHobbyScreen(
 private fun HobbyLimitDialog(
     onDismiss: () -> Unit,
     onNavigateToInProgress: () -> Unit,
-    dimensions: ResponsiveDimensions
+    dimensions: ResponsiveDimensions,
+    warningMessage: String,
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -381,7 +383,7 @@ private fun HobbyLimitDialog(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "진행 중인 취미는 최대 2개까지 가능해요",
+                    text = warningMessage,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E1E1E),

@@ -60,34 +60,51 @@ class ModifyHobbyViewModel @Inject constructor(
     }
 
     fun modifyHobbyStatus(hobbyId: Long, hobbyStatus: String, hobbyName: String) = viewModelScope.launch {
-        try {
-            val data = changeHobbyStatusUseCase(hobbyId, hobbyStatus)
-            Timber.e("@@@@@@@@@@@@@@@@@@@"+data)
+        flow {
+            emit(changeHobbyStatusUseCase(hobbyId, hobbyStatus))
+        }.httpCatch(tag = "modifyHobbyStatus") { errorData ->
+            when (errorData.errorClassName) {
+                "MAX_IN_PROGRESS_HOBBY_EXCEEDED" -> _uiState.update { it.copy(showHobbyLimitDialog = true, toastMessage = errorData.message) }
+                else -> snackbarManager.show(errorData.message)
+            }
+        }.collect { data ->
             fetchMyHobbyList(_uiState.value.currentHobbyStatus)
-            if (hobbyStatus == "ARCHIVED") {
-                _uiState.update { it.copy(
-                    toastMessage = "'$hobbyName' 취미가 보관되었어요.",
-                    toastTargetTab = "ARCHIVED"
-                )}
-            } else {
-                _uiState.update { it.copy(
-                    toastMessage = "'$hobbyName' 취미를 꺼냈어요.",
-                    toastTargetTab = "IN_PROGRESS"
-                )}
+            _uiState.update {
+                it.copy(
+                    toastMessage = data.data.message,
+                    toastTargetTab = if (hobbyStatus == "ARCHIVED") "ARCHIVED" else "IN_PROGRESS"
+                )
             }
-        } catch (e: HttpException) {
-            val errorClassName = parseErrorClassName(e)
-            if (errorClassName == "MAX_IN_PROGRESS_HOBBY_EXCEEDED") {
-                Timber.e("@#@#@#@@# $errorClassName")
-                _uiState.update { it.copy(showHobbyLimitDialog = true) }
-            } else {
-                Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
-                snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
-            }
-        } catch (e: Exception) {
-            Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
-            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
         }
+
+//        try {
+//            val data = changeHobbyStatusUseCase(hobbyId, hobbyStatus)
+//            Timber.e("@@@@@@@@@@@@@@@@@@@"+data)
+//            fetchMyHobbyList(_uiState.value.currentHobbyStatus)
+//            if (hobbyStatus == "ARCHIVED") {
+//                _uiState.update { it.copy(
+//                    toastMessage = "'$hobbyName' 취미가 보관되었어요.",
+//                    toastTargetTab = "ARCHIVED"
+//                )}
+//            } else {
+//                _uiState.update { it.copy(
+//                    toastMessage = "'$hobbyName' 취미를 꺼냈어요.",
+//                    toastTargetTab = "IN_PROGRESS"
+//                )}
+//            }
+//        } catch (e: HttpException) {
+//            val errorClassName = parseErrorClassName(e)
+//            if (errorClassName == "MAX_IN_PROGRESS_HOBBY_EXCEEDED") {
+//                Timber.e("@#@#@#@@# $errorClassName")
+//                _uiState.update { it.copy(showHobbyLimitDialog = true) }
+//            } else {
+//                Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
+//                snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
+//            }
+//        } catch (e: Exception) {
+//            Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
+//            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
+//        }
     }
 
     private fun parseErrorClassName(e: HttpException): String? {

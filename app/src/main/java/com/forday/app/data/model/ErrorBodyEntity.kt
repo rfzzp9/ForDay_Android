@@ -12,5 +12,6 @@ data class ErrorBodyEntity(
   @Serializable
   data class Data(
     val message: String = "",
+    val errorClassName: String = "",
   )
 }
