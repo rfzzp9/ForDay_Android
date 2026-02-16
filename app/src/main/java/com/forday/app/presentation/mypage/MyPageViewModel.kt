@@ -73,8 +73,7 @@ class MyPageViewModel @Inject constructor(
     private val snackbarManager: SnackbarManager,
 ): BaseViewModel<MyPageSideEffect>() {
 
-    private val _uiState: MutableStateFlow<MyPageUiState> = MutableStateFlow(MyPageUiState(
-    ))
+    private val _uiState: MutableStateFlow<MyPageUiState> = MutableStateFlow(MyPageUiState())
     val uiState: StateFlow<MyPageUiState> = _uiState.toStateIn()
 
 

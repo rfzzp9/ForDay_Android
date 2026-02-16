@@ -82,6 +82,7 @@ class ModifyRoutineViewModel @Inject constructor(
                         }
                     )
                 }
+                snackbarManager.show(data.data.message)
             }
     }
 
@@ -93,7 +94,7 @@ class ModifyRoutineViewModel @Inject constructor(
         }
             .collect { data ->
                 Timber.e("deleteRoutine data.data.message : " + data.data.message)
-                // ✅ 성공 시 해당 routineId를 가진 항목 삭제
+                // 성공 시 해당 routineId를 가진 항목 삭제
                 _uiState.update { currentState ->
                     currentState.copy(
                         routines = currentState.routines.filter { routine ->
@@ -101,7 +102,7 @@ class ModifyRoutineViewModel @Inject constructor(
                         }
                     )
                 }
-                snackbarManager.show("활동이 삭제되었어요.")
+                snackbarManager.show(data.data.message)
             }
     }
 

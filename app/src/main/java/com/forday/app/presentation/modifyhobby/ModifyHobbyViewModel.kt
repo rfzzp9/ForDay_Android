@@ -6,15 +6,14 @@ import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.ChangeHobbyStatusUseCase
 import com.forday.app.domain.usecase.GetMyHobbyListUseCase
-import com.forday.app.domain.usecase.ModifyHobbyTimeUseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
+import com.forday.app.presentation.httpCatch
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,34 +27,32 @@ class ModifyHobbyViewModel @Inject constructor(
     private val getMyHobbyListUseCase: GetMyHobbyListUseCase,   // 내 취미 설정 페이지 조회
     private val changeHobbyStatusUseCase: ChangeHobbyStatusUseCase,  // 취미 보관 또는 꺼내기
     private val snackbarManager: SnackbarManager
-
 ) : BaseViewModel<ModifyHobbySideEffect>() {
 
     private val _uiState: MutableStateFlow<ModifyHobbyUiState> = MutableStateFlow(ModifyHobbyUiState())
     val uiState: StateFlow<ModifyHobbyUiState> = _uiState.toStateIn()
 
-    init {
-        fetchMyHobbyList(null)  // 처음 조회 시 null로 보내면 진행중인 취미 조회
-    }
-
     fun fetchMyHobbyList(inProgress: String?) = viewModelScope.launch {  // 내 취미 설정 페이지 조회
         _uiState.update { it.copy(isLoading = true) }
 
         flow {
-            emit(getMyHobbyListUseCase(inProgress).data)
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e("@@@@@@@@@@@@@@@@@@@"+throwable)
-            _sideEffectChannel.send(ModifyHobbySideEffect.Exception(throwable))
+            emit(getMyHobbyListUseCase(inProgress))
+        }.httpCatch("fetchMyHobbyList") { errorData ->
+            _uiState.update {
+                it.copy(
+                    errorData = errorData
+                )
+            }
         }.collect { data ->
             Timber.e("@@@@@@@@@@@@@@@@@@@data  :::  "+data)
-            _uiState.update { state ->
-                state.copy(
+            _uiState.update {
+                it.copy(
                     isLoading = false,
-                    currentHobbyStatus = data.currentHobbyStatus,
-                    inProgressHobbyCount = data.inProgressHobbyCount,
-                    archivedHobbyCount = data.archivedHobbyCount,
-                    hobbies = data.hobbies.map { it.toPresentation() }
+                    currentHobbyStatus = data.data.currentHobbyStatus,
+                    inProgressHobbyCount = data.data.inProgressHobbyCount,
+                    archivedHobbyCount = data.data.archivedHobbyCount,
+                    hobbies = data.data.hobbies.map { it.toPresentation() },
+                    errorData = null
                 )
             }
         }
