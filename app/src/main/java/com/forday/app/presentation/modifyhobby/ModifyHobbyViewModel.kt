@@ -44,7 +44,6 @@ class ModifyHobbyViewModel @Inject constructor(
                 )
             }
         }.collect { data ->
-            Timber.e("@@@@@@@@@@@@@@@@@@@data  :::  "+data)
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -76,50 +75,10 @@ class ModifyHobbyViewModel @Inject constructor(
                 )
             }
         }
-
-//        try {
-//            val data = changeHobbyStatusUseCase(hobbyId, hobbyStatus)
-//            Timber.e("@@@@@@@@@@@@@@@@@@@"+data)
-//            fetchMyHobbyList(_uiState.value.currentHobbyStatus)
-//            if (hobbyStatus == "ARCHIVED") {
-//                _uiState.update { it.copy(
-//                    toastMessage = "'$hobbyName' 취미가 보관되었어요.",
-//                    toastTargetTab = "ARCHIVED"
-//                )}
-//            } else {
-//                _uiState.update { it.copy(
-//                    toastMessage = "'$hobbyName' 취미를 꺼냈어요.",
-//                    toastTargetTab = "IN_PROGRESS"
-//                )}
-//            }
-//        } catch (e: HttpException) {
-//            val errorClassName = parseErrorClassName(e)
-//            if (errorClassName == "MAX_IN_PROGRESS_HOBBY_EXCEEDED") {
-//                Timber.e("@#@#@#@@# $errorClassName")
-//                _uiState.update { it.copy(showHobbyLimitDialog = true) }
-//            } else {
-//                Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
-//                snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
-//            }
-//        } catch (e: Exception) {
-//            Timber.e("@@@@@@@@@@@@@@@@@@@ $e")
-//            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
-//        }
-    }
-
-    private fun parseErrorClassName(e: HttpException): String? {
-        return try {
-            val errorBody = e.response()?.errorBody()?.string()
-            val json = Gson().fromJson(errorBody, JsonObject::class.java)
-            json?.get("errorClassName")?.asString
-                ?: json?.getAsJsonObject("data")?.get("errorClassName")?.asString
-        } catch (_: Exception) {
-            null
-        }
     }
 
     fun dismissHobbyLimitDialog() {
-        _uiState.update { it.copy(showHobbyLimitDialog = false) }
+        _uiState.update { it.copy(showHobbyLimitDialog = false, toastMessage = null) }
     }
 
     fun clearToast() {
