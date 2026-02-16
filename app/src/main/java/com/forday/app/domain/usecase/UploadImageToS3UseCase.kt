@@ -12,12 +12,11 @@ class UploadImageToS3UseCase @Inject constructor(
         file: File,
         uploadUrl: String,
         contentType: String
-    ): Result<Boolean> {
-        Timber.e("@#@#@#@#"+file+", "+uploadUrl+", "+contentType)
+    ): Boolean {
         return s3Repository.uploadImageToS3(
             file = file,
             uploadUrl = uploadUrl,
             contentType = contentType
-        )
+        ).getOrThrow()
     }
 }

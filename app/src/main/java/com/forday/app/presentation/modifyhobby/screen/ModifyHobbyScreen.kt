@@ -33,6 +33,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.state.ErrorContent
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.ModifyHobbyUiState
@@ -99,42 +101,55 @@ fun ModifyHobbyScreenRoot(
     onChangeFrequency: (HobbyModifyParams) -> Unit = {},
     onChangeJourneyDays: (HobbyModifyParams) -> Unit = {},
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
     viewModel.logEvent("modify_hobby_screen")
 
     LaunchedEffect(Unit) {
-        Timber.e("@@@@@@@@@@@@@@LaunchedEffect")
-        viewModel.fetchMyHobbyList(null)
+        viewModel.fetchMyHobbyList()
     }
 
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val errorData = state.errorData
+    if (errorData != null) {
+        ErrorContent(
+            errorData = errorData,
+            onAction = {
+                when (errorData.errorType) {
+                    ErrorDataUiState.ErrorType.TYPE_BACK -> onBack()
+                    ErrorDataUiState.ErrorType.TYPE_RETRY -> viewModel.fetchMyHobbyList()
+                }
+            }
+        )
+    } else {
+        ModifyHobbyScreen(
+            state = state,
+            onBackClick = onBack,
+            onStorageClick = onStorage,
+            onAddHobbyClick = onAddHobby,
+            onChangeDuration = { params ->
+                onChangeDuration(params)
+            },
+            onChangeFrequency = { params ->
+                onChangeFrequency(params)
+            },
+            onChangeJourneyDays = { params ->
+                onChangeJourneyDays(params)
+            },
+            onTabChange = { status ->
+                viewModel.fetchMyHobbyList(status.name)
+            },
+            onConfirmStorage = { hobbyId, status, hobbyName ->
+                viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name)
+            },
+            onDismissHobbyLimitDialog = {
+                viewModel.dismissHobbyLimitDialog()
+            },
+            onClearToast = {
+                viewModel.clearToast()
+            }
+        )
+    }
 
-    ModifyHobbyScreen(
-        state = state.value,
-        onBackClick = onBack,
-        onStorageClick = onStorage,
-        onAddHobbyClick = onAddHobby,
-        onChangeDuration = { params ->
-            onChangeDuration(params)
-        },
-        onChangeFrequency = { params ->
-            onChangeFrequency(params)
-        },
-        onChangeJourneyDays = { params ->
-            onChangeJourneyDays(params)
-        },
-        onTabChange = { status ->
-            viewModel.fetchMyHobbyList(status.name)
-        },
-        onConfirmStorage = { hobbyId, status, hobbyName ->
-            viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name)
-        },
-        onDismissHobbyLimitDialog = {
-            viewModel.dismissHobbyLimitDialog()
-        },
-        onClearToast = {
-            viewModel.clearToast()
-        }
-    )
 }
 
 @Composable

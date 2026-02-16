@@ -2,6 +2,7 @@ package com.forday.app.presentation.record
 
 import com.forday.app.domain.model.PresignedUrlDataDomain
 import com.forday.app.domain.model.PresignedUrlItemDomain
+import com.forday.app.domain.model.RoutineListItemDomain
 import com.forday.app.domain.model.WriteRoutineDataDomain
 
 fun WriteRoutineDataDomain.toPresentation(): RecordRoutineUiModel {
@@ -23,6 +24,14 @@ fun PresignedUrlItemDomain.toUiModel(): PresignedUrlItemUiModel {
         order = this.order,
         isUploading = false, // 초기 상태
         isSuccess = false
+    )
+}
+
+fun RoutineListItemDomain.toUiModel(): RoutineUiModel {  // 드롭 다운용 특정 취미 활동 목록 조회
+    return RoutineUiModel(
+        routineId = routineId,
+        content = content,
+        isAiRecommended = aiRecommended,
     )
 }
 

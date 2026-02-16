@@ -375,32 +375,14 @@ class MyPageViewModel @Inject constructor(
         contentType: String,
         order: Int
     ) = viewModelScope.launch {
-        try {
-            // 업로드 시작 상태로 업데이트
+        flow {
             updateImageUploadStatus(order, isUploading = true, isSuccess = false)
-
-            Timber.d("Uploading image to S3: ${file.name}, order: $order")
-
-            // S3 업로드 실행
-            val result = uploadImageToS3UseCase(
-                file = file,
-                uploadUrl = uploadUrl,
-                contentType = contentType
-            )
-
-            result.onSuccess {
-                Timber.d("Image upload successful: ${file.name}, order: $order")
-                updateImageUploadStatus(order, isUploading = false, isSuccess = true)
-
-            }.onFailure { throwable ->
-                Timber.e(throwable, "Image upload failed: ${file.name}, order: $order")
-                updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-                snackbarManager.show(throwable.toUserMessage())
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Unexpected error during upload")
+            emit(uploadImageToS3UseCase(file, uploadUrl, contentType))
+        }.catch { throwable ->
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-            snackbarManager.show(e.toUserMessage())
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect {
+            updateImageUploadStatus(order, isUploading = false, isSuccess = true)
         }
     }
 
@@ -585,26 +567,5 @@ class MyPageViewModel @Inject constructor(
             sendSideEffect(MyPageSideEffect.DomainError(errorMessage))
         }
     }
-//            val imageUrl = if (index in listOf(5, 10, 15, 20)) {
-//                "" // 빈 URL
-//            } else {
-//                "https://picsum.photos/400/480?random=$index"
-//            }
-//
-//            FeedUiModel(
-//                recordId = index + 1,
-//                url = imageUrl,
-//                stickerIconRes = stickerDrawables.random(), // 랜덤으로 선택
-//                formattedDate = "2026.01.${27 - index}",
-//                memo = m
-//            )
-//        }
-//
-//        return FeedContainerUiModel(
-//            totalFeedCount = dummyFeedList.size,
-//            lastRecordId = dummyFeedList.lastOrNull()?.recordId ?: 0,
-//            feedList = dummyFeedList
-//        )
-//    }
 
 }

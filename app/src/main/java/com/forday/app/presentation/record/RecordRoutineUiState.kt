@@ -1,5 +1,6 @@
 package com.forday.app.presentation.record
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.presentation.model.ModifyPostingUiModel
 
 data class RecordRoutineUiState(
@@ -17,4 +18,5 @@ data class RecordRoutineUiState(
     val routines: List<RoutineUiModel> = emptyList(),
 
     val modifyPostingUiModel: ModifyPostingUiModel? = null,  // 수정 ui 모델
+    val errorData: ErrorDataUiState? = null,
 )

@@ -1,6 +1,7 @@
 package com.forday.app.presentation.record
 
 import androidx.lifecycle.viewModelScope
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
@@ -13,8 +14,8 @@ import com.forday.app.domain.usecase.UploadImageToS3UseCase
 import com.forday.app.domain.usecase.WriteRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
+import com.forday.app.presentation.httpCatch
 import com.forday.app.presentation.model.toModifyPostingUiModel
-import com.forday.app.presentation.mypage.MyPageSideEffect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,7 +44,7 @@ class RecordRoutineViewModel @Inject constructor(
     private val _uiState: MutableStateFlow<RecordRoutineUiState> = MutableStateFlow(RecordRoutineUiState())
     val uiState: StateFlow<RecordRoutineUiState> = _uiState.toStateIn()
 
-    fun writeRoutine(
+    fun recordRoutine(
         routineId: Long,
         sticker: String,
         memo: String,
@@ -51,48 +52,42 @@ class RecordRoutineViewModel @Inject constructor(
         visibility: String,
         recordId: Int? = null,
         onSuccess: (Long) -> Unit
-    ) = viewModelScope.launch {  //취미활동 기록
+    ) = viewModelScope.launch {   // 취미 활동 기록
         flow {
-            emit(writeRoutineUseCase(routineId, sticker, memo, imageUrl, visibility).data.toPresentation())
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e("@#@####writeRoutine@#@ "+throwable)
-            snackbarManager.show(throwable.toUserMessage())
-        }.collect { data ->
-            Timber.e("@#@####writeRoutine@#@ "+data)
-
-            // ✅ State 업데이트
-            _uiState.update { state ->
-                state.copy(
-                    recordDetail = state.recordDetail.copy(
-                        routineRecordId = recordId ?: data.routineRecordId,  //수정모드는 recordId, 신규는 data.routineRecordId
-                        routineContent = data.routineContent,
-                        stickerUrl = data.stickerUrl,
-                        memo = data.memo,
-                        imageUrl = data.imageUrl,
-                        isExtensionRequired = data.isExtensionRequired,
-                        successMessage = data.successMessage
+            emit(writeRoutineUseCase(routineId, sticker, memo, imageUrl, visibility))
+        }.httpCatch(tag = "recordRoutine") { errorData ->
+            snackbarManager.show(errorData.message)
+        }
+            .collect { data ->
+                val uiModel = data.data.toPresentation()
+                _uiState.update {
+                    it.copy(
+                        recordDetail = it.recordDetail.copy(
+                        routineRecordId = recordId ?: uiModel.routineRecordId,  //수정 모드 : recordId, 신규 : data.routineRecordId
+                        routineContent = uiModel.routineContent,
+                        stickerUrl = uiModel.stickerUrl,
+                        memo = uiModel.memo,
+                        imageUrl = uiModel.imageUrl,
+                        isExtensionRequired = uiModel.isExtensionRequired,
+                        successMessage = uiModel.successMessage
                     )
                 )
             }
 
-            // ✅ 콜백 즉시 호출 (지연 없음)
-            onSuccess(data.routineRecordId.toLong())
+            // 콜백 - 작성한 게시글로 이동하기 위함
+            onSuccess(uiModel.routineRecordId.toLong())
         }
     }
 
-    fun modifyPosting(recordId: Int, routineId: Int, sticker: String, memo: String, imageUrl: String, visibility: String) = viewModelScope.launch {
-        Timber.e("@@@@@@@@@@2323@@@@@@@@ memo "+memo)
+    fun modifyPosting(recordId: Int, routineId: Int, sticker: String, memo: String, imageUrl: String, visibility: String) // 활동 기록 수정
+    = viewModelScope.launch {
         flow {
             emit(modifyPostingUseCase(recordId, routineId, sticker, memo, imageUrl, visibility))
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e("@@@@@@@@@@2323@@@@@@@@"+throwable)
-            snackbarManager.show(throwable.toUserMessage())
+        }.httpCatch(tag = "modifyPosting") { errorData ->
+            snackbarManager.show(errorData.message)
         }.collect { data ->
-            _uiState.update { state ->
-                Timber.e("@@@@@@@@@@2323@@@@@@@@"+data.message)
-                state.copy(
+            _uiState.update {
+                it.copy(
                     modifyPostingUiModel = data.toModifyPostingUiModel()
                 )
             }
@@ -105,12 +100,28 @@ class RecordRoutineViewModel @Inject constructor(
         }
     }
 
-    fun getMyRoutineRecordDetail(recordId: Int) = viewModelScope.launch {
+    fun getMyRoutineRecordDetail(recordId: Int) = viewModelScope.launch {  // 수정 모드. 수정할 게시글 데이터 불러오기
+        if (recordId == null) {
+            Timber.w("getMyRoutineRecordDetail: recordId is null")
+            _uiState.update {
+                it.copy(
+                    errorData = ErrorDataUiState(
+                        message = "잘못된 접근입니다.",
+                        errorType = ErrorDataUiState.ErrorType.TYPE_BACK
+                    )
+                )
+            }
+            return@launch
+        }
+
         flow {
             emit(getMyRoutineRecordDetailUseCase(recordId))
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            snackbarManager.show(throwable.toUserMessage())
+        }.httpCatch(tag = "getMyRoutineRecordDetail") { errorData ->
+            _uiState.update {
+                it.copy(
+                    errorData = errorData
+                )
+            }
         }.collect { data ->
             data?.let { detail ->
                 _uiState.update { state ->
@@ -128,70 +139,47 @@ class RecordRoutineViewModel @Inject constructor(
         }
     }
 
-    fun modifyRoutine(routineId: Long, content: String) = viewModelScope.launch {
-        flow {
-            emit(modifyHobbyRoutineUseCase(routineId, content))
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            snackbarManager.show(throwable.toUserMessage())
-        }.collect { data ->
-            if (data.status == 200) {
-                // ✅ 성공 시 해당 routineId의 content 업데이트
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        routines = currentState.routines.map { routine ->
-                            if (routine.routineId.toLong() == routineId) {
-                                routine.copy(content = content)
-                            } else {
-                                routine
-                            }
-                        }
+    fun fetchSpecificRoutineList(hobbyId: Long?, size: Int? = null) = viewModelScope.launch {  // 드롭 다운용 특정 취미 활동 목록 조회
+        if (hobbyId == null) {
+            Timber.w("fetchSpecificRoutineList: hobbyId is null")
+            _uiState.update {
+                it.copy(
+                    errorData = ErrorDataUiState(
+                        message = "잘못된 접근입니다.",
+                        errorType = ErrorDataUiState.ErrorType.TYPE_BACK
                     )
-                }
-            } else {
-                snackbarManager.show(data.data.message)
-            }
-        }
-    }
-
-    fun fetchSpecificRoutineList(hobbyId: Long?, size: Int?) = viewModelScope.launch {  // 드롭 다운용 특정 취미 활동 목록 조회
-        flow {
-            val response = getSpecificRoutineListUseCase(hobbyId, size)
-            emit(response.data.routines)
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e("@##@#@#@#@#@#@#@@ "+throwable)
-            snackbarManager.show(throwable.toUserMessage())
-        }.collect { routines ->
-            val routineUiModels = routines.map { item ->
-                RoutineUiModel(
-                    routineId = item.routineId,
-                    content = item.content,
-                    isAiRecommended = item.aiRecommended,
                 )
             }
+            return@launch
+        }
 
+        flow {
+            emit(getSpecificRoutineListUseCase(hobbyId, size))
+        }.httpCatch(tag = "fetchSpecificRoutineList") { errorData ->
+            _uiState.update {
+                it.copy(
+                    errorData = errorData
+                )
+            }
+        }.collect { data ->
             _uiState.update { state ->
                 state.copy(
+                    isLoading = false,
                     recordDetail = state.recordDetail.copy(
-                        routineList = routineUiModels
-                    )
+                        routineList = data.data.routines.map { it.toUiModel() }
+                    ),
+                    errorData = null
                 )
             }
         }
     }
 
     fun getPresignedUrl(images: List<Map<String, Any>>) = viewModelScope.launch {  // 이미지 업로드용 Presigned URL 발급
-        images.map { Timber.e("@#@############ "+it) }
-        Timber.e("!!!!!!!!!!!!!!!!!getPresignedUrl")
         flow {
             emit(getPresignedUrlUseCase(images).data)
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e(throwable, "@#@############ Failed to get presigned URL   "+throwable)
-            snackbarManager.show(throwable.toUserMessage())
+        }.httpCatch(tag = "getPresignedUrl") { errorData ->
+            snackbarManager.show(errorData.message)
         }.collect { data ->
-            Timber.e("@#@############ Success to get presigned URL"+data)
             _uiState.update { state ->
                 state.copy(
                     imageUploadState = data.toUiModel()
@@ -200,58 +188,33 @@ class RecordRoutineViewModel @Inject constructor(
         }
     }
 
-    fun deleteS3Image(imageUrl: String) = viewModelScope.launch {
+    fun deleteS3Image(imageUrl: String) = viewModelScope.launch {  // S3에 업로드한 이미지 삭제
         flow {
             emit(deleteS3ImageUseCase(imageUrl))
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e(throwable, "@#@############ deleteS3Image  throwable : "+throwable)
-            snackbarManager.show(throwable.toUserMessage())
-        }.collect { data ->
-            Timber.e("@#@############ deleteS3Image  data : "+data)
-            if (data.status == 404) snackbarManager.show(data.data.message)
-        }
+        }.httpCatch(tag = "deleteS3Image") { errorData ->
+            snackbarManager.show(errorData.message)
+        }.collect { }
     }
 
-    // ✅ S3에 이미지 업로드
-    fun uploadImageToS3(
+
+    fun uploadImageToS3(     // S3에 이미지 업로드 TODO 에러 핸들링 재수정 해야 함
         file: File,
         uploadUrl: String,
         contentType: String,
         order: Int
     ) = viewModelScope.launch {
-        try {
-            // 업로드 시작 상태로 업데이트
+        flow {
             updateImageUploadStatus(order, isUploading = true)
-
-            Timber.d("Uploading image to S3: ${file.name}, order: $order")
-
-            // S3 업로드 실행
-            val result = uploadImageToS3UseCase(
-                file = file,
-                uploadUrl = uploadUrl,
-                contentType = contentType
-            )
-
-            result.onSuccess {
-                Timber.d("Image upload successful: ${file.name}, order: $order")
-                updateImageUploadStatus(order, isUploading = false, isSuccess = true)
-            }.onFailure { throwable ->
-                throwable.printStackTrace()
-                Timber.e(throwable, "Image upload failed: ${file.name}, order: $order")
-                updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-                snackbarManager.show(throwable.toUserMessage())
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Timber.e(e, "Unexpected error during upload")
+            emit(uploadImageToS3UseCase(file, uploadUrl, contentType))
+        }.catch { throwable ->
             updateImageUploadStatus(order, isUploading = false, isSuccess = false)
-            snackbarManager.show(e.toUserMessage())
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect {
+            updateImageUploadStatus(order, isUploading = false, isSuccess = true)
         }
     }
 
-    // ✅ 특정 이미지의 업로드 상태 업데이트
-    private fun updateImageUploadStatus(
+    private fun updateImageUploadStatus(   // 특정 이미지의 업로드 상태 업데이트
         order: Int,
         isUploading: Boolean = false,
         isSuccess: Boolean = false
@@ -273,7 +236,6 @@ class RecordRoutineViewModel @Inject constructor(
             )
         }
     }
-
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)

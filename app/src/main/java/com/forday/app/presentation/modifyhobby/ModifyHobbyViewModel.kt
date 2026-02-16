@@ -32,7 +32,7 @@ class ModifyHobbyViewModel @Inject constructor(
     private val _uiState: MutableStateFlow<ModifyHobbyUiState> = MutableStateFlow(ModifyHobbyUiState())
     val uiState: StateFlow<ModifyHobbyUiState> = _uiState.toStateIn()
 
-    fun fetchMyHobbyList(inProgress: String?) = viewModelScope.launch {  // 내 취미 설정 페이지 조회
+    fun fetchMyHobbyList(inProgress: String? = null) = viewModelScope.launch {  // 내 취미 설정 페이지 조회
         _uiState.update { it.copy(isLoading = true) }
 
         flow {

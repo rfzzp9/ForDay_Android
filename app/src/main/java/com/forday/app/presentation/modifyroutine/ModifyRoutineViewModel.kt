@@ -47,7 +47,7 @@ class ModifyRoutineViewModel @Inject constructor(
         }.httpCatch(tag = "fetchHobbyRoutineList") { errorData ->
             _uiState.update {
                 it.copy(
-                    errorData = errorData,
+                    errorData = errorData
                 )
             }
         }

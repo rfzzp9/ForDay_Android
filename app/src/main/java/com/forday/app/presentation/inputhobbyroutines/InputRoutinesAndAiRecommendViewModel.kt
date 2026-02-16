@@ -31,7 +31,7 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
     private val getAiRecommendedRoutinesUseCase: GetAiRecommendedRoutinesUseCase,
     private val getOnboardingDataUseCase: GetOnboardingDataUseCase,
     private val getUserNicknameUseCase: GetUserNicknameUseCase,
-    private val userLocalDataSource: UserLocalDataSource  //UT 테스트용 나중에 지우기 todo
+    private val userLocalDataSource: UserLocalDataSource  // todo UT 테스트용 나중에 지우기
 ) : BaseViewModel<InputRoutinesAndAiRecommendSideEffect>() {
 
     private val _uiState: MutableStateFlow<RoutinesState> = MutableStateFlow(RoutinesState())
@@ -169,7 +169,6 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
     }
 
     private fun loadSavedAiRoutines() = viewModelScope.launch {
-
         userLocalDataSource.getAiRoutineList().collect { savedRoutines ->
             if (savedRoutines != null && savedRoutines.isNotEmpty()) {
                 Timber.d("저장된 루틴 ${savedRoutines.size}")
@@ -212,14 +211,6 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
             }
     }
 
-    fun removeAiList() {
-        _uiState.update {
-            it.copy(
-                aiRoutineList = emptyList(),
-            )
-        }
-    }
-
     fun setSelectedAiRoutine(routine: AiRoutineItemState) {
         _uiState.update { it.copy(selectedAiRoutine = routine) }
     }
@@ -227,9 +218,6 @@ class InputRoutinesAndAiRecommendViewModel @Inject constructor(
     fun clearSelectedAiRoutine() {
         _uiState.update { it.copy(selectedAiRoutine = null) }
     }
-
-    suspend fun getHobbyId(): Flow<Long> = //TODO UT 테스트
-        userLocalDataSource.getHobbyId()
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)

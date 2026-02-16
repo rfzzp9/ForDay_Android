@@ -17,7 +17,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
@@ -38,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
@@ -90,13 +88,9 @@ fun RecordRoutineScreenRoot(
     }
 
     LaunchedEffect(Unit) {
-        state.routines.size
         val effectiveHobbyId = hobbyId ?: modifyData?.hobbyId?.toLong()
         Timber.d("fetchSpecificRoutineList - hobbyId: $hobbyId, modifyData.hobbyId: ${modifyData?.hobbyId}, effectiveHobbyId: $effectiveHobbyId")
-        if (effectiveHobbyId != null) {
-            viewModel.fetchSpecificRoutineList(effectiveHobbyId, null)
-        }
-
+        viewModel.fetchSpecificRoutineList(hobbyId = effectiveHobbyId)
     }
 
     var stickers by remember {
@@ -405,7 +399,7 @@ fun RecordRoutineScreenRoot(
             } else {
                 Timber.d("Calling writeRoutine - routineId: $routineId, sticker: $stickerFileName, memo: $memoText, imageUrl: $imageUrls, visibility: $visibilityValue")
 
-                viewModel.writeRoutine(
+                viewModel.recordRoutine(
                     routineId = routineId,
                     sticker = stickerFileName,
                     memo = memoText,
@@ -527,7 +521,7 @@ fun RecordRoutineScreen(
                         color = Color(0xFF3A3A3A)
                     )
 
-                    if (hobbyId == null) {
+                    if (modifyMode == false && hobbyId == null) {
                         AddHobbyButton(
                             text = "취미 추가하기",
                             onClick = onAddHobbyClick

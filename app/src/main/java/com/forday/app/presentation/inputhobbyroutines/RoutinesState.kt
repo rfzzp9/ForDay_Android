@@ -1,6 +1,7 @@
 package com.forday.app.presentation.inputhobbyroutines
 
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.domain.model.AiRoutineItemDomain
 import com.forday.app.presentation.inputhobbyroutines.screen.RoutineItem
 import kotlinx.serialization.Serializable
@@ -19,7 +20,8 @@ data class RoutinesState(
     val error: String? = null,
     val routineId: Int? = null,
     val nickname: String? = null,
-    val selectedAiRoutine: AiRoutineItemState? = null  // ✅ 추가
+    val selectedAiRoutine: AiRoutineItemState? = null,
+    val errorData: ErrorDataUiState? = null,
 )
 
 @Serializable   // TODO 나중에 userLocalDataSource에 저장할 데이터클래스 별도 생성해야 함 (임시)
