@@ -58,7 +58,7 @@ class ModifyHobbyViewModel @Inject constructor(
 
     }
 
-    fun modifyHobbyStatus(hobbyId: Long, hobbyStatus: String, hobbyName: String) = viewModelScope.launch {
+    fun modifyHobbyStatus(hobbyId: Long, hobbyStatus: String) = viewModelScope.launch {
         flow {
             emit(changeHobbyStatusUseCase(hobbyId, hobbyStatus))
         }.httpCatch(tag = "modifyHobbyStatus") { errorData ->

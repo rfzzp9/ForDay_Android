@@ -126,8 +126,7 @@ fun ModifyHobbyScreenRoot(
             viewModel.fetchMyHobbyList(status.name)
         },
         onConfirmStorage = { hobbyId, status, hobbyName ->
-            Timber.e("@@@@@@@@@#########onConfirmStorage")
-            viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name, hobbyName)
+            viewModel.modifyHobbyStatus(hobbyId.toLong(), status.name)
         },
         onDismissHobbyLimitDialog = {
             viewModel.dismissHobbyLimitDialog()
