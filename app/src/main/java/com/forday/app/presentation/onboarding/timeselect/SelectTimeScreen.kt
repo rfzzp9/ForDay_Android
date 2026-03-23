@@ -1,14 +1,21 @@
 package com.forday.app.presentation.onboarding.timeselect
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,16 +29,19 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -44,14 +54,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -85,9 +97,13 @@ fun SelectTimeScreenRoot(
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
-    viewModel.logEvent("view_hobby_time_selection_screen")  //취미정보 - 시간 선택 화면 진입
+    viewModel.logEvent(AnalyticsEvents.VIEW_HOBBY_TIME_SELECTION_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val shouldAutoAdvance by viewModel.shouldAutoAdvanceFromTime.collectAsStateWithLifecycle()
+
+    // ONBOARDING 모드에서 selectedMinutes가 null이면 기본값 10을 ViewModel에 저장
+    if (mode == ScreenMode.ONBOARDING && state.selectedMinutes == null) {
+        viewModel.saveTime(10)
+    }
 
     val scope = rememberCoroutineScope()
 
@@ -98,7 +114,7 @@ fun SelectTimeScreenRoot(
         selectedTime = state.selectedMinutes,
         mode = mode,
         onTimeSelected = { minutes ->
-            viewModel.logEvent("selected_time_$minutes")
+            viewModel.logEvent(AnalyticsEvents.selectedTime(minutes))
             // ONBOARDING 모드일 때만 즉시 저장
             if (mode == ScreenMode.ONBOARDING) {
                 viewModel.saveTime(minutes)
@@ -114,14 +130,12 @@ fun SelectTimeScreenRoot(
             }
         },
         onBack = {
-            viewModel.logEvent("hobby_time_selection_back_click")
+            viewModel.logEvent(AnalyticsEvents.HOBBY_TIME_SELECTION_BACK)
             scope.launch {
                 delay(400L)
                 onBack()
             }
         },
-        viewModel = viewModel,
-        shouldAutoAdvance = shouldAutoAdvance
     )
 }
 
@@ -135,16 +149,16 @@ fun SelectTimeScreen(
     onTimeSelected: (Int) -> Unit,
     onNext: (Int) -> Unit,  // 선택된 시간을 전달하도록 변경
     onBack: () -> Unit,
-    viewModel: OnboardingViewModel,
-    shouldAutoAdvance: Boolean,
 ) {
+    val defaultTime = 10
+
     // DEFAULT 모드일 때는 로컬 상태로 관리, ONBOARDING일 때는 ViewModel 상태 사용
     val localSelectedTime = remember(params?.hobbyTimeMinutes, selectedTime) {
         mutableStateOf(
             if (mode == ScreenMode.DEFAULT) {
-                params?.hobbyTimeMinutes ?: 0
+                params?.hobbyTimeMinutes ?: defaultTime
             } else {
-                selectedTime ?: 0
+                selectedTime ?: defaultTime
             }
         )
     }
@@ -153,13 +167,7 @@ fun SelectTimeScreen(
     val currentTime = if (mode == ScreenMode.DEFAULT) {
         localSelectedTime.value
     } else {
-        selectedTime ?: 0
-    }
-
-    LaunchedEffect(Unit) {
-        if (mode == ScreenMode.ONBOARDING && selectedTime != null && selectedTime > 0) {
-            viewModel.disableAutoAdvanceFromTime()
-        }
+        selectedTime ?: defaultTime
     }
 
     // 선택된 시간에 따라 timeLabel 계산
@@ -185,120 +193,116 @@ fun SelectTimeScreen(
                 .background(ForDayTheme.color.Neutral50)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 8.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                // Title
-                Text(
-                    text = "한 번에 얼마나 할 수 있나요?",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ForDayTheme.color.Neutral900,
-                    lineHeight = 24.sp
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Subtitle
-                val annotatedString = buildAnnotatedString {
-                    withStyle(style = SpanStyle(color = ForDayTheme.color.Secondary003)) {
-                        append(hobby)
-                    }
-                    append("에 투자할 수 있는 시간을 선택해주세요.\n처음엔 짧게 시작하는 게 좋아요. 습관이 되면 자연스럽게 늘어나요!")
-                }
-
-                Text(
-                    text = annotatedString,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = ForDayTheme.color.Gray800,
-                    lineHeight = 19.6.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // mode에 따라 다른 데이터로 HobbyCard 표시
-                when (mode) {
-                    ScreenMode.DEFAULT -> {
-                        // DEFAULT 모드: 로컬 상태 기반으로 표시
-                        params?.let {
-                            HobbyCard(
-                                hobbyName = it.hobbyName,
-                                timeLabel = timeLabel,
-                                isSelected = true,
-                                hobbyInfoId = it.hobbyId, // hobbyInfoId 전달
-                                executionCount = it.executionCount,
-                                goalDays = it.goalDays
-                            )
-                        }
-                    }
-                    ScreenMode.ONBOARDING -> {
-                        // ONBOARDING 모드: 기존 데이터 사용
-//                        if (currentTime > 0) {
-                        hobby?.let {
-                            HobbyCard(
-                                hobbyName = it,
-                                timeLabel = timeLabel,
-                                isSelected = true,
-                                hobbyInfoId = hobbyInfoId // hobbyInfoId 전달
-                            )
-//                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 8.dp)
                 ) {
+                    // Title
                     Text(
-                        text = "가벼운 시작",
-                        style = ForDayTheme.typography.body12,
-                        color = ForDayTheme.color.Neutral600
+                        text = "한 번에 얼마나 할 수 있나요?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ForDayTheme.color.Neutral900,
+                        lineHeight = 24.sp
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Subtitle
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = ForDayTheme.color.Secondary003)) {
+                            append(hobby)
+                        }
+                        append("에 투자할 수 있는 시간을 선택해주세요.\n처음엔 짧게 시작하는 게 좋아요. 습관이 되면 자연스럽게 늘어나요!")
+                    }
+
                     Text(
-                        text = "더 몰입",
-                        style = ForDayTheme.typography.body12,
-                        color = ForDayTheme.color.Neutral600
+                        text = annotatedString,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = ForDayTheme.color.Gray800,
+                        lineHeight = 19.6.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // mode에 따라 다른 데이터로 HobbyCard 표시
+                    when (mode) {
+                        ScreenMode.DEFAULT -> {
+                            // DEFAULT 모드: 로컬 상태 기반으로 표시
+                            params?.let {
+                                HobbyCard(
+                                    hobbyName = it.hobbyName,
+                                    timeLabel = timeLabel,
+                                    isSelected = true,
+                                    hobbyInfoId = it.hobbyInfoId, // hobbyInfoId 전달
+                                    executionCount = it.executionCount,
+                                    goalDays = it.goalDays
+                                )
+                            }
+                        }
+                        ScreenMode.ONBOARDING -> {
+                            // ONBOARDING 모드: 기존 데이터 사용
+//                        if (currentTime > 0) {
+                            hobby?.let {
+                                HobbyCard(
+                                    hobbyName = it,
+                                    timeLabel = timeLabel,
+                                    isSelected = true,
+                                    hobbyInfoId = hobbyInfoId // hobbyInfoId 전달
+                                )
+//                            }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "가벼운 시작",
+                            style = ForDayTheme.typography.body12,
+                            color = ForDayTheme.color.Neutral600
+                        )
+                        Text(
+                            text = "더 몰입",
+                            style = ForDayTheme.typography.body12,
+                            color = ForDayTheme.color.Neutral600
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TimeSelector(
+                        selectedTime = currentTime,
+                        onTimeSelected = { minutes ->
+                            if (mode == ScreenMode.DEFAULT) {
+                                // DEFAULT 모드: 로컬 상태만 업데이트
+                                localSelectedTime.value = minutes
+                            } else {
+                                // ONBOARDING 모드: ViewModel에 즉시 저장
+                                onTimeSelected(minutes)
+                            }
+                        },
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.weight(1f))
 
-                TimeSelector(
-                    onNext = {
-                        if (mode == ScreenMode.ONBOARDING && currentTime > 0) {
-                            viewModel.enableAutoAdvanceFromTime() // 실제 다음으로 진행하도록 재활성화
-                            onNext(currentTime)
-                        }
-                    },
-                    selectedTime = currentTime,
-                    onTimeSelected = { minutes ->
-                        if (mode == ScreenMode.DEFAULT) {
-                            // DEFAULT 모드: 로컬 상태만 업데이트
-                            localSelectedTime.value = minutes
-                        } else {
-                            // ONBOARDING 모드: ViewModel에 즉시 저장
-                            viewModel.enableAutoAdvanceFromTime()
-                            //시간 선택 시 재활성화
-                            onTimeSelected(minutes)
-                        }
-                    },
-                    shouldAutoAdvance = shouldAutoAdvance
+                BottomNextButton(
+                    text = if (mode == ScreenMode.DEFAULT) "변경하기" else "다음",
+                    enabled = currentTime > 0,
+                    onNext = { onNext(currentTime) },
+                    backgroundColor = ForDayTheme.color.Neutral50
                 )
-
-                if (mode == ScreenMode.DEFAULT) {
-                    BottomNextButton(
-                        text = "변경하기",
-                        enabled = currentTime > 0,
-                        onNext = { onNext(currentTime) }  // 현재 로컬 상태 값 전달
-                    )
-                }
             }
         }
     }
@@ -419,92 +423,114 @@ private fun DotSeparator() {
 
 @Composable
 fun TimeSelector(
-    onNext: () -> Unit,
     selectedTime: Int,
     onTimeSelected: (Int) -> Unit,
-    shouldAutoAdvance: Boolean
 ) {
     val timeOptions = listOf(
-        10 to "10",
-        20 to "20",
-        30 to "30",
-        60 to "1시간",   // ✅ 60분으로 저장
-        120 to "2시간"   // ✅ 120분으로 저장
+        10 to "10분",
+        20 to "20분",
+        30 to "30분",
+        60 to "1시간",
+        120 to "2시간"
     )
 
+    val itemCount = timeOptions.size
     val selectedIndex = timeOptions.indexOfFirst { it.first == selectedTime }
-    var pendingAutoAdvance by remember { mutableStateOf(false) }
-    if (selectedIndex >= 0) {
-        pendingAutoAdvance = true
+
+    // 드래그 중일 때의 실시간 인덱스 (-1f = 드래그 아님)
+    val dragIndex = remember { mutableFloatStateOf(-1f) }
+    val isDragging = remember { mutableStateOf(false) }
+
+    // 드래그 중이면 dragIndex, 아니면 selectedIndex를 애니메이션
+    val animatedIndex by animateFloatAsState(
+        targetValue = when {
+            isDragging.value && dragIndex.floatValue >= 0f -> dragIndex.floatValue
+            selectedIndex >= 0 -> selectedIndex.toFloat()
+            else -> -1f
+        },
+        animationSpec = if (isDragging.value) {
+            tween(durationMillis = 0)
+        } else {
+            tween(durationMillis = 300, easing = FastOutSlowInEasing)
+        },
+        label = "timeSlider"
+    )
+
+    // animatedIndex에 가장 가까운 label (인디케이터 안에 표시할 텍스트)
+    val indicatorLabel = if (animatedIndex >= 0f) {
+        val snappedIdx = animatedIndex.roundToInt().coerceIn(0, itemCount - 1)
+        timeOptions[snappedIdx].second
+    } else {
+        ""
     }
-    LaunchedEffect(pendingAutoAdvance, shouldAutoAdvance) {
-        if (pendingAutoAdvance && shouldAutoAdvance) {
-            onNext()
-            pendingAutoAdvance = false
-        }
-    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
             .clip(RoundedCornerShape(100.dp))
             .background(ForDayTheme.color.White)
-    ) {
-        // 배경 레이어 (연속된 막대)
-        if (selectedIndex >= 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(vertical = 2.dp)
-            ) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    // 선택된 버튼까지의 배경
-                    timeOptions.forEachIndexed { index, _ ->
-                        if (index < selectedIndex) {
-                            // 선택되기 전 버튼들: 연한 주황색
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .background(Color(0xFFFFE0CC))  // 연한 주황색
-                            )
-                        } else if (index == selectedIndex) {
-//                            onNext()
-                            // 선택된 버튼: 진한 주황색 + 둥근 모서리
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.5f)
-                                        .fillMaxHeight()
-                                        .background(Color(0xFFFFE0CC))  // 진한 주황색
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(1f)
-                                        .fillMaxHeight()
-                                        .clip(RoundedCornerShape(100.dp))
-                                        .background(Color(0xFFEE9449))  // 진한 주황색
-                                )
-                            }
-
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
+            .pointerInput(itemCount) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        isDragging.value = true
+                        val buttonWidth = size.width.toFloat() / itemCount
+                        val rawIndex = (offset.x / buttonWidth).coerceIn(0f, (itemCount - 1).toFloat())
+                        dragIndex.floatValue = rawIndex
+                    },
+                    onDragEnd = {
+                        // 가장 가까운 옵션에 스냅
+                        val snappedIndex = dragIndex.floatValue
+                            .roundToInt()
+                            .coerceIn(0, itemCount - 1)
+                        isDragging.value = false
+                        dragIndex.floatValue = -1f
+                        onTimeSelected(timeOptions[snappedIndex].first)
+                    },
+                    onDragCancel = {
+                        isDragging.value = false
+                        dragIndex.floatValue = -1f
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        val buttonWidth = size.width.toFloat() / itemCount
+                        val delta = dragAmount / buttonWidth
+                        dragIndex.floatValue = (dragIndex.floatValue + delta)
+                            .coerceIn(0f, (itemCount - 1).toFloat())
                     }
-                }
+                )
+            }
+    ) {
+        // 배경 레이어 (연한 주황색)
+        if (animatedIndex >= 0f) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(2.dp)
+            ) {
+                val buttonWidth = size.width / itemCount
+
+                // 연한 주황색 배경 (0 ~ 선택된 위치의 중간까지)
+                val lightEndX = (animatedIndex + 0.5f) * buttonWidth
+                val bgCornerRadius = size.height / 2
+                drawRoundRect(
+                    color = Color(0xFFFFF1E6),
+                    topLeft = Offset(0f, 0f),
+                    size = Size(lightEndX, size.height),
+                    cornerRadius = CornerRadius(bgCornerRadius, bgCornerRadius)
+                )
             }
         }
 
-        // 텍스트 레이어
+        // 고정 텍스트 레이어 (회색, 인디케이터 아래 텍스트는 투명 처리)
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             timeOptions.forEachIndexed { index, (minutes, label) ->
+                val isIndicatorOver = animatedIndex >= 0f &&
+                        animatedIndex >= index - 0.5f &&
+                        animatedIndex < index + 0.5f
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -517,13 +543,43 @@ fun TimeSelector(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (selectedTime == minutes && (minutes == 10 || minutes == 20 || minutes == 30)) "${minutes}분" else label,
+                        text = label,
                         fontSize = 14.sp,
-                        fontWeight = if (selectedTime == minutes) FontWeight.Bold else FontWeight.Medium,
-                        color = when {
-                            selectedTime == minutes -> Color.White
-                            else -> Color(0xFF9E9E9E)  // 선택 이후: 회색
-                        },
+                        fontWeight = FontWeight.Medium,
+                        color = if (isIndicatorOver) Color.Transparent else Color(0xFF9E9E9E),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // 이동하는 인디케이터 + 흰색 텍스트 (함께 슬라이딩)
+        if (animatedIndex >= 0f) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(2.dp)
+            ) {
+                val totalWidth = maxWidth
+                val buttonWidth = totalWidth / itemCount
+                val indicatorOffset = buttonWidth * animatedIndex
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = indicatorOffset)
+                        .width(buttonWidth)
+                        .fillMaxHeight()
+                        .background(
+                            color = Color(0xFFF4A261),
+                            shape = RoundedCornerShape(100.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = indicatorLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -545,8 +601,6 @@ fun TimeSelectScreenPreview() {
             onBack = {},
             mode = ScreenMode.ONBOARDING,
             params = null,
-            viewModel = hiltViewModel(),
-            shouldAutoAdvance = false
         )
     }
 }

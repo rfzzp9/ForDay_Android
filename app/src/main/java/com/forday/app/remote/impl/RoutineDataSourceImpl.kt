@@ -1,6 +1,7 @@
 package com.forday.app.remote.impl
 
 import com.forday.app.data.model.CancelScrapEntity
+import com.forday.app.data.model.ReportPostingEntity
 import com.forday.app.data.model.DeletePostingEntity
 import com.forday.app.data.model.ModifyPostingEntity
 import com.forday.app.data.model.ReactionCancelEntity
@@ -17,6 +18,7 @@ import com.forday.app.remote.model.request.GetUserScrapListRequest
 import com.forday.app.remote.model.request.ModifyPostingRequest
 import com.forday.app.remote.model.request.PostingVisibilityRequest
 import com.forday.app.remote.model.request.ReactionRequest
+import com.forday.app.remote.model.request.ReportPostingRequest
 import com.forday.app.remote.model.response.toData
 import javax.inject.Inject
 
@@ -55,9 +57,10 @@ class RoutineDataSourceImpl @Inject constructor(
     override suspend fun getUserFeedList(
         hobbyIds: List<Int?>,
         lastRecordId: Long?,
-        feedSize: Long?
+        feedSize: Long?,
+        userId: String?
     ): UserFeedEntity =
-        routineApi.getMyRoutineFeedList(hobbyIds, lastRecordId, feedSize).toData()
+        routineApi.getMyRoutineFeedList(hobbyIds, lastRecordId, feedSize, userId).toData()
 
     override suspend fun modifyPosting(
         recordId: Int,
@@ -80,4 +83,7 @@ class RoutineDataSourceImpl @Inject constructor(
 
     override suspend fun cancelScrapPosting(recordId: Int): CancelScrapEntity =
         routineApi.cancelScrap(recordId).toData()
+
+    override suspend fun reportPosting(recordId: Int, reason: String): ReportPostingEntity =
+        routineApi.reportPosting(recordId, ReportPostingRequest(reason)).toData()
 }

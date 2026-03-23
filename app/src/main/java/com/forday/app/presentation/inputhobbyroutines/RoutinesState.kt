@@ -15,7 +15,6 @@ data class RoutinesState(
     val recommendedText: String = "",
     val hobbyId: Long? = null,
     val selectedHobbyName: String? = null,
-    val isCreateRoutines: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     val routineId: Int? = null,

@@ -47,7 +47,7 @@ fun VisibilitySelector(
             Text(
                 text = option.label,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .wrapContentWidth()
                     .clickable { onOptionSelected(option) }
                     .padding(vertical = 8.dp),
                 fontSize = 14.sp,

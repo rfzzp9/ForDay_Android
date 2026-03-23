@@ -2,10 +2,13 @@ package com.forday.app.presentation.home
 
 import androidx.lifecycle.viewModelScope
 import com.forday.app.core.datastore.UserLocalDataSource
+import com.forday.app.core.logger.analytics.AnalyticsEvent
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.logAndExtractServerMessage
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.CreateRoutinesUseCase
+import com.forday.app.domain.usecase.GetAiRecommendedRoutinesAgainUseCase
 import com.forday.app.domain.usecase.GetAiRecommendedRoutinesUseCase
 import com.forday.app.domain.usecase.GetHomeHobbyUseCase
 import com.forday.app.domain.usecase.GetMyHobbyListUseCase
@@ -15,6 +18,8 @@ import com.forday.app.domain.usecase.GetUserNicknameUseCase
 import com.forday.app.domain.usecase.WriteRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
+import com.forday.app.presentation.httpCatch
+import com.forday.app.presentation.home.model.AiRoutineItemState
 import com.forday.app.presentation.home.model.HomeState
 import com.forday.app.presentation.home.model.RoutinePreviewUiModel
 import com.forday.app.presentation.home.model.RoutineUiModel
@@ -29,7 +34,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import timber.log.Timber
-import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -41,11 +45,12 @@ class HomeViewModel @Inject constructor(
     private val writeRoutineUseCase: WriteRoutineUseCase,
     private val getStickersUseCase: GetStickersUseCase,  // 스티커판 조회
     private val getAiRecommendedRoutinesUseCase: GetAiRecommendedRoutinesUseCase,  // ai 활동 추천
+    private val getAiRecommendedRoutinesAgainUseCase: GetAiRecommendedRoutinesAgainUseCase,  // ai 활동 재조회
     private val getUserNicknameUseCase: GetUserNicknameUseCase,
     private val userLocalDataSource: UserLocalDataSource,
     private val createRoutinesUseCase: CreateRoutinesUseCase,  // 취미활동 생성
     private val snackbarManager: SnackbarManager,
-) : BaseViewModel<Unit>() {
+) : BaseViewModel<HomeSideEffect>() {
 
     private val _uiState: MutableStateFlow<HomeState> = MutableStateFlow(HomeState())
     val uiState: StateFlow<HomeState> = _uiState.toStateIn()
@@ -82,6 +87,7 @@ class HomeViewModel @Inject constructor(
                         inProgressHobbies = uiModel.inProgressHobbies,
                         routinePreview = uiModel.routinePreview,
                         aiCallRemaining = uiModel.aiCallRemaining,
+                        aiCallRemainingCount = uiModel.aiCallRemainingCount,
                         greetingMessage = uiModel.greetingMessage,
                         userSummaryText = uiModel.userSummaryText,
                         recommendMessage = uiModel.recommendMessage,
@@ -103,14 +109,8 @@ class HomeViewModel @Inject constructor(
             flow {
                 val response = getSpecificRoutineListUseCase(hobbyId, size)
                 emit(response.data.routines)
-            }.catch { throwable ->
-                throwable.printStackTrace()
-                Timber.e("@##@#@#@#@#@#@#@@ " + throwable)
-                val message = when (throwable) {
-                    is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchSpecificRoutineList")
-                    else -> null
-                }
-                snackbarManager.show(message ?: throwable.toUserMessage())
+            }.httpCatch(tag = "fetchSpecificRoutineList") { errorData ->
+
             }.collect { routines ->
                 routines.map {
                     Timber.e("@###@#@#@ " + it.routineId + ", " + it.aiRecommended)
@@ -134,23 +134,12 @@ class HomeViewModel @Inject constructor(
 
 
     fun fetchStickerHistory(hobbyId: Long?, size: Int = 28, page: Int? = null) = viewModelScope.launch {
-        val requestPage = page
-        Timber.e("=== fetchStickerHistory ===")
-        Timber.e("hobbyId: $hobbyId, page: $requestPage, size: $size")
-
         flow {
-            val response = getStickersUseCase(hobbyId, requestPage, size)
+            val response = getStickersUseCase(hobbyId, page, size)
             Timber.e("UseCase response: $response")
             emit(response)
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            Timber.e("ERROR fetching stickers: $throwable")
-            throwable.printStackTrace()
-            val message = when (throwable) {
-                is HttpException -> throwable.logAndExtractServerMessage(tag = "fetchStickerHistory")
-                else -> null
-            }
-            snackbarManager.show(message ?: throwable.toUserMessage())
+        }.httpCatch(tag = "fetchStickerHistory") { errorData ->
+
         }.collect { result ->
             // ✅ Result 타입 처리 확인
             Timber.e("Collected result type: ${result::class.simpleName}")
@@ -226,69 +215,80 @@ class HomeViewModel @Inject constructor(
     }
 
     fun getAiRecommendedRoutines(hobbyId: Long?) = viewModelScope.launch {
-        Timber.d("AI routines 요청: hobbyId=%s", hobbyId)
         flow {
             emit(getAiRecommendedRoutinesUseCase(hobbyId))
-        }.catch { throwable ->
-            throwable.printStackTrace()
-            when (throwable) {
-                is HttpException -> {
-                    val errorBody = throwable.response()?.errorBody()?.string()
-                    Timber.e(
-                        throwable,
-                        "[AI routines] HttpException code=%d message=%s body=%s",
-                        throwable.code(),
-                        throwable.message(),
-                        errorBody
-                    )
-                }
-
-                is IOException -> Timber.e(throwable, "[AI routines] 네트워크 I/O 오류")
-                else -> Timber.e(throwable, "[AI routines] 예기치 못한 오류")
+        }.httpCatch(tag = "getAiRecommendedRoutines") { errorData ->
+            when (errorData.errorClassName) {
+                "AI_CALL_LIMIT_EXCEEDED" -> getAiRecommendedRoutinesAgain(hobbyId)
+                else -> _uiState.update { it.copy(isLoading = false, errorData = errorData) }
             }
-            val message = when (throwable) {
-                is HttpException -> throwable.logAndExtractServerMessage(tag = "getAiRecommendedRoutines")
-                else -> null
-            }
-            snackbarManager.show(message ?: throwable.toUserMessage())
         }.collect { result ->
-            Timber.d("AI routines 성공: count=%d", result.data.routines.size)
             val newAiRoutines = result.data.routines.map { it.toPresentation() }
             _uiState.update {
                 it.copy(
                     aiRoutineList = newAiRoutines,
+                    aiRoutineLoaded = !it.aiRoutineLoaded,
                     isLoading = false,
-                    aiCallCount = result.data.aiCallCount
+                    aiCallCount = result.data.aiCallCount,
+                    recommendedText = result.data.recommendedText,
+                    errorData = null
                 )
             }
         }
     }
 
-    fun createRoutines(hobbyId: Long?, routineList: List<Pair<Boolean, String>>) =
+    fun getAiRecommendedRoutinesAgain(hobbyId: Long?, type: String?= "ALL") = viewModelScope.launch {
+        flow {
+            emit(getAiRecommendedRoutinesAgainUseCase(hobbyId, type))
+        }.httpCatch(tag = "getAiRecommendedRoutinesAgain") { errorData ->
+            _uiState.update { it.copy(isLoading = false, errorData = errorData) }
+        }.collect { result ->
+            val aiRoutines = result.data.activityItems.map { item ->
+                AiRoutineItemState(
+                    routineId = item.itemId,
+                    topic = "",
+                    content = item.content,
+                    description = item.description
+                )
+            }
+            _uiState.update {
+                it.copy(
+                    aiRoutineList = aiRoutines,
+                    aiRoutineLoaded = !it.aiRoutineLoaded,
+                    isLoading = false,
+                    recommendedText = result.data.message,
+                    errorData = null
+                )
+            }
+        }
+    }
+
+    fun createRoutines(hobbyId: Long?, routineList: List<Pair<Boolean, String>>, hobbyName: String? = null) =
         viewModelScope.launch {
             flow {
                 emit(createRoutinesUseCase.invoke(hobbyId, routineList))
-            }.catch { throwable ->
-                throwable.printStackTrace()
-                routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
-                Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+throwable)
-                Timber.e(throwable)
-                val message = when (throwable) {
-                    is HttpException -> throwable.logAndExtractServerMessage(tag = "createRoutines")
-                    else -> null
+            }.httpCatch(tag = "createRoutines") { errorData ->
+                when (errorData.errorClassName) {
+                    "VALIDATION_ERROR" -> _sideEffectChannel.send(HomeSideEffect.CreateRoutinesError(errorData.message))
                 }
-                snackbarManager.show(message ?: throwable.toUserMessage())
+
             }.collect { result ->
-                routineList.map { Timber.e("@#@#@#@#@#@$#A$#ARDA "+it.component1()+", "+it.component2()) }
-                Timber.e("@@@@@@@throwablethrowable@@@@@@@@ "+result.data)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        routineId = result.data.createdRoutineNum  // 취미활동 번호
+                        routineId = result.data.createdRoutineNum
                     )
                 }
+                routineList.forEach { (isAi, activityName) ->
+                    logEvent(AnalyticsEvents.activityAdded(
+                        entryPoint = "ai_banner",
+                        source = if (isAi) "ai_recommendation" else "manual",
+                        hobbyName = hobbyName,
+                        activityName = activityName
+                    ))
+                }
+                _sideEffectChannel.send(HomeSideEffect.CreateRoutinesSuccess("AI 취미활동을 담았어요."))
             }
-
         }
 
     fun getUserNickname() = viewModelScope.launch {
@@ -311,6 +311,10 @@ class HomeViewModel @Inject constructor(
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)
+    }
+
+    fun logEvent(event: AnalyticsEvent) {
+        analyticsManager.logEvent(event)
     }
 
 }

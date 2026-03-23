@@ -5,8 +5,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -197,14 +200,15 @@ fun ModifyRoutineScreen(
                 }
 
                 routineList.isEmpty() -> {
-                    // ✅ Empty State 추가
                     EmptyRoutineContent(onAddRoutine = onAddRoutine)
                 }
 
                 else -> {
                     // 기존 리스트
                     Column(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -220,7 +224,8 @@ fun ModifyRoutineScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = 20.dp)
+                                .padding(bottom = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             routineList.forEach { routine ->

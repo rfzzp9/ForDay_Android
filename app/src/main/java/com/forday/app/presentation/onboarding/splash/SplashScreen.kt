@@ -1,68 +1,50 @@
 package com.forday.app.presentation.onboarding.splash
 
-import android.window.SplashScreen
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.dialog.AppVersionPolicyDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.onboarding.OnboardingViewModel
-import kotlinx.coroutines.delay
-import timber.log.Timber
+import com.forday.app.domain.model.AppUpdateType
 
 @Composable
 fun SplashScreenRoot(
-    onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit,
-    onNavigateToOnboarding: () -> Unit,
-    onNavigateToJourney: () -> Unit,
-    viewModel: OnboardingViewModel
+    splashViewModel: SplashViewModel
 ) {
-    viewModel.logEvent("splash_screen")
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
-    Timber.e("@@@@@@@@@@@@@@@@@@ state   ")
+    val splashState by splashViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val activity = context as? Activity
 
-    /**
-    *
-    * accessToken == null일 경우 → 로그인 화면
-    * isOnboardingCompleted == false → 온보딩 초기 화면
-    * isOnboardingCompleted == true && isNicknameSet == true → 홈화면
-    * isOnboardingCompleted == true && nicknameSet == false → 여정일 화면 (온보딩 마지막 화면)
-    *
-    * */
-
-    LaunchedEffect(state) {
-        delay(2000)
-        if (state.value.accessToken == null) {
-            Timber.e("@@@@@@@@@@@@@@@@@@@@ accessToken null1111")
-            onNavigateToLogin()
-        } else if (state.value.isOnboardingCompleted == false) {
-            Timber.e("@@@@@@@@@@@@@@@@@@@@ accessToken null2222"+state.value.accessToken)
-            onNavigateToOnboarding()
-        } else if (state.value.isOnboardingCompleted == true && state.value.isNicknameSet == true) {
-            Timber.e("@@@@@@@@@@@@@@@@@@@@ accessToken null3333")
-            onNavigateToHome()
-        } else if (state.value.isOnboardingCompleted == true && state.value.isNicknameSet == false) {
-            Timber.e("@@@@@@@@@@@@@@@@@@@@ accessToken null4444")
-            onNavigateToJourney()
-        }
-
-    }
+    BackHandler { activity?.finish() }
 
     SplashScreen()
+
+    if (!splashState.isLoading && splashState.updateType != AppUpdateType.NONE) {
+        AppVersionPolicyDialog(
+            updateType = splashState.updateType,
+            message = splashState.message,
+            onUpdate = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(splashState.storeUrl))
+                context.startActivity(intent)
+            },
+            onDismiss = { splashViewModel.dismiss() }
+        )
+    }
 }
 
 @Composable
@@ -76,12 +58,10 @@ fun SplashScreen() {
         Image(
             painter = painterResource(id = R.drawable.logo_forday),
             contentDescription = "포데이 로고",
-//            modifier = Modifier.padding(bottom = 79.8.dp),
             contentScale = ContentScale.Fit
         )
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

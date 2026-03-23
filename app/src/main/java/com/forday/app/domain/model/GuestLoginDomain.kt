@@ -14,7 +14,8 @@ data class GuestLoginDataDomain(
     val userId: String,
     val onboardingCompleted: Boolean,
     val nicknameSet: Boolean,
-    val onboardingData: OnboardingDataDomain?
+    val onboardingData: OnboardingDataDomain?,
+    val nickname: String?
 )
 
 //data class OnboardingDataDomain(

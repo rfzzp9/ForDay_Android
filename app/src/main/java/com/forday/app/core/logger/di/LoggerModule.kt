@@ -10,7 +10,6 @@ import com.forday.app.core.logger.timber.DebugLogTree
 import com.forday.app.core.logger.timber.TimberInitializer
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.crashlytics.BuildConfig
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.Module
 import dagger.Provides
@@ -64,12 +63,10 @@ object LoggerModule {
     ): TimberInitializer {
         val trees = mutableListOf<Timber.Tree>()
 
-        // Debug 빌드에서는 DebugLogTree 추가
-        if (BuildConfig.DEBUG) {
-            trees.add(DebugLogTree())
-        }
+        // Logcat 출력 (Debug/Release 공통)
+        trees.add(DebugLogTree())
 
-        // Release 빌드에서는 CrashlyticsTree만 추가
+        // Crashlytics 전송 (WARN/ERROR만)
         trees.add(crashlyticsTree)
 
         return TimberInitializer(*trees.toTypedArray())

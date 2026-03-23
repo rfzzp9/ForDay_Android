@@ -41,6 +41,7 @@ import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import kotlinx.coroutines.delay
@@ -86,24 +87,26 @@ fun SelectJourneyDaysScreenRoot(
     goHome: () -> Unit,
     viewModel: OnboardingViewModel,
 ) {
-    viewModel.logEvent("hobby_journey_date_screen") //취미정보 - 여정일 선택 화면 진입
+    viewModel.logEvent(AnalyticsEvents.HOBBY_JOURNEY_DATE_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     Timber.e("@@@@@@@@@@@111"+state.isNicknameSet+", "+mode)
 
     val scope = rememberCoroutineScope()
     SelectJourneyDaysScreen(
-        hobbyName = state.selectedHobbyName,
-        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
-        selectedTime = if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
+        hobbyName = if (mode == ScreenMode.DEFAULT) params?.hobbyName else state.selectedHobbyName,
+        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyInfoId else state.selectedHobbyId?.toInt(),
+        selectedTime = if (mode == ScreenMode.DEFAULT && params != null) {
+            val minutes = params.hobbyTimeMinutes
+            if (minutes == 60 || minutes == 120) "${minutes / 60}시간" else "${minutes}분"
+        } else if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
             "${state.selectedMinutes!! / 60}시간"
         } else {
             "${state.selectedMinutes}분"
         },
-        selectedFrequency = state.selectedFrequency,
+        selectedFrequency = if (mode == ScreenMode.DEFAULT) params?.executionCount else state.selectedFrequency,
         selectedJourneyMode = state.selectedJourneyMode,
         onBack = {
-            viewModel.logEvent("hobby_journey_date_screen_back_click")
-            viewModel.disableAutoAdvanceFromPurpose()
+            viewModel.logEvent(AnalyticsEvents.HOBBY_JOURNEY_DATE_BACK)
             scope.launch {
                 delay(400L)
                 onBack()
@@ -118,7 +121,7 @@ fun SelectJourneyDaysScreenRoot(
                     }
                     viewModel.modifyHobbyGoalDays(params!!.hobbyId.toLong(), goalDays)
                 } else {
-                    viewModel.logEvent("onboarding_success")
+                    viewModel.logEvent(AnalyticsEvents.ONBOARDING_SUCCESS)
                     viewModel.saveIsOnboardingCompleted(true)
                     viewModel.createHobby(
                         state.selectedHobbyId,
@@ -142,7 +145,7 @@ fun SelectJourneyDaysScreenRoot(
             }
         },
         onJourneyModeSelect = { journeyMode ->
-            viewModel.logEvent("selected_journey_date_$journeyMode")  //선택한 여정일
+            viewModel.logEvent(AnalyticsEvents.selectedJourneyDate(journeyMode.toString()))
             // ONBOARDING 모드일 때만 즉시 저장
             if (mode == ScreenMode.ONBOARDING) {
                 viewModel.selectJourneyMode(journeyMode)
@@ -199,7 +202,7 @@ fun SelectJourneyDaysScreen(
         ),
         JourneyOption(
             mode = JourneyMode.FORDAY_66,
-            title = "66일 (포데이 모드)",
+            title = "66일\n(포데이 모드)",
             description = "생활에 자연스럽게 스며드는 기간",
             characterIcon = R.drawable.ic_character_sixtysix
         )
@@ -234,7 +237,7 @@ fun SelectJourneyDaysScreen(
 
                     HobbySummaryCard(
                         hobbyName = hobbyName,
-                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyId else hobbyInfoId, // hobbyInfoId 전달
+                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyInfoId else hobbyInfoId, // hobbyInfoId 전달
                         selectedTime = selectedTime,
                         selectedFrequency = selectedFrequency,
                         selectedJourneyMode = currentJourneyMode
@@ -257,23 +260,12 @@ fun SelectJourneyDaysScreen(
                     )
                 }
 
-                // ONBOARDING 모드일 때는 선택하면 자동으로 완료 버튼 표시
-                if (mode == ScreenMode.ONBOARDING && currentJourneyMode != null) {
-                    BottomNextButton(
-                        text = "완료",
-                        enabled = true,
-                        onNext = { currentJourneyMode?.let { onNext(it) } }
-                    )
-                }
-
-                // DEFAULT 모드일 때는 항상 변경하기 버튼 표시
-                if (mode == ScreenMode.DEFAULT) {
-                    BottomNextButton(
-                        text = "변경하기",
-                        enabled = currentJourneyMode != null,
-                        onNext = { currentJourneyMode?.let { onNext(it) } }
-                    )
-                }
+                BottomNextButton(
+                    text = if (mode == ScreenMode.DEFAULT) "변경하기" else "완료",
+                    enabled = currentJourneyMode != null,
+                    onNext = { currentJourneyMode?.let { onNext(it) } },
+                    backgroundColor = ForDayTheme.color.Neutral50
+                )
             }
         }
     }
@@ -470,7 +462,6 @@ fun JourneyModeCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(156.dp)
                 .clickable(
                     onClick = onClick,
                     indication = null,
@@ -486,7 +477,7 @@ fun JourneyModeCard(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {

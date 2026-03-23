@@ -48,7 +48,10 @@ data class GuestLoginData(
     val nicknameSet: Boolean,
 
     @SerializedName("onboardingData")
-    val onboardingData: GuestOnboardingData?
+    val onboardingData: GuestOnboardingData?,
+
+    @SerializedName("nickname")
+    val nickname: String?
 ) : RemoteMapper<GuestLoginDataEntity> {
 
     override fun toData(): GuestLoginDataEntity {
@@ -60,7 +63,8 @@ data class GuestLoginData(
             userId = userId,
             onboardingCompleted = onboardingCompleted,
             nicknameSet = nicknameSet,
-            onboardingData = onboardingData?.toData()
+            onboardingData = onboardingData?.toData(),
+            nickname = nickname
         )
     }
 }

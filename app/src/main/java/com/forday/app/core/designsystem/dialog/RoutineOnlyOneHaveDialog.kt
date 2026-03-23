@@ -14,8 +14,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
+import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 
 @Composable
 fun RoutineOnlyOneHaveDialog(
@@ -27,7 +35,8 @@ fun RoutineOnlyOneHaveDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             dismissOnBackPress = true,
-            dismissOnClickOutside = true
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false
         )
     ) {
         Surface(
@@ -50,8 +59,9 @@ fun RoutineOnlyOneHaveDialog(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E1E1E),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 21.6.sp
+                    textAlign = TextAlign.Start,
+                    lineHeight = 21.6.sp,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -70,6 +80,8 @@ fun RoutineOnlyOneHaveDialog(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // 버튼들
+                var closeTextSize by remember { mutableStateOf(16.sp) }
+                var viewTextSize by remember { mutableStateOf(16.sp) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp)
@@ -77,36 +89,50 @@ fun RoutineOnlyOneHaveDialog(
                     // 닫기 버튼
                     Button(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f),
+                        modifier = Modifier.weight(1f),
+                        interactionSource = remember { NoRippleInteractionSource() },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFE5E5E5)
                         ),
-                        shape = RoundedCornerShape(40.dp)
+                        shape = RoundedCornerShape(40.dp),
+                        contentPadding = PaddingValues(vertical = 11.5.dp)
                     ) {
                         Text(
                             text = "닫기",
-                            fontSize = 16.sp,
+                            fontSize = closeTextSize,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E1E1E)
+                            color = Color(0xFF1E1E1E),
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            softWrap = false,
+                            onTextLayout = { result ->
+                                if (result.hasVisualOverflow) closeTextSize *= 0.9f
+                            }
                         )
                     }
 
                     // 기록 보러가기 버튼
                     Button(
-                        onClick = onViewRecords,
-                        modifier = Modifier
-                            .weight(1f),
+                        onClick = rememberThrottledClick { onViewRecords() },
+                        modifier = Modifier.weight(1f),
+                        interactionSource = remember { NoRippleInteractionSource() },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFF9447)
                         ),
-                        shape = RoundedCornerShape(40.dp)
+                        shape = RoundedCornerShape(40.dp),
+                        contentPadding = PaddingValues(vertical = 11.5.dp)
                     ) {
                         Text(
                             text = "기록 보러가기",
-                            fontSize = 16.sp,
+                            fontSize = viewTextSize,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            softWrap = false,
+                            onTextLayout = { result ->
+                                if (result.hasVisualOverflow) viewTextSize *= 0.9f
+                            }
                         )
                     }
                 }

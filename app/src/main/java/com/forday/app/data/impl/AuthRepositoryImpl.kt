@@ -5,6 +5,7 @@ import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.data.model.toDomain
 import com.forday.app.data.remote.AuthDataSource
 import com.forday.app.domain.model.CancelAccountDomain
+import com.forday.app.domain.model.GuestLoginDataDomain
 import com.forday.app.domain.model.KakaoLoginDomain
 import com.forday.app.domain.model.LogoutDomain
 import com.forday.app.domain.model.SwitchAccountDomain
@@ -12,10 +13,13 @@ import com.forday.app.domain.repository.AuthRepository
 import com.forday.app.remote.model.request.GuestLoginRequest
 import com.forday.app.remote.model.request.KakaoLoginRequest
 import com.forday.app.remote.model.request.SwitchAccountRequest
+import com.kakao.sdk.user.UserApiClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.coroutines.resume
 import kotlin.runCatching
 
 internal class AuthRepositoryImpl @Inject constructor(
@@ -57,7 +61,7 @@ internal class AuthRepositoryImpl @Inject constructor(
                 Timber.d("kakaoLogin: saveIsNicknameSet success")
 
                 userLocalDataSource.saveOnboardingData(
-                    loginData.data.onboardingData?.id?.toLong(),
+                    loginData.data.onboardingData?.hobbyCardId?.toLong(),
                     loginData.data.onboardingData?.hobbyName,
                     loginData.data.onboardingData?.hobbyTimeMinutes,
                     loginData.data.onboardingData?.hobbyPurpose,
@@ -66,6 +70,10 @@ internal class AuthRepositoryImpl @Inject constructor(
                 )
                 Log.e("AuthRepository", "kakaoLogin: saveOnboardingData success")
                 Timber.d("kakaoLogin: saveOnboardingData success")
+
+                loginData.data.onboardingData?.id?.let { entityId ->
+                    userLocalDataSource.saveCreatedHobbyId(entityId.toLong())
+                }
 
                 Log.e("AuthRepository", "kakaoLogin: done")
                 Timber.d("kakaoLogin: done")
@@ -81,24 +89,47 @@ internal class AuthRepositoryImpl @Inject constructor(
         TODO("Not yet implemented")
     }
 
-    override suspend fun guestLogin(): Result<Boolean> =
+    override suspend fun guestLogin(): Result<GuestLoginDataDomain> =
         runCatching {
             val userId = userLocalDataSource.guestIdFlow.first()
+            Timber.d("guestLogin: guestUserId=$userId")
             val loginResponse = authDataSource.guestLogin(GuestLoginRequest(userId))
-            Timber.d("@@@@@@@loginResponse: ${loginResponse.data.accessToken}  and  ${loginResponse.data.refreshToken}  and  ${loginResponse.data.userId}  and  ${loginResponse.data.socialType}  and  ${loginResponse.data.isNewUser}")
-            // 로컬에 토큰, userId 저장
+            Timber.d("guestLogin: accessToken=${loginResponse.data.accessToken}, onboardingCompleted=${loginResponse.data.onboardingCompleted}, nicknameSet=${loginResponse.data.nicknameSet}")
+
+            // 토큰 + guestUserId 저장
             userLocalDataSource.saveGuestTokenAndId(
                 loginResponse.data.accessToken,
                 loginResponse.data.refreshToken,
                 loginResponse.data.userId,
                 loginResponse.data.socialType
             )
-            // 신규 사용자 여부 반환 -> 온보딩 스킵 위함
-            loginResponse.data.isNewUser
+            // 온보딩/닉네임 상태 저장 (카카오 로그인과 동일)
+            userLocalDataSource.saveIsOnboardingCompleted(loginResponse.data.onboardingCompleted)
+            userLocalDataSource.saveIsNicknameSet(loginResponse.data.nicknameSet)
+            userLocalDataSource.saveNickname(loginResponse.data.nickname)
+            userLocalDataSource.saveOnboardingData(
+                loginResponse.data.onboardingData?.id,
+                loginResponse.data.onboardingData?.hobbyName,
+                loginResponse.data.onboardingData?.hobbyTimeMinutes,
+                loginResponse.data.onboardingData?.hobbyPurpose,
+                loginResponse.data.onboardingData?.executionCount,
+                loginResponse.data.onboardingData?.durationSet ?: false
+            )
+            loginResponse.data.onboardingData?.id?.let { entityId ->
+                userLocalDataSource.saveCreatedHobbyId(entityId)
+            }
+            Timber.d("guestLogin: all data saved")
+            loginResponse.data.toData().toDomain()
         }
 
     override fun getAccessToken(): Flow<String?> =
         userLocalDataSource.getAccessToken()
+
+    override fun getSocialType(): Flow<String?> =
+        userLocalDataSource.getSocialType()
+
+    override fun getGuestUserId(): Flow<String?> =
+        userLocalDataSource.guestIdFlow
 
     override fun getIsOnboardingCompleted(): Flow<Boolean> =
         userLocalDataSource.getIsOnboardingCompleted()
@@ -113,6 +144,12 @@ internal class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun saveIsNicknameSet(isNicknameSet: Boolean) =
         userLocalDataSource.saveIsNicknameSet(isNicknameSet)
+
+    override fun getHasSeenIntro(): Flow<Boolean> =
+        userLocalDataSource.hasSeenIntroFlow
+
+    override suspend fun saveHasSeenIntro(hasSeen: Boolean) =
+        userLocalDataSource.saveHasSeenIntro(hasSeen)
 
 
     override suspend fun removeAccessToken() {
@@ -142,9 +179,22 @@ internal class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun cancelAccount() = runCatching {
+        val socialType = userLocalDataSource.getSocialType().first()
+        if (socialType == "KAKAO") {
+            runCatching {
+                suspendCancellableCoroutine<Unit> { continuation ->
+                    UserApiClient.instance.unlink { error ->
+                        if (error != null) Timber.e("Kakao unlink failed: $error")
+                        else Timber.d("Kakao unlink success")
+                        continuation.resume(Unit)
+                    }
+                }
+            }.onFailure { Timber.e("Kakao unlink error: $it") }
+        }
         val cancelAccountData = authDataSource.cancelAccount().toDomain()
         userLocalDataSource.removeTokenAndLoginType()
         userLocalDataSource.removeUserInfo()
+        userLocalDataSource.removeGuestId()
         cancelAccountData
     }
 

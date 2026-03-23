@@ -1,5 +1,6 @@
 package com.forday.app.presentation.inputhobbyroutines.screen
 
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -73,9 +74,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.AIRecommendationButton
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
+import com.forday.app.core.designsystem.component.state.ErrorContent
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
+import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendSideEffect
 import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import com.forday.app.presentation.inputhobbyroutines.RoutinesState
 import kotlinx.coroutines.delay
@@ -93,49 +98,55 @@ data class RoutineInput(
 @Composable
 fun InputRoutineScreenRoot(
     hobbyId: Long?,
+    hobbyName: String?,
     aiCallRemaining: Boolean?,
     onAIRecommendationRoutines: (Long?) -> Unit,
     onExit: () -> Unit,
-    onCreateRoutines: () -> Unit,
+    onNavigateToModifyRoutine: () -> Unit,
     viewModel: InputRoutinesAndAiRecommendViewModel
 ) {
 
     var showToast by remember { mutableStateOf(false) }
+    var hasAiRoutine by remember { mutableStateOf(false) }
     var aiRecommendationButtonTopY by remember { mutableStateOf<Float?>(null) }
     var toastHeightPx by remember { mutableStateOf(0) }
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 //    var resetTrigger by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
-        Timber.e("@@@@@@@@@@@@############# " + hobbyId)
-
+        viewModel.initHobbyName(hobbyName)
         viewModel.searchHobbyMatesRoutines(selectedHobbyId = hobbyId)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                is InputRoutinesAndAiRecommendSideEffect.CreateRoutinesSuccess -> {
+                    if (hasAiRoutine) showToast = true
+                    if (hasAiRoutine) delay(1000L)
+                    onNavigateToModifyRoutine()
+                    showToast = false
+                }
+                else -> Unit
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         InputRoutineScreen(
             onAIRecommendationRoutines = {
                 onAIRecommendationRoutines(hobbyId)
-                viewModel.logEvent("hobby_input_view_ai_recommendations_click")
+                viewModel.logEvent(AnalyticsEvents.HOBBY_INPUT_AI_RECOMMENDATIONS)
             },
             onCreateRoutines = { list ->
-                list.forEach { viewModel.logEvent("final_hobby_activity $it") }
-                viewModel.logEvent("create_hobby_click")
-                Timber.e("@#@#@#@#@#@" + hobbyId)
+                hasAiRoutine = list.any { it.first }
+                list.forEach { viewModel.logEvent(AnalyticsEvents.finalHobbyActivity(it.toString())) }
+                viewModel.logEvent(AnalyticsEvents.CREATE_HOBBY_CLICK)
                 viewModel.createRoutines(
                     hobbyId = hobbyId,
                     routineList = list
                 )
-                scope.launch {
-                    showToast = true
-                    delay(1000L)
-                    onCreateRoutines()
-                    showToast = false
-                    delay(100L)
-//                    resetTrigger++
-                }
             },
             hobbymateRoutines = state.hobbymateRoutines,
             hobbyId = hobbyId,
@@ -612,7 +623,11 @@ fun ActivityInputField(
                     Box(
                         modifier = Modifier
                             .size(20.dp)
-                            .clickable(onClick = rememberThrottledClick { onDelete() }),
+                            .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            onClick = rememberThrottledClick { onDelete() }
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

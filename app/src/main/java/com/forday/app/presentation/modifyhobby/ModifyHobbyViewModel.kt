@@ -1,6 +1,7 @@
 package com.forday.app.presentation.modifyhobby
 
 import androidx.lifecycle.viewModelScope
+import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
@@ -87,5 +88,9 @@ class ModifyHobbyViewModel @Inject constructor(
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)
+    }
+
+    fun logEvent(event: AnalyticsEvent) {
+        analyticsManager.logEvent(event)
     }
 }

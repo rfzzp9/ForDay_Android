@@ -79,10 +79,11 @@ class TokenInterceptor @Inject constructor(
         return mutex.lockAndGet {
             val latest = tokenProvider.getAccessToken()
             Log.d("TokenInterceptor", "2############################### "+latest)
-            Log.d("TokenInterceptor", "2############################### "+tokenProvider.getRefreshToken())
+
             if (!latest.isNullOrBlank() && latest != oldAccess) return@lockAndGet latest
-            Log.d("TokenInterceptor", "3############################### "+tokenProvider.getRefreshToken())
+
             val refreshToken = tokenProvider.getRefreshToken()
+            Log.d("TokenInterceptor", "2############################### "+refreshToken)
             val rt = refreshToken ?: return@lockAndGet null
             try {
                 Log.d("TokenInterceptor", "4############################### "+rt)
@@ -125,7 +126,7 @@ class TokenInterceptor @Inject constructor(
                 Log.d("TokenInterceptor", "Full stack trace:", e)
 
                 runBlocking {
-                    userLocalDataSource.clear()
+                    userLocalDataSource.clearTokensOnly()
                 }
                 authEventBus.tryEmit(AuthEvent.Expired)
 

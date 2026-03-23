@@ -21,11 +21,11 @@ data class UserFeedDataResponse(
 
 @Serializable
 data class FeedDto(
-    @SerialName("recordId") val recordId: Int,
-    @SerialName("thumbnailImageUrl") val thumbnailImageUrl: String,
-    @SerialName("sticker") val sticker: String,
-    @SerialName("memo") val memo: String,
-    @SerialName("createdAt") val createdAt: String
+    @SerialName("recordId") val recordId: Int?,
+    @SerialName("thumbnailImageUrl") val thumbnailImageUrl: String?,
+    @SerialName("sticker") val sticker: String?,
+    @SerialName("memo") val memo: String?,
+    @SerialName("createdAt") val createdAt: String?
 )
 
 /**
@@ -38,9 +38,9 @@ fun UserFeedResponse.toData() = UserFeedEntity(
 )
 
 fun FeedDto.toData() = FeedItemEntity(
-    recordId = this@toData.recordId,
-    imageUrl = thumbnailImageUrl,
-    stickerType = sticker,
-    memo = memo,
-    date = createdAt
+    recordId = recordId ?: 0,
+    imageUrl = thumbnailImageUrl ?: "",
+    stickerType = sticker ?: "",
+    memo = memo ?: "",
+    date = createdAt ?: ""
 )

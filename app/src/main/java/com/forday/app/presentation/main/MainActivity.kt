@@ -6,28 +6,47 @@ import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.splash.SplashViewModel
 import java.security.MessageDigest
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val onboardingViewModel: OnboardingViewModel by viewModels()
+    private val splashViewModel: SplashViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
         installSplashScreen().setKeepOnScreenCondition {
             onboardingViewModel.uiState.value.isSplashLoading ||
-                onboardingViewModel.uiState.value.initialRoute == null
+                onboardingViewModel.uiState.value.initialRoute == null ||
+                splashViewModel.uiState.value.isLoading ||
+                splashViewModel.uiState.value.effectiveRoute == null
         }
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                scrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+            ),
+            navigationBarStyle = SystemBarStyle.light(
+                scrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+            ),
+        )
+        Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
         getReleaseKeyHash()
         setContent {
             Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
-            AppEntryPoint(onboardingViewModel = onboardingViewModel)
+            AppEntryPoint(
+                onboardingViewModel = onboardingViewModel,
+                splashViewModel = splashViewModel
+            )
         }
     }
 

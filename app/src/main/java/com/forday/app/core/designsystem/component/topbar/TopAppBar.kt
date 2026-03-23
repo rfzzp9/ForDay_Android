@@ -2,10 +2,13 @@ package com.forday.app.core.designsystem.component.topbar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -53,7 +56,11 @@ fun MainTopAppBar(
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .clickable(onClick = onTitleClick),
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = onTitleClick
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -83,7 +90,8 @@ fun MainTopAppBar(
                 // 설정 아이콘
                 IconButton(
                     onClick = onSettingsClick,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    interactionSource = remember { NoRippleInteractionSource() }
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_settings),
@@ -99,7 +107,8 @@ fun MainTopAppBar(
                 ) {
                     IconButton(
                         onClick = onNotificationClick,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        interactionSource = remember { NoRippleInteractionSource() }
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_notification),
@@ -160,7 +169,8 @@ fun SubTopAppBar(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 20.dp)
-                    .size(24.dp)
+                    .size(24.dp),
+                interactionSource = remember { NoRippleInteractionSource() }
             ) {
                 Icon(
                     painter = painterResource(id = if (mode == ScreenMode.ONBOARDING) R.drawable.ic_arrow_back else R.drawable.ic_close),

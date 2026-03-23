@@ -20,6 +20,7 @@ import com.forday.app.data.model.UpdateHobbyStatusEntity
 import com.forday.app.data.model.UpdateHobbyTimeEntity
 import com.forday.app.data.model.UpdateRoutineEntity
 import com.forday.app.data.model.UserHobbyTabEntity
+import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.WriteRoutineEntity
 import com.forday.app.data.remote.HobbyDataSource
 import com.forday.app.remote.api.service.HobbyApi
@@ -154,8 +155,8 @@ class HobbyDataSourceImpl @Inject constructor(
     override suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodEntity =
         hobbyApi.extendHobbyPeriod(hobbyId, ExtendHobbyRequest(type)).toData()
 
-    override suspend fun getUsersProgressHobbyTabs(): UserHobbyTabEntity =
-        hobbyApi.getUsersProgressHobbyTabs().toData()
+    override suspend fun getUsersProgressHobbyTabs(userId: String?): UserHobbyTabEntity =
+        hobbyApi.getUsersProgressHobbyTabs(userId).toData()
 
     override suspend fun setHobbyMainImage(
         hobbyId: Long?,
@@ -166,6 +167,9 @@ class HobbyDataSourceImpl @Inject constructor(
 
     override suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity =
         hobbyApi.getHobbyCardDataAgain().toData()
+
+    override suspend fun getAiRecommendedRoutinesAgain(hobbyId: Long?, type: String?): PreviousAiRecommendEntity =
+        hobbyApi.getAiRecommendedRoutinesAgain(hobbyId, type).toData()
 
     override suspend fun reCreateHobby(
         hobbyId: Long?,

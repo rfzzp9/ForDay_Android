@@ -21,6 +21,7 @@ import com.forday.app.data.model.UpdateHobbyTimeEntity
 import com.forday.app.data.model.UpdateRoutineEntity
 import com.forday.app.data.model.UserHobbyTabEntity
 import com.forday.app.data.model.WriteRoutineEntity
+import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.RecreateHobbyEntity
 import com.forday.app.remote.model.response.UpdateHobbyDurationResponse
 
@@ -60,9 +61,11 @@ interface HobbyDataSource {
     suspend fun deleteHobbyRoutine(routineId: Long): DeleteRoutineEntity
     suspend fun getStickers(hobbyId: Long?, page: Int?, size: Int?): HobbyStickerHistoryEntity
     suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodEntity
-    suspend fun getUsersProgressHobbyTabs(): UserHobbyTabEntity
+    suspend fun getUsersProgressHobbyTabs(userId: String?): UserHobbyTabEntity
     suspend fun setHobbyMainImage(hobbyId: Long?, coverImageUrl: String?, recordId: Long?): HobbyMainImageEntity
     suspend fun getHobbyCardDataAgain(): HobbyCardAgainEntity
+
+    suspend fun getAiRecommendedRoutinesAgain(hobbyId: Long?, type: String?): PreviousAiRecommendEntity
 
     suspend fun reCreateHobby(
         hobbyId: Long?,

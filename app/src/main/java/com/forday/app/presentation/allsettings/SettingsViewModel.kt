@@ -25,7 +25,7 @@ class SettingsViewModel @Inject constructor(
         repository.logout()
             .onSuccess { data ->
                 if (data.isSuccess) {
-                    _uiState.value = SettingsUiState(isLoggedOut = true)
+                    _sideEffectChannel.send(SettingsSideEffect.LoggedOut)
                 } else {
                     snackbarManager.show(data.message)
                 }
@@ -39,7 +39,7 @@ class SettingsViewModel @Inject constructor(
     fun cancelAccount() = viewModelScope.launch {
         repository.cancelAccount()
             .onSuccess {
-                _uiState.value = SettingsUiState(isAccountCancelled = true)
+                _sideEffectChannel.send(SettingsSideEffect.AccountCancelled)
             }
             .onFailure { throwable ->
                 throwable.printStackTrace()

@@ -4,4 +4,4 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class RoutineDetail(val routineId: Long, val isNewRecord: Boolean = false) : NavKey
+data class RoutineDetail(val routineId: Long, val isNewRecord: Boolean = false, val isUserPageEntry: Boolean = false) : NavKey

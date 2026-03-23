@@ -30,7 +30,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -87,7 +89,8 @@ fun OnboardingBottomSheet(
                     modifier = Modifier
                         .size(24.dp)
                         .align(Alignment.CenterEnd)
-                        .padding(end = 20.dp)
+                        .padding(end = 20.dp),
+                    interactionSource = remember { NoRippleInteractionSource() }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -144,7 +147,7 @@ fun WelcomeSection() {
 
         // Welcome Title
         Text(
-            text = "포데이에\n오신 것을 환영합니다!",
+            text = "취미 시작이 어려울 때.\n포데이",
             fontSize = 24.sp,
             fontWeight = FontWeight.SemiBold,
             color = OnboardingColors.Neutral900,
@@ -154,7 +157,7 @@ fun WelcomeSection() {
 
         // Subtitle
         Text(
-            text = "당신만의 취미 루틴, AI가 추천해드립니다",
+            text = "AI 추천으로 쉽게 시작하는 취미생활",
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = OnboardingColors.SecondaryRed,
@@ -248,6 +251,7 @@ fun KakaoLoginButton(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
+        interactionSource = remember { NoRippleInteractionSource() },
         colors = ButtonDefaults.buttonColors(
             containerColor = OnboardingColors.KakaoYellow
         ),

@@ -1,7 +1,7 @@
-package com.forday.app.presentation.story.navigation
+package com.forday.app.presentation.onboarding.swipeintro.navigation
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object Story : NavKey
+data object SwipeIntro : NavKey

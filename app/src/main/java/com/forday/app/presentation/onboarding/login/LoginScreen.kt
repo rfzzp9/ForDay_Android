@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -51,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import timber.log.Timber
 
@@ -58,11 +60,12 @@ import timber.log.Timber
 fun LoginScreenRoot(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
+    onNavigateToNickname: () -> Unit,
     viewModel: OnboardingViewModel
 ) {
-    viewModel.logEvent("login_screen")
+    viewModel.logEvent(AnalyticsEvents.LOGIN_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current.applicationContext
+    val context = LocalContext.current
     var showInstallDialog by remember { mutableStateOf(false) }
 
     // 로그인 시도 플래그
@@ -89,6 +92,12 @@ fun LoginScreenRoot(
                 loginAttempted = false
             }
 
+            state.isOnboardingCompleted == true && state.isNicknameSet == false -> {
+                Timber.e("@@@@@@@ Navigate to InputNickname")
+                onNavigateToNickname()
+                loginAttempted = false
+            }
+
             state.isOnboardingCompleted == true && state.isNicknameSet == true -> {
                 Timber.e("@@@@@@@ Navigate to Home")
                 onNavigateToHome()
@@ -106,13 +115,13 @@ fun LoginScreenRoot(
     Box(modifier = Modifier.fillMaxSize()) {
         LoginScreen(
             onKakaoLogin = {
-                viewModel.logEvent("kakao_login_click")
+                viewModel.logEvent(AnalyticsEvents.KAKAO_LOGIN_CLICK)
                 loginAttempted = true  // 플래그 설정
                 viewModel.loginWithKakao(context)
             },
             onGuestMode = {
                 Timber.e("@@@@@@@@@@@@@@@@@@@@@@@guest_mode_click")
-                viewModel.logEvent("guest_mode_click")
+                viewModel.logEvent(AnalyticsEvents.GUEST_MODE_CLICK)
                 loginAttempted = true  // ✅ 플래그 설정
                 viewModel.loginWithGuest()
             }
@@ -147,7 +156,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "포데이에\n오신 것을 환영합니다!",
+                text = "취미 시작이 어려울 때.\n포데이",
                 color = ForDayTheme.color.Neutral900,
                 textAlign = TextAlign.Center,
                 style = ForDayTheme.typography.title24
@@ -156,7 +165,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "당신만의 취미 루틴, AI가 추천해드립니다",
+                text = "AI 추천으로 쉽게 시작하는 취미생활",
                 color = ForDayTheme.color.Secondary003,
                 textAlign = TextAlign.Center,
                 style = ForDayTheme.typography.body16

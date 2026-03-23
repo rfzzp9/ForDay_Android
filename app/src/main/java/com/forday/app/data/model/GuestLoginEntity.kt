@@ -27,7 +27,8 @@ data class GuestLoginDataEntity(
     val userId: String,
     val onboardingCompleted: Boolean,
     val nicknameSet: Boolean,
-    val onboardingData: GuestOnboardingDataEntity?
+    val onboardingData: GuestOnboardingDataEntity?,
+    val nickname: String?
 ) : DataMapper<GuestLoginDataDomain> {
     override fun toDomain(): GuestLoginDataDomain {
         return GuestLoginDataDomain(
@@ -38,7 +39,8 @@ data class GuestLoginDataEntity(
             userId = userId,
             onboardingCompleted = onboardingCompleted,
             nicknameSet = nicknameSet,
-            onboardingData = onboardingData?.toDomain()
+            onboardingData = onboardingData?.toDomain(),
+            nickname = nickname
         )
     }
 }

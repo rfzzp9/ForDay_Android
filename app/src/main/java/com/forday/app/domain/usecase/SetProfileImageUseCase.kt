@@ -6,6 +6,6 @@ import javax.inject.Inject
 class SetProfileImageUseCase @Inject constructor(
     private val userRepository: UserRepository
 ) {
-    suspend operator fun invoke(imageUrl: String) =
+    suspend operator fun invoke(imageUrl: String?) =
         userRepository.setProfileImage(imageUrl)
 }

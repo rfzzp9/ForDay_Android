@@ -2,6 +2,7 @@ package com.forday.app.presentation.record
 
 import androidx.lifecycle.viewModelScope
 import com.forday.app.core.designsystem.component.state.ErrorDataUiState
+import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
@@ -239,6 +240,10 @@ class RecordRoutineViewModel @Inject constructor(
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)
+    }
+
+    fun logEvent(event: AnalyticsEvent) {
+        analyticsManager.logEvent(event)
     }
 
 }

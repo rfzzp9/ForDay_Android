@@ -11,7 +11,7 @@ import timber.log.Timber
 inline fun <T> Flow<T>.httpCatch(
     tag: String,
     noinline onThrowable: ((Throwable) -> Unit)? = null,
-    crossinline body: (ErrorDataUiState) -> Unit,
+    crossinline body: suspend (ErrorDataUiState) -> Unit,
 ): Flow<T> {
     return this.catch { throwable ->
         val message = when (throwable) {

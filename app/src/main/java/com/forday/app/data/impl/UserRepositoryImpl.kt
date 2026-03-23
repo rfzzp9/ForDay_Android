@@ -2,6 +2,8 @@ package com.forday.app.data.impl
 
 import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.data.remote.UserDataSource
+import com.forday.app.domain.model.BlockUserDomain
+import com.forday.app.domain.model.ReportUserDomain
 import com.forday.app.domain.model.IsNicknameDuplicateDomain
 import com.forday.app.domain.model.OnboardingDataDomain
 import com.forday.app.domain.model.ProfileDomain
@@ -39,10 +41,10 @@ internal class UserRepositoryImpl @Inject constructor(
     override suspend fun getOnboardingData(): Flow<OnboardingDataDomain> =
         userLocalDataSource.getOnboardingData().map { it.toDomain() }
 
-    override suspend fun getUserInfo(): ProfileDomain =
-        userDataSource.getUserInfo().toDomain()
+    override suspend fun getUserInfo(userId: String?): ProfileDomain =
+        userDataSource.getUserInfo(userId).toDomain()
 
-    override suspend fun setProfileImage(imageUrl: String): ProfileImageDomain =
+    override suspend fun setProfileImage(imageUrl: String?): ProfileImageDomain =
         userDataSource.setProfileImage(imageUrl).toDomain()
 
     override suspend fun getUserNickname(): Flow<String?> =
@@ -59,5 +61,11 @@ internal class UserRepositoryImpl @Inject constructor(
     override suspend fun removeOnboardingData() {
         userLocalDataSource.removeOnboardingData()
     }
+
+    override suspend fun blockUser(userId: String): BlockUserDomain =
+        userDataSource.blockUser(userId).toDomain()
+
+    override suspend fun reportUser(userId: String, reason: String): ReportUserDomain =
+        userDataSource.reportUser(userId, reason).toDomain()
 
 }

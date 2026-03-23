@@ -1,6 +1,8 @@
-package com.forday.app.presentation.mypage.routinedetail
+package com.forday.app.presentation.mypage.routinedetail.screen
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -54,11 +56,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -90,9 +95,21 @@ import com.forday.app.domain.model.ReactionDetailDomain
 import com.forday.app.domain.model.ReactionUserInfo
 import com.forday.app.presentation.mypage.MyPageUiState
 import com.forday.app.presentation.mypage.MyPageViewModel
+import com.forday.app.presentation.mypage.routinedetail.RoutineReactionUiModel
+import com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel
+import com.forday.app.presentation.mypage.routinedetail.RoutineUserReactionUiModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.PI
+import kotlin.math.tan
 
 // 색상 정의
 object ActivityDetailColors {
@@ -113,6 +130,8 @@ data class ReactionDetailUiModel(
     val isSuccess: Boolean = false,
     val reactionType: String = "",
     val users: List<ReactionUserUiModel> = emptyList(),
+    val hasNext: Boolean = false,
+    val lastUserId: String = "",
     val message: String = "",
     val errorClassName: String = ""
 )
@@ -121,7 +140,8 @@ data class ReactionUserUiModel(
     val userId: String = "",
     val nickname: String = "",
     val profileImageUrl: String? = "",
-    val reactedAt: String = ""
+    val reactedAt: String = "",
+    val newReactionUser: Boolean = false
 )
 
 fun ReactionDetailDomain.toUiModel() =
@@ -129,6 +149,8 @@ fun ReactionDetailDomain.toUiModel() =
         isSuccess = isSuccess,
         reactionType = reactionType,
         users = users.map { it.toUiModel() },
+        hasNext = hasNext,
+        lastUserId = lastUserId,
         message = message,
         errorClassName = errorClassName
     )
@@ -138,7 +160,8 @@ fun ReactionUserInfo.toUiModel(): ReactionUserUiModel =
         userId = userId,
         nickname = nickname,
         profileImageUrl = profileImageUrl,
-        reactedAt = reactedAt
+        reactedAt = reactedAt,
+        newReactionUser = newReactionUser
     )
 
 // 반응 타입
@@ -157,11 +180,16 @@ fun RoutineDetailScreen(
     onNavigateToMyPage: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},  //
     onMoreMenuClick: () -> Unit = {},
+    onSaveCardClick: () -> Unit = {},
+    onReportClick: () -> Unit = {},
+    onNavigateToUserPage: (userId: String, recordOwner: Boolean) -> Unit = { _, _ -> },
     isNewRecord: Boolean = false,
+    isUserPageEntry: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel,
     onNavigateToRecordRoutine: (RoutineRecordDetailUiModel?, Boolean) -> Unit,
 ) {
+    Timber.e("@@@@@@@@@@@@@@@@@isUserPageEntry : "+isUserPageEntry)
     BackHandler(enabled = isNewRecord) {
         onNavigateToHome()
     }
@@ -174,16 +202,14 @@ fun RoutineDetailScreen(
     val routine = state.value.myRoutineDetails
     val isBookmarked = state.value.isScraped ?: routine?.isScraped ?: false
 
-
     // Optimistic Update용 임시 상태
     var selectedReactions by remember { mutableStateOf<Set<ReactionType>>(emptySet()) }
     var canceledReactions by remember { mutableStateOf<Set<ReactionType>>(emptySet()) }
     var pendingReaction by remember { mutableStateOf<ReactionType?>(null) }
     var showReactionUsers by remember { mutableStateOf(false) }
     var displayedReaction by remember { mutableStateOf<ReactionType?>(null) }
-    var reactionListJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var moreIconBottomPx by remember { mutableFloatStateOf(0f) }
     var containerTopPx by remember { mutableFloatStateOf(0f) }
     var showToast by remember { mutableStateOf(false) }
@@ -191,13 +217,11 @@ fun RoutineDetailScreen(
     var showPrivacyBottomSheet by remember { mutableStateOf(false) }
     var selectedPrivacy by remember { mutableStateOf(routine?.isPublic) }
 
-    //
     var showSuccessAnimation by remember { mutableStateOf(isNewRecord) }
 
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
 
-    //
     LaunchedEffect(showSuccessAnimation) {
         if (showSuccessAnimation) {
             delay(3000)
@@ -207,6 +231,7 @@ fun RoutineDetailScreen(
 
     Timber.e("@@@@@@@@@@@@content " + state.value.myRoutineDetails?.content)
 
+    val shimmerBrush = rememberShimmerBrush()
     val density = LocalDensity.current
     Box(
         modifier = modifier
@@ -219,12 +244,14 @@ fun RoutineDetailScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header
             RoutineDetailHeader(
                 title = "내 활동 보기",
+                showTitle = !isUserPageEntry,
                 onBackClick = onBackClick,
+                onDownloadClick = onSaveCardClick,
                 onMoreMenuClick = { showMoreMenu = !showMoreMenu },
                 isNewRecord = isNewRecord,
+                showDownloadButton = !routine?.imageUrl.isNullOrEmpty() && routine?.isMine == true,
                 onMoreIconPositioned = { bottomPx -> moreIconBottomPx = bottomPx }
             )
 
@@ -237,12 +264,23 @@ fun RoutineDetailScreen(
                     .padding(horizontal = 20.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ActivityContent(routine = routine)
+                if (routine == null) {
+                    RoutineDetailSkeletonContent(shimmerBrush = shimmerBrush)
+                } else {
+                    ActivityContent(
+                        routine = routine,
+                        isMine = routine.isMine ?: true,
+                        writerNickname = routine.writerNickname ?: "",
+                        writerProfileImageUrl = routine.writerProfileImageUrl ?: "",
+                        onWriterClick = { onNavigateToUserPage(routine.writerId ?: "", routine.isMine ?: false) },
+                        isUserPageEntry = isUserPageEntry,
+                        hobbyName = state.value.myRoutineDetails?.hobbyName ?: ""
+                    )
+                }
             }
 
             //
             if (isNewRecord) {
-                //
                 BottomNextButton(
                     text = "홈으로 가기",
                     state = BottomButtonState.ENABLED,
@@ -251,7 +289,7 @@ fun RoutineDetailScreen(
             } else {
                 //
                 AnimatedVisibility(
-                    visible = showReactionUsers,
+                    visible = showReactionUsers && state.value.reactionUsers.users.isNotEmpty(),
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                     exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                 ) {
@@ -270,20 +308,17 @@ fun RoutineDetailScreen(
                     isBookmarked = isBookmarked,
                     onBookmarkClick = {
                         if (isBookmarked) {
-                            // 북마크 취소
                             viewModel.cancelScrapPosting(routineId.toInt())
                         } else {
-                            // 북마크 추가
                             viewModel.scrapPosting(routineId.toInt())
                         }
                     },
-                    onReactionClick = { reaction ->
+                    onReactionTap = { reaction ->
                         if (showReactionUsers) {
                             if (pendingReaction == reaction) {
                                 pendingReaction = null
                                 showReactionUsers = false
                             } else {
-                                // 다른 버튼 탭 → 목록 전환 + API 호출
                                 pendingReaction = reaction
                                 displayedReaction = reaction
                                 val reactionString = when (reaction) {
@@ -295,56 +330,44 @@ fun RoutineDetailScreen(
                                 viewModel.getReactionUsers(routineId.toInt(), reactionString, "", 10)
                             }
                         } else {
-                            if (reactionListJob != null && pendingReaction == reaction) {
-                                reactionListJob?.cancel()
-                                reactionListJob = null
-                                pendingReaction = null
-
-                                val isPressed = when (reaction) {
-                                    ReactionType.AWESOME -> routine?.myReactions?.pressedAwesome
-                                    ReactionType.GREAT -> routine?.myReactions?.pressedGreat
-                                    ReactionType.AMAZING -> routine?.myReactions?.pressedAmazing
-                                    ReactionType.FIGHTING -> routine?.myReactions?.pressedFighting
-                                }
-                                val isCurrentlySelected = (isPressed == true && !canceledReactions.contains(reaction))
-                                    || selectedReactions.contains(reaction)
-                                val reactionString = when (reaction) {
-                                    ReactionType.AWESOME -> "AWESOME"
-                                    ReactionType.GREAT -> "GREAT"
-                                    ReactionType.AMAZING -> "AMAZING"
-                                    ReactionType.FIGHTING -> "FIGHTING"
-                                }
-                                if (isCurrentlySelected) {
-                                    if (isPressed == true) {
-                                        viewModel.cancelMyReaction(routineId.toInt(), reactionString)
-                                        canceledReactions = canceledReactions + reaction
-                                    }
-                                    selectedReactions = selectedReactions - reaction
-                                } else {
-                                    viewModel.reactionToRoutinePosting(routineId.toInt(), reactionString)
-                                    selectedReactions = selectedReactions + reaction
-                                    canceledReactions = canceledReactions - reaction
-                                }
-                            } else {
-                                // 첫 탭 → 타이머 시작 + API 호출
-                                reactionListJob?.cancel()
-                                pendingReaction = reaction
-
-                                val reactionString = when (reaction) {
-                                    ReactionType.AWESOME -> "AWESOME"
-                                    ReactionType.GREAT -> "GREAT"
-                                    ReactionType.AMAZING -> "AMAZING"
-                                    ReactionType.FIGHTING -> "FIGHTING"
-                                }
-                                viewModel.getReactionUsers(routineId.toInt(), reactionString, "", 10)
-
-                                reactionListJob = scope.launch {
-                                    delay(300L)
-                                    displayedReaction = reaction
-                                    showReactionUsers = true
-                                    reactionListJob = null
-                                }
+                            pendingReaction = reaction
+                            displayedReaction = reaction
+                            val reactionString = when (reaction) {
+                                ReactionType.AWESOME -> "AWESOME"
+                                ReactionType.GREAT -> "GREAT"
+                                ReactionType.AMAZING -> "AMAZING"
+                                ReactionType.FIGHTING -> "FIGHTING"
                             }
+                            viewModel.getReactionUsers(routineId.toInt(), reactionString, "", 10)
+                            showReactionUsers = true
+                        }
+                    },
+                    onReactionDoubleTap = { reaction ->
+                        val isPressed = when (reaction) {
+                            ReactionType.AWESOME -> routine?.myReactions?.pressedAwesome
+                            ReactionType.GREAT -> routine?.myReactions?.pressedGreat
+                            ReactionType.AMAZING -> routine?.myReactions?.pressedAmazing
+                            ReactionType.FIGHTING -> routine?.myReactions?.pressedFighting
+                        }
+                        val isCurrentlySelected = (isPressed == true && !canceledReactions.contains(reaction))
+                                || selectedReactions.contains(reaction)
+                        val reactionString = when (reaction) {
+                            ReactionType.AWESOME -> "AWESOME"
+                            ReactionType.GREAT -> "GREAT"
+                            ReactionType.AMAZING -> "AMAZING"
+                            ReactionType.FIGHTING -> "FIGHTING"
+                        }
+                        val shouldRefreshUsers = showReactionUsers && displayedReaction == reaction
+                        if (isCurrentlySelected) {
+                            if (isPressed == true) {
+                                viewModel.cancelMyReaction(routineId.toInt(), reactionString, shouldRefreshUsers)
+                                canceledReactions = canceledReactions + reaction
+                            }
+                            selectedReactions = selectedReactions - reaction
+                        } else {
+                            viewModel.reactionToRoutinePosting(routineId.toInt(), reactionString, shouldRefreshUsers)
+                            selectedReactions = selectedReactions + reaction
+                            canceledReactions = canceledReactions - reaction
                         }
                     }
                 )
@@ -353,6 +376,15 @@ fun RoutineDetailScreen(
 
         // More Menu Dropdown
         if (showMoreMenu) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showMoreMenu = false }
+                    )
+            )
             MoreMenuDropdown(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -361,6 +393,7 @@ fun RoutineDetailScreen(
                         end = 20.dp
                     )
                     .zIndex(10f),
+                isMine = routine?.isMine ?: true,
                 onModifyPosting = {
                     showMoreMenu = false
                     onNavigateToRecordRoutine(state.value.myRoutineDetails, true)
@@ -374,19 +407,20 @@ fun RoutineDetailScreen(
                         delay(3000)
                         showToast = false
                     }
-                    onNavigateToMyPage()
+//                    onNavigateToMyPage()
                 },
                 onDeletePosting = {
                     showMoreMenu = false
-                    routine?.recordId?.let { recordId ->
-                        viewModel.deletePosting(recordId.toLong())
-                    }
-                    onBackClick()
+                    showDeleteConfirmDialog = true
+                },
+                onReportClick = {
+                    showMoreMenu = false
+                    onReportClick()
                 },
                 state = state.value,
             )
         }
-
+        state.value.reactionUsers.users
         // Toast Message
         AnimatedVisibility(
             visible = showToast,
@@ -408,6 +442,20 @@ fun RoutineDetailScreen(
         ) {
             RecordSuccessAnimation(state.value.userInfo?.nickName ?: "포비")
         }
+    }
+
+    // 삭제 확인 다이얼로그
+    if (showDeleteConfirmDialog) {
+        DeleteConfirmDialog(
+            onDismiss = { showDeleteConfirmDialog = false },
+            onConfirm = {
+                showDeleteConfirmDialog = false
+                routine?.recordId?.let { recordId ->
+                    viewModel.deletePosting(recordId.toLong())
+                }
+                onBackClick()
+            }
+        )
     }
 
     // Privacy Setting Bottom Sheet
@@ -446,27 +494,38 @@ fun ReactionUserItem(user: ReactionUserUiModel) {
         modifier = Modifier.width(48.dp)
     ) {
         // 프로필 이미지
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(ActivityDetailColors.Stroke001),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!user.profileImageUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = user.profileImageUrl,
-                    contentDescription = user.nickname,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.Center
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_profile_empty),
+        Box(modifier = Modifier.size(40.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(ActivityDetailColors.Stroke001),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!user.profileImageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = user.profileImageUrl,
+                        contentDescription = user.nickname,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.Center
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_profile_empty),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        tint = Color.Unspecified
+                    )
+                }
+            }
+            if (user.newReactionUser) {
+                Image(
+                    painter = painterResource(R.drawable.icon_new),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    tint = Color.Unspecified
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-4).dp, y = 3.dp)
                 )
             }
         }
@@ -510,26 +569,37 @@ fun ReactionUsersList(
 @Composable
 fun RoutineDetailHeader(
     title: String,
+    showTitle: Boolean = true,
     onBackClick: () -> Unit,
+    onDownloadClick: () -> Unit = {},
     onMoreMenuClick: () -> Unit,
     isNewRecord: Boolean = false,
+    showDownloadButton: Boolean = true,
     onMoreIconPositioned: (Float) -> Unit = {}
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(44.dp)
             .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        contentAlignment = Alignment.Center
     ) {
+        if (showTitle) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = ActivityDetailColors.Neutral800
+            )
+        }
+
         // ✅ isNewRecord가 true면 뒤로가기 버튼 숨김
-        if (isNewRecord) {
-            Spacer(modifier = Modifier.size(24.dp))
-        } else {
+        if (!isNewRecord) {
             IconButton(
                 onClick = rememberThrottledClick(onClick = onBackClick),
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .align(Alignment.CenterStart)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.icon_chevron_left),
@@ -539,37 +609,56 @@ fun RoutineDetailHeader(
             }
         }
 
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = ActivityDetailColors.Neutral800
-        )
-
-        // ✅ isNewRecord가 true면 더보기 버튼도 숨김
-        if (isNewRecord) {
-            Spacer(modifier = Modifier.size(24.dp))
-        } else {
-            IconButton(
-                onClick = rememberThrottledClick(onClick = onMoreMenuClick),
-                modifier = Modifier
-                    .size(24.dp)
-                    .onGloballyPositioned { coords ->
-                        onMoreIconPositioned(coords.positionInRoot().y + coords.size.height)
-                    }
+        // isNewRecord가 true면 더보기 버튼도 숨김
+        if (!isNewRecord) {
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_more),
-                    contentDescription = "더보기",
-                    tint = ActivityDetailColors.Neutral800
-                )
+                if (showDownloadButton) {
+                    IconButton(
+                        onClick = rememberThrottledClick(onClick = onDownloadClick),
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_download),
+                            contentDescription = "갤러리 저장",
+                            tint = ActivityDetailColors.Neutral800
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = rememberThrottledClick(onClick = onMoreMenuClick),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .onGloballyPositioned { coords ->
+                            onMoreIconPositioned(coords.positionInRoot().y + coords.size.height)
+                        }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_more),
+                        contentDescription = "더보기",
+                        tint = ActivityDetailColors.Neutral800
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
+fun ActivityContent(
+    routine: RoutineRecordDetailUiModel?,
+    isMine: Boolean = true,
+    writerNickname: String = "",
+    writerProfileImageUrl: String = "",
+    onWriterClick: () -> Unit = {},
+    isUserPageEntry: Boolean,
+    hobbyName: String = "",
+) {
+    Timber.e("@@@@@@@@@@@@@@isUserPageEntry@@@@@@ "+isUserPageEntry)
     val hasNoImageAndMemo = routine?.imageUrl.isNullOrEmpty() && routine?.memo.isNullOrEmpty()
 
     // stickerUrl을 drawable 리소스로 변환
@@ -585,7 +674,7 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
 
     val painter = rememberAsyncImagePainter(model = routine?.imageUrl)
     val imageState by painter.state.collectAsState()  // ✅ collectAsState로 상태 관찰 → recomposition 트리거
-
+    val shimmerBrush = rememberShimmerBrush()
     val imageAspectRatio = if (imageState is AsyncImagePainter.State.Success) {
         val image = (imageState as AsyncImagePainter.State.Success).result.image
         val width = image.width.toFloat()
@@ -608,15 +697,81 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                routine?.content?.let {
-                    Text(
-                        text = it,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ActivityDetailColors.Neutral900,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (isUserPageEntry) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable(
+                                onClick = rememberThrottledClick { onWriterClick() },
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            )
+                        ) {
+                            ProfileImageWithSkeleton(imageUrl = writerProfileImageUrl)
+                            Text(
+                                text = writerNickname,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF9E9E9E)
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (hobbyName.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFFFF1E6), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = hobbyName,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Color(0xFFFF9447),
+                                        lineHeight = (12 * 1.4).sp
+                                    )
+                                }
+                            }
+                            routine?.content?.let {
+                                Text(
+                                    text = it,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ActivityDetailColors.Neutral900,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (hobbyName.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFFFF1E6), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = hobbyName,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFFFF9447),
+                                    lineHeight = (12 * 1.4).sp
+                                )
+                            }
+                        }
+                        routine?.content?.let {
+                            Text(
+                                text = it,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ActivityDetailColors.Neutral900,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
 
                 routine?.date?.let {
@@ -661,17 +816,78 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Text(
-                    text = routine.content,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ActivityDetailColors.Neutral900,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-
-//                Spacer(modifier = Modifier.height(24.dp))
+                if (isUserPageEntry) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable(
+                                onClick = rememberThrottledClick { onWriterClick() },
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            )
+                        ) {
+                            ProfileImageWithSkeleton(imageUrl = writerProfileImageUrl)
+                            Text(
+                                text = writerNickname,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF9E9E9E)
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (hobbyName.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFFFF1E6), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = hobbyName,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Color(0xFFFF9447),
+                                        lineHeight = (12 * 1.4).sp
+                                    )
+                                }
+                            }
+                            Text(
+                                text = routine.content,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ActivityDetailColors.Neutral900,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (hobbyName.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFFFF1E6), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = hobbyName,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFFFF9447),
+                                    lineHeight = (12 * 1.4).sp
+                                )
+                            }
+                        }
+                        Text(
+                            text = routine.content,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ActivityDetailColors.Neutral900,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
 
                 if (routine.imageUrl.isNullOrEmpty()) {
                     Text(
@@ -711,21 +927,40 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                                 contentScale = ContentScale.Fit
                             )
 
-                            stickerDrawableRes?.let { drawableRes ->
+                            if (imageState is AsyncImagePainter.State.Loading || imageState is AsyncImagePainter.State.Empty) {
+                                SkeletonBox(
+                                    modifier = Modifier.fillMaxSize(),
+                                    brush = shimmerBrush,
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                            }
+
+                            if (imageState is AsyncImagePainter.State.Error) {
                                 Box(
                                     modifier = Modifier
-                                        .size(80.dp)
-                                        .align(Alignment.BottomEnd)
-                                        .padding(end = 21.dp, bottom = 21.dp)
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = drawableRes),
-                                        contentDescription = "스티커",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Fit
-                                    )
+                                        .fillMaxSize()
+                                        .background(Color(0xFFF2F2F2), RoundedCornerShape(16.dp))
+                                )
+                            }
+
+                            if (imageState is AsyncImagePainter.State.Success) {
+                                stickerDrawableRes?.let { drawableRes ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .align(Alignment.BottomEnd)
+                                            .padding(end = 21.dp, bottom = 21.dp)
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = drawableRes),
+                                            contentDescription = "스티커",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
                                 }
                             }
+
                         }
 
                         // Timestamp
@@ -737,7 +972,7 @@ fun ActivityContent(routine: RoutineRecordDetailUiModel?) {
                         )
                     }
                 }
-                Timber.e("@@@@@@@@@@@@@@############# @#@#@#@ " + routine.memo)
+//                Timber.e("@@@@@@@@@@@@@@############# @#@#@#@ " + routine.memo)
                 // Memo Content
                 if (!routine.memo.isNullOrEmpty()) {
                     Surface(
@@ -836,14 +1071,24 @@ fun BottomReactionBar(
     canceledReactions: Set<ReactionType>,
     myReactions: RoutineUserReactionUiModel?,
     reactions: RoutineReactionUiModel?,
-    onReactionClick: (ReactionType) -> Unit,
-    isBookmarked: Boolean,  // ✅ 추가
-    onBookmarkClick: () -> Unit  // ✅ 추가
+    onReactionTap: (ReactionType) -> Unit,
+    onReactionDoubleTap: (ReactionType) -> Unit,
+    isBookmarked: Boolean,
+    onBookmarkClick: () -> Unit
 ) {
+    Timber.e("@@@@@@@#@#@#@#@##@ reactions great : "+reactions?.great)
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawLine(
+                    color = Color(0xFFE5E5E5),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx()
+                )
+            },
         color = ActivityDetailColors.Background001,
-        shadowElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
@@ -864,9 +1109,8 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedAwesome,
                     isCanceled = canceledReactions.contains(ReactionType.AWESOME),
                     hasNewReaction = reactions?.awesome,
-                    onClick = rememberThrottledClick {
-                        onReactionClick(ReactionType.AWESOME)
-                    },
+                    onTap = { onReactionTap(ReactionType.AWESOME) },
+                    onDoubleTap = { onReactionDoubleTap(ReactionType.AWESOME) },
                 )
 
                 // Great Reaction (최고예요)
@@ -876,9 +1120,8 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedGreat,
                     isCanceled = canceledReactions.contains(ReactionType.GREAT),
                     hasNewReaction = reactions?.great,
-                    onClick = rememberThrottledClick {
-                        onReactionClick(ReactionType.GREAT)
-                    },
+                    onTap = { onReactionTap(ReactionType.GREAT) },
+                    onDoubleTap = { onReactionDoubleTap(ReactionType.GREAT) },
                 )
 
                 // Amazing Reaction (놀라워요)
@@ -888,9 +1131,8 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedAmazing,
                     isCanceled = canceledReactions.contains(ReactionType.AMAZING),
                     hasNewReaction = reactions?.amazing,
-                    onClick = rememberThrottledClick {
-                        onReactionClick(ReactionType.AMAZING)
-                    },
+                    onTap = { onReactionTap(ReactionType.AMAZING) },
+                    onDoubleTap = { onReactionDoubleTap(ReactionType.AMAZING) },
                 )
 
                 // Fighting Reaction (응원해요)
@@ -900,9 +1142,8 @@ fun BottomReactionBar(
                     isPressed = myReactions?.pressedFighting,
                     isCanceled = canceledReactions.contains(ReactionType.FIGHTING),
                     hasNewReaction = reactions?.fighting,
-                    onClick = rememberThrottledClick {
-                        onReactionClick(ReactionType.FIGHTING)
-                    },
+                    onTap = { onReactionTap(ReactionType.FIGHTING) },
+                    onDoubleTap = { onReactionDoubleTap(ReactionType.FIGHTING) },
                 )
             }
 
@@ -933,14 +1174,14 @@ fun ReactionButton(
     reactionType: ReactionType,
     isSelected: Boolean,
     isPressed: Boolean?,
-    isCanceled: Boolean,  // ✅ 추가
+    isCanceled: Boolean,
     hasNewReaction: Boolean?,
-    onClick: () -> Unit
+    onTap: () -> Unit,
+    onDoubleTap: () -> Unit
 ) {
-    // ✅ 실제 활성 상태 계산: (서버에 있고 취소 안 함) OR 로컬 추가
+    Timber.e("@@@@@@########@@@@@@@@@@ hasNewReaction : "+hasNewReaction)
     val isActive = (isPressed == true && !isCanceled) || isSelected
 
-    // ✅ 상태에 따라 아이콘 변경
     val iconRes = when (reactionType) {
         ReactionType.AWESOME -> if (isActive) {
             R.drawable.ic_cool_selected
@@ -967,38 +1208,58 @@ fun ReactionButton(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(ActivityDetailColors.Background002)
-            .clickable(
-                onClick = rememberThrottledClick { onClick() },
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = when (reactionType) {
-                ReactionType.AWESOME -> "멋져요"
-                ReactionType.GREAT -> "최고예요"
-                ReactionType.AMAZING -> "놀라워요"
-                ReactionType.FIGHTING -> "응원해요"
-            },
-            modifier = Modifier.fillMaxSize(),
-            tint = Color.Unspecified
-        )
+    Box(modifier = Modifier.size(40.dp)) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(ActivityDetailColors.Background002)
+                .border(
+                    width = if (hasNewReaction == true) 1.dp else 0.dp,
+                    color = if (hasNewReaction == true) Color(0xFFFF9447) else Color.Transparent,
+                    shape = CircleShape
+                )
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onTap() },
+                        onDoubleTap = { onDoubleTap() }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = when (reactionType) {
+                    ReactionType.AWESOME -> "멋져요"
+                    ReactionType.GREAT -> "최고예요"
+                    ReactionType.AMAZING -> "놀라워요"
+                    ReactionType.FIGHTING -> "응원해요"
+                },
+                modifier = Modifier.fillMaxSize(),
+                tint = Color.Unspecified
+            )
+        }
+
+        if (hasNewReaction == true) {
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .offset(x = 27.dp, y = 7.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF25F59))
+            )
+        }
     }
 }
 
 @Composable
 fun MoreMenuDropdown(
     modifier: Modifier = Modifier,
+    isMine: Boolean = true,
     onModifyPosting: () -> Unit,
     onSetThumbnailClick: () -> Unit,
     onDeletePosting: () -> Unit,
+    onReportClick: () -> Unit = {},
     state: MyPageUiState,
 ) {
     Surface(
@@ -1010,27 +1271,33 @@ fun MoreMenuDropdown(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            // Privacy Setting
-            if (!state.myRoutineDetails?.imageUrl.isNullOrEmpty()) {
-//                MoreMenuItem(  // TODO 추후에 대표사진 설정 기능 다 하면 주석 풀기
-//                    icon = painterResource(R.drawable.ic_profile_main),
-//                    text = "대표사진 설정",
-//                    onClick = onSetThumbnailClick
-//                )
+            if (isMine) {
+                if (!state.myRoutineDetails?.imageUrl.isNullOrEmpty()) {
+                    MoreMenuItem(
+                        icon = painterResource(R.drawable.ic_profile_main),
+                        text = "대표사진 설정",
+                        onClick = onSetThumbnailClick
+                    )
+                }
+                //신고하기 화면 전환 구현해놓음. 신고하기 ui 더 다듬기
+                MoreMenuItem(
+                    icon = painterResource(R.drawable.ic_pencil_bold),
+                    text = "수정하기",
+                    onClick = onModifyPosting
+                )
+
+                MoreMenuItem(
+                    icon = painterResource(R.drawable.ic_trash_bold),
+                    text = "삭제하기",
+                    onClick = onDeletePosting
+                )
+            } else {
+                MoreMenuItem(
+                    icon = painterResource(R.drawable.icon_register),
+                    text = "신고하기",
+                    onClick = onReportClick
+                )
             }
-
-            // Set Thumbnail
-            MoreMenuItem(
-                icon = painterResource(R.drawable.ic_pencil_bold),
-                text = "수정하기",
-                onClick = onModifyPosting
-            )
-
-            MoreMenuItem(
-                icon = painterResource(R.drawable.ic_trash_bold),
-                text = "삭제하기",
-                onClick = onDeletePosting
-            )
         }
     }
 }
@@ -1041,26 +1308,34 @@ fun MoreMenuItem(
     text: String,
     onClick: () -> Unit
 ) {
-    Row(
+    Box(
         modifier = Modifier
-            .clickable(onClick = rememberThrottledClick { onClick() })
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .wrapContentSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = rememberThrottledClick { onClick() }
+            )
     ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = ActivityDetailColors.Neutral800
-        )
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = ActivityDetailColors.Neutral800
+            )
 
-        Text(
-            text = text,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = ActivityDetailColors.Neutral800
-        )
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = ActivityDetailColors.Neutral800
+            )
+        }
     }
 }
 
@@ -1263,10 +1538,213 @@ fun PrivacyOptionCard(
     }
 }
 
+@Composable
+private fun DeleteConfirmDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = ActivityDetailColors.White
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "이 활동 기록을 삭제하시겠어요?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ActivityDetailColors.Neutral900,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "삭제 시 복구는 안돼요!",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = ActivityDetailColors.Neutral600,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = rememberThrottledClick { onDismiss() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF0F0F0)),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) {
+                        Text(
+                            text = "닫기",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ActivityDetailColors.Neutral600
+                        )
+                    }
+                    Button(
+                        onClick = rememberThrottledClick { onConfirm() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ActivityDetailColors.Action001),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) {
+                        Text(
+                            text = "삭제하기",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ActivityDetailColors.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberShimmerBrush(): Brush {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateX by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslateX"
+    )
+    val tanAngle = tan((15.0 * PI / 180.0).toFloat())
+    return Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFF9F9F9),
+            Color(0xFFF2F2F2),
+            Color(0xFFEAEAEA),
+            Color(0xFFF2F2F2),
+            Color(0xFFF9F9F9),
+        ),
+        start = Offset(translateX * 1000f, translateX * 1000f * tanAngle),
+        end = Offset(translateX * 1000f + 600f, translateX * 1000f * tanAngle + 600f * tanAngle),
+    )
+}
+
+@Composable
+private fun SkeletonBox(
+    modifier: Modifier = Modifier,
+    brush: Brush,
+    shape: Shape = RoundedCornerShape(8.dp)
+) {
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(brush)
+    )
+}
+
+@Composable
+private fun RoutineDetailSkeletonContent(
+    shimmerBrush: Brush,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // 제목/날짜 skeleton
+        SkeletonBox(
+            modifier = Modifier
+                .width(160.dp)
+                .height(20.dp),
+            brush = shimmerBrush,
+            shape = RoundedCornerShape(8.dp)
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 이미지 skeleton (1:1 비율)
+                SkeletonBox(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                    brush = shimmerBrush,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                // 이미지 하단 소형 텍스트 skeleton
+                SkeletonBox(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(16.dp),
+                    brush = shimmerBrush,
+                    shape = RoundedCornerShape(8.dp)
+                )
+            }
+            // 메모/내용 skeleton
+            SkeletonBox(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                brush = shimmerBrush,
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileImageWithSkeleton(
+    imageUrl: String?,
+    modifier: Modifier = Modifier
+) {
+    val shimmerBrush = rememberShimmerBrush()
+    var isImageLoading by remember { mutableStateOf(true) }
+
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .clip(CircleShape)
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            error = painterResource(R.drawable.ic_profile_empty),
+            onSuccess = { isImageLoading = false },
+            onError = { isImageLoading = false },
+            modifier = Modifier.fillMaxSize()
+        )
+        if (isImageLoading) {
+            SkeletonBox(
+                modifier = Modifier.fillMaxSize(),
+                brush = shimmerBrush,
+                shape = CircleShape
+            )
+        }
+    }
+}
+
 @Preview
 @Composable
 fun PreviewActivityDetailScreen() {
     ForDayTheme {
         // Preview에서는 실제 ViewModel이 필요하므로 생략
+        RoutineDetailScreen(
+            onBackClick = TODO(),
+            routineId = TODO(),
+            onNavigateToMyPage = TODO(),
+            onNavigateToHome = TODO(),
+            onMoreMenuClick = TODO(),
+            isNewRecord = TODO(),
+            modifier = TODO(),
+            viewModel = TODO(),
+            onNavigateToRecordRoutine = TODO()
+        )
     }
 }

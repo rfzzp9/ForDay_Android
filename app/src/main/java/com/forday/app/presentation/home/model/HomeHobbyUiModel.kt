@@ -6,7 +6,8 @@ data class HomeHobbyUiModel(
     val greetingMessage: String,   // 추가
     val userSummaryText: String,   // 추가
     val recommendMessage: String,  // 추가
-    val aiCallRemaining: Boolean
+    val aiCallRemaining: Boolean,
+    val aiCallRemainingCount: Int?
 )
 
 data class InProgressHobbyUiModel(

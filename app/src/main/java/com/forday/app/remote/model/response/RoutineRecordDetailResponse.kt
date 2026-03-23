@@ -16,6 +16,7 @@ data class RoutineRecordDetailResponse(
 
 data class RoutineRecordDetailDataResponse(
     @SerializedName("hobbyId") val hobbyId: Int?,
+    @SerializedName("hobbyName") val hobbyName: String?,
     @SerializedName("activityId") val activityId: Int?,
     @SerializedName("activityContent") val activityContent: String?,
     @SerializedName("activityRecordId") val activityRecordId: Int?,
@@ -33,6 +34,7 @@ data class RoutineRecordDetailDataResponse(
     override fun toData(): RoutineRecordDetailEntity {
         return RoutineRecordDetailEntity(
             hobbyId = hobbyId ?: 0,
+            hobbyName = hobbyName.orEmpty(),
             routineId = activityId ?: 0,
             routineContent = activityContent.orEmpty(),
             routineRecordId = activityRecordId ?: 0,
@@ -51,10 +53,12 @@ data class RoutineRecordDetailDataResponse(
 }
 
 data class UserInfoResponse(
+    @SerializedName("userId") val userId: String?,
     @SerializedName("nickname") val nickname: String?,
     @SerializedName("profileImageUrl") val profileImageUrl: String?
 ) {
     fun toData() = RoutineRecordDetailEntity.UserInfoEntity(
+        userId = userId.orEmpty(),
         nickname = nickname.orEmpty(),
         profileImageUrl = profileImageUrl.orEmpty()
     )

@@ -15,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,6 +47,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +61,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -69,6 +75,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import com.airbnb.lottie.compose.LottieAnimation
@@ -78,8 +85,11 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.designsystem.toast.ErrorToast
 import com.forday.app.presentation.home.model.AiRoutineItemState
 import kotlinx.coroutines.delay
+import timber.log.Timber
 
 /**
  * AI 추천 BottomSheet 상태
@@ -90,7 +100,8 @@ sealed class AiBottomSheetState {
     data class Result(
         val message: String,
         val recommendations: List<RecommendedActivity>,
-        val selectedCount: Int = 0
+        val selectedCount: Int = 0,
+        val recommendedText: String = ""
     ) : AiBottomSheetState()
 }
 
@@ -116,25 +127,59 @@ fun AiRecommendationBottomSheet(
     hobbyName: String,
     onDismiss: () -> Unit,
     aiRecommendData: List<AiRoutineItemState>,
+    aiRoutineLoaded: Boolean,
     aiCallCount: Int?,
+    aiCallRemainingCount: Int?,
+    userSummaryText: String = "",
+    recommendedText: String = "",
+    toastMessage: String?,
+    onDismissToast: () -> Unit,
+    onToastAction: () -> Unit,
+    errorToastMessage: String? = null,
+    onDismissErrorToast: () -> Unit = {},
     onAiRecommendButtonClick: () -> Unit,
-    onRecommendationsSelected: (List<RecommendedActivity>) -> Unit = {}
+    onPreviousRecommendClick: () -> Unit,
+    onRecommendationsSelected: (List<RecommendedActivity>) -> Unit = {},
+    onAiRecommendationShown: () -> Unit = {},
+    onAiRecommendationClicked: (activityName: String, position: Int) -> Unit = { _, _ -> }
 ) {
     var currentState by remember { mutableStateOf<AiBottomSheetState>(AiBottomSheetState.Initial) }
     var recommendations by remember { mutableStateOf<List<RecommendedActivity>>(emptyList()) }
+    var isPreviousRecommend by remember { mutableStateOf(false) }
+    var isWaitingForPreviousRecommend by remember { mutableStateOf(false) }
 
     // BottomSheet가 열릴 때마다 Initial 상태로 초기화
     LaunchedEffect(showBottomSheet) {
         if (showBottomSheet) {
             currentState = AiBottomSheetState.Initial
             recommendations = emptyList()
+            isPreviousRecommend = false
+            isWaitingForPreviousRecommend = false
+            onDismissToast()
         }
     }
 
-    // aiRecommendData가 변경되면 Result 화면으로 전환
-    LaunchedEffect(aiRecommendData) {
-        if (aiRecommendData.isNotEmpty() && currentState is AiBottomSheetState.Loading) {
-            // 서버 데이터를 RecommendedActivity로 변환
+    // 성공 토스트 자동 숨김 (3초 후) + BottomSheet 닫기
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(3000)
+            onDismissToast()
+            onDismiss()
+        }
+    }
+
+    // 에러 토스트 자동 숨김 (3초 후) — BottomSheet는 닫지 않음
+    LaunchedEffect(errorToastMessage) {
+        if (errorToastMessage != null) {
+            delay(3000)
+            onDismissErrorToast()
+        }
+    }
+
+    // aiRoutineLoaded가 토글될 때마다 항상 Result 화면으로 전환
+    LaunchedEffect(aiRoutineLoaded) {
+        if (aiRecommendData.isNotEmpty() && (currentState is AiBottomSheetState.Loading || isWaitingForPreviousRecommend)) {
+            isWaitingForPreviousRecommend = false
             val convertedRecommendations = aiRecommendData.map { item ->
                 RecommendedActivity(
                     id = item.routineId,
@@ -143,13 +188,14 @@ fun AiRecommendationBottomSheet(
                     isSelected = false
                 )
             }
-
             recommendations = convertedRecommendations
             currentState = AiBottomSheetState.Result(
-                message = "주로 아침독서를 하셨네요!",  // TODO: 필요시 동적으로 변경
+                message = userSummaryText,
                 recommendations = convertedRecommendations,
-                selectedCount = 0
+                selectedCount = 0,
+                recommendedText = recommendedText
             )
+            onAiRecommendationShown()
         }
     }
 
@@ -162,16 +208,17 @@ fun AiRecommendationBottomSheet(
             dragHandle = null,
             sheetMaxWidth = Dp.Unspecified
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
                         )
-                    )
-            ) {
+                ) {
                 AnimatedContent(
                     targetState = currentState,
                     transitionSpec = {
@@ -183,12 +230,19 @@ fun AiRecommendationBottomSheet(
                     when (state) {
                         is AiBottomSheetState.Initial -> {
                             InitialScreen(
+                                aiCallRemainingCount = aiCallRemainingCount,
                                 onAiRecommendClick = {
+                                    isPreviousRecommend = false
                                     currentState = AiBottomSheetState.Loading(
                                         userName = userName,
                                         hobbyName = hobbyName
                                     )
                                     onAiRecommendButtonClick()
+                                },
+                                onPreviousRecommendClick = {
+                                    isPreviousRecommend = true
+                                    isWaitingForPreviousRecommend = true
+                                    onPreviousRecommendClick()
                                 }
                             )
                         }
@@ -206,7 +260,12 @@ fun AiRecommendationBottomSheet(
                                 recommendations = recommendations,
                                 selectedCount = recommendations.count { it.isSelected },
                                 aiCallCount = aiCallCount,
+                                isPreviousRecommend = isPreviousRecommend,
+                                recommendedText = state.recommendedText,
                                 onToggleSelection = { activityId ->
+                                    val position = recommendations.indexOfFirst { it.id == activityId }
+                                    val activityName = recommendations.find { it.id == activityId }?.title ?: ""
+                                    onAiRecommendationClicked(activityName, position)
                                     recommendations = recommendations.map { activity ->
                                         activity.copy(isSelected = activity.id == activityId)
                                     }
@@ -219,23 +278,47 @@ fun AiRecommendationBottomSheet(
                                 },
                                 onRegenerate = {
                                     // 재생성 버튼 - 다시 로딩 화면으로
+                                    isPreviousRecommend = false
                                     currentState = AiBottomSheetState.Loading(
                                         userName = userName,
                                         hobbyName = hobbyName
                                     )
                                     onAiRecommendButtonClick()
                                 },
-                                onAdd = {  //TODO 추가 버튼을 누르면 콜백 넘겨서 취미활동생성 API호출해야 함
+                                onAdd = {
                                     val selectedActivities =
                                         recommendations.filter { it.isSelected }
                                     onRecommendationsSelected(selectedActivities)
-                                    onDismiss()
                                 }
                             )
                         }
                     }
                 }
-            }
+                } // animateContentSize Box
+                if (toastMessage != null && currentState is AiBottomSheetState.Result) {
+                    ErrorToast(
+                        message = toastMessage!!,
+                        actionLabel = "이동하기",
+                        onActionClick = {
+                            onToastAction()
+                            onDismissToast()
+                            onDismiss()
+                        },
+                        iconVisible = true,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = -(96).dp)
+                    )
+                }
+                if (errorToastMessage != null && currentState is AiBottomSheetState.Result) {
+                    ErrorToast(
+                        message = errorToastMessage!!,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = -(96).dp)
+                    )
+                }
+            } // outer Box
         }
     }
 }
@@ -259,17 +342,18 @@ private object BottomSheetConstants {
  */
 @Composable
 private fun InitialScreen(
-    onAiRecommendClick: () -> Unit
+    aiCallRemainingCount: Int?,
+    onAiRecommendClick: () -> Unit,
+    onPreviousRecommendClick: () -> Unit
 ) {
     val screenHeight = BottomSheetConstants.getScreenHeight()
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
 
-    // 화면 크기별 패딩 계산
     val horizontalPadding = when {
-        screenWidth < 360.dp -> 16.dp  // 작은 화면
-        screenWidth < 600.dp -> 20.dp  // 일반 폰
-        else -> 32.dp  // 태블릿
+        screenWidth < 360.dp -> 16.dp
+        screenWidth < 600.dp -> 20.dp
+        else -> 32.dp
     }
 
     val topPadding = when {
@@ -282,45 +366,84 @@ private fun InitialScreen(
         else -> 24.dp
     }
 
+    val isExhausted = aiCallRemainingCount == 0
+    val showPreviousButton = aiCallRemainingCount != null && aiCallRemainingCount <= 2
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(screenHeight)  // 고정 높이
+            .then(
+                if (showPreviousButton) Modifier.wrapContentHeight()
+                else Modifier.height(screenHeight)
+            )
             .background(Color.White)
             .padding(
                 top = topPadding,
                 start = horizontalPadding,
-                end = horizontalPadding
+                end = horizontalPadding,
+                bottom = if (showPreviousButton) topPadding else 0.dp
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(contentSpacing)
     ) {
-        // AI 아이콘
         AiIcon()
 
-        // AI 추천받기 버튼
-        Button(
-            onClick = rememberThrottledClick(onClick = onAiRecommendClick),
-            modifier = Modifier
-                .fillMaxWidth()  // 부모 너비에 맞춤
-                .widthIn(max = 400.dp)  // 최대 너비 제한 (태블릿 대응)
-                .heightIn(min = 48.dp),  // 최소 터치 영역 보장
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFFF1E6)
-            ),
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(
-                horizontal = 40.dp,
-                vertical = 12.dp
-            )
+        // 버튼 그룹: 두 버튼 사이 간격 12dp
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "AI 추천받기",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFFF9447),
-                textAlign = TextAlign.Center
-            )
+            // AI 추천받기 버튼 (횟수 소진 시 텍스트 변경 + 비활성화)
+            Button(
+                onClick = rememberThrottledClick(onClick = onAiRecommendClick),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 400.dp)
+                    .heightIn(min = 48.dp),
+                enabled = !isExhausted,
+                interactionSource = remember { NoRippleInteractionSource() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFF1E6),
+                    disabledContainerColor = Color(0xFFE5E5E5)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 40.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = if (isExhausted) "오늘의 AI 추천 횟수를 다 썼어요." else "AI 추천받기",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isExhausted) Color(0xFFB5B5B5) else Color(0xFFFF9447),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // 추천 받은 활동리스트 버튼 (aiCallRemainingCount <= 2 일 때만 표시)
+            if (showPreviousButton) {
+                Button(
+                    onClick = rememberThrottledClick(onClick = onPreviousRecommendClick),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 400.dp)
+                        .heightIn(min = 48.dp),
+                    interactionSource = remember { NoRippleInteractionSource() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ForDayTheme.color.MediumGray
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 40.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = "추천 받은 활동리스트",
+                        fontSize = 14.sp,
+                        lineHeight = 16.8.sp,
+                        fontWeight = FontWeight.W700,
+                        color = ForDayTheme.color.Gray800,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }
@@ -471,14 +594,18 @@ private fun ResultScreen(
     recommendations: List<RecommendedActivity>,
     aiCallCount: Int?,
     selectedCount: Int,
+    isPreviousRecommend: Boolean,
+    recommendedText: String,
     onToggleSelection: (Int) -> Unit,
     onTitleChange: (Int, String) -> Unit,
     onRegenerate: () -> Unit,
     onAdd: () -> Unit
 ) {
+    Timber.e("@@@@@@@@@@@########## aiCallCount : "+aiCallCount)
     var showTooltip by remember { mutableStateOf(false) }
     var tooltipHeightPx by remember { mutableIntStateOf(0) }
     val focusManager = LocalFocusManager.current
+    val cardListScrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
@@ -532,7 +659,8 @@ private fun ResultScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "더 맞는 활동을 추천할게요.",
+                                    text = recommendedText,
+                                    modifier = Modifier.weight(1f),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1E1E1E),
@@ -540,35 +668,37 @@ private fun ResultScreen(
                                     lineHeight = 21.6.sp
                                 )
 
-                                Box {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_tooltip),
-                                        contentDescription = "정보",
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                showTooltip = !showTooltip
-                                            },
-                                        tint = Color(0xFFB5B5B5)
-                                    )
+                                if (!isPreviousRecommend) {
+                                    Box {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_tooltip),
+                                            contentDescription = "정보",
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    showTooltip = !showTooltip
+                                                },
+                                            tint = Color(0xFFB5B5B5)
+                                        )
 
-                                    if (showTooltip) {
-                                        Popup(
-                                            alignment = Alignment.TopCenter,
-                                            offset = IntOffset(
-                                                x = 0,
-                                                y = -tooltipHeightPx
-                                            ),
-                                            onDismissRequest = { showTooltip = false }
-                                        ) {
-                                            TooltipBubble(
-                                                text = "사용자의 취미취향과 다른 유저의\n데이터 기반 추천을 기반하여\n선별된 포데이 AI 추천 취미활동입니다.",
-                                                onDismiss = { showTooltip = false },
-                                                onHeightMeasured = { tooltipHeightPx = it }
-                                            )
+                                        if (showTooltip) {
+                                            Popup(
+                                                alignment = Alignment.TopCenter,
+                                                offset = IntOffset(
+                                                    x = 0,
+                                                    y = -tooltipHeightPx
+                                                ),
+                                                onDismissRequest = { showTooltip = false }
+                                            ) {
+                                                TooltipBubble(
+                                                    text = "사용자의 취미취향과 다른 유저의\n데이터 기반 추천을 기반하여\n선별된 포데이 AI 추천 취미활동입니다.",
+                                                    onDismiss = { showTooltip = false },
+                                                    onHeightMeasured = { tooltipHeightPx = it }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -579,8 +709,16 @@ private fun ResultScreen(
                 }
             }
 
-            // 추천 카드 리스트
+            // 추천 카드 리스트 (4개 이상이면 스크롤)
             Column(
+                modifier = if (recommendations.size >= 4) {
+                    Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(cardListScrollState)
+                        .padding(bottom = 20.dp)
+                } else {
+                    Modifier
+                },
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 recommendations.forEach { activity ->
@@ -597,6 +735,7 @@ private fun ResultScreen(
         BottomButtonSection(
             selectedCount = selectedCount,
             aiCallCount = aiCallCount,
+            isPreviousRecommend = isPreviousRecommend,
             onRegenerate = onRegenerate,
             onAdd = onAdd
         )
@@ -711,6 +850,9 @@ private fun RecommendationCard(
     }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    var lastLineRightPx by remember { mutableFloatStateOf(0f) }
+    var lastLineTopPx by remember { mutableFloatStateOf(0f) }
+    var lastLineBottomPx by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(isEditing) {
         if (isEditing) {
@@ -725,12 +867,19 @@ private fun RecommendationCard(
     }
 
     Surface(
+        onClick = {
+            if (isEditing) {
+                isEditing = false
+                focusManager.clearFocus()
+            }
+            onToggle()
+        },
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         color = Color.White,
-        shadowElevation = 2.dp
+        border = if (activity.isSelected) BorderStroke(1.dp, Color(0xFFFF9447)) else BorderStroke(1.dp, Color(0xFFE5E5E5))
     ) {
         Column(
             modifier = Modifier
@@ -749,57 +898,149 @@ private fun RecommendationCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isEditing) {
-                        BasicTextField(
-                            value = textFieldValue,
-                            onValueChange = { newValue ->
-                                if (newValue.text.length <= 20) {
-                                    textFieldValue = newValue
-                                    onTitleChange(newValue.text)
-                                }
+                        Layout(
+                            content = {
+                                BasicTextField(
+                                    value = textFieldValue,
+                                    onValueChange = { newValue ->
+                                        if (newValue.text.length <= 20) {
+                                            textFieldValue = newValue
+                                            onTitleChange(newValue.text)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged { state ->
+                                            if (state.isFocused) {
+                                                hasFocused = true
+                                            } else if (hasFocused) {
+                                                isEditing = false
+                                                hasFocused = false
+                                            }
+                                        },
+                                    textStyle = LocalTextStyle.current.copy(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF1E1E1E),
+                                        lineHeight = 19.09.sp
+                                    ),
+                                    onTextLayout = { layoutResult ->
+                                        val lastLine = layoutResult.lineCount - 1
+                                        lastLineRightPx = layoutResult.getLineRight(lastLine)
+                                        lastLineTopPx = layoutResult.getLineTop(lastLine)
+                                        lastLineBottomPx = layoutResult.getLineBottom(lastLine)
+                                    },
+                                    singleLine = true
+                                )
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_edit),
+                                    contentDescription = "완료",
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            isEditing = !isEditing
+                                        },
+                                    tint = Color(0xFFB5B5B5)
+                                )
                             },
-                            modifier = Modifier
-                                .widthIn(min = 1.dp)
-                                .focusRequester(focusRequester)
-                                .onFocusChanged { state ->
-                                    if (state.isFocused) {
-                                        hasFocused = true
-                                    } else if (hasFocused) {
-                                        isEditing = false
-                                        hasFocused = false
-                                    }
-                                },
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF1E1E1E),
-                                lineHeight = 19.09.sp
-                            ),
-                            singleLine = true
-                        )
+                            modifier = Modifier.weight(1f)
+                        ) { measurables, constraints ->
+                            val iconSizePx = 24.dp.roundToPx()
+                            val gap = 4.dp.roundToPx()
+                            val fitsInField = lastLineRightPx + gap + iconSizePx <= constraints.maxWidth
+                            val textFieldWidth = if (fitsInField) {
+                                constraints.maxWidth
+                            } else {
+                                constraints.maxWidth - gap - iconSizePx
+                            }
+                            val textFieldPlaceable = measurables[0].measure(
+                                constraints.copy(minWidth = 0, maxWidth = textFieldWidth)
+                            )
+                            val iconPlaceable = measurables[1].measure(
+                                Constraints.fixed(iconSizePx, iconSizePx)
+                            )
+                            val iconX = if (fitsInField) {
+                                (lastLineRightPx + gap).toInt().coerceAtLeast(0)
+                            } else {
+                                constraints.maxWidth - iconSizePx
+                            }
+                            val iconY = if (lastLineBottomPx > 0f) {
+                                ((lastLineTopPx + lastLineBottomPx) / 2f - iconSizePx / 2f)
+                                    .toInt()
+                                    .coerceAtLeast(0)
+                            } else {
+                                ((textFieldPlaceable.height - iconSizePx) / 2).coerceAtLeast(0)
+                            }
+                            layout(constraints.maxWidth, textFieldPlaceable.height) {
+                                textFieldPlaceable.place(0, 0)
+                                iconPlaceable.place(iconX, iconY)
+                            }
+                        }
                     } else {
-                        Text(
-                            text = activity.title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF1E1E1E),
-                            lineHeight = 19.09.sp
-                        )
-                    }
-                    Icon(
-                        painter = painterResource(
-                            id = R.drawable.ic_edit
-                        ),
-                        contentDescription = if (isEditing) "완료" else "수정",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                isEditing = !isEditing
+                        Layout(
+                            content = {
+                                Text(
+                                    text = activity.title,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF1E1E1E),
+                                    lineHeight = 19.09.sp,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onTextLayout = { layoutResult ->
+                                        val lastLine = layoutResult.lineCount - 1
+                                        lastLineRightPx = layoutResult.getLineRight(lastLine)
+                                        lastLineTopPx = layoutResult.getLineTop(lastLine)
+                                        lastLineBottomPx = layoutResult.getLineBottom(lastLine)
+                                    }
+                                )
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_edit),
+                                    contentDescription = "수정",
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            isEditing = !isEditing
+                                        },
+                                    tint = Color(0xFFB5B5B5)
+                                )
                             },
-                        tint = Color(0xFFB5B5B5)
-                    )
+                            modifier = Modifier.weight(1f)
+                        ) { measurables, constraints ->
+                            val iconSizePx = 24.dp.roundToPx()
+                            val gap = 4.dp.roundToPx()
+                            val textPlaceable = measurables[0].measure(constraints)
+                            val iconPlaceable = measurables[1].measure(
+                                Constraints.fixed(iconSizePx, iconSizePx)
+                            )
+                            val fitsSameLine = lastLineRightPx + gap + iconSizePx <= constraints.maxWidth
+                            val iconX = if (fitsSameLine) (lastLineRightPx + gap).toInt() else 0
+                            val iconY = if (fitsSameLine) {
+                                ((lastLineTopPx + lastLineBottomPx) / 2f - iconSizePx / 2f).toInt()
+                            } else {
+                                val lineHeight = (lastLineBottomPx - lastLineTopPx).coerceAtLeast(0f)
+                                (lastLineBottomPx + (lineHeight - iconSizePx) / 2f).toInt()
+                            }
+                            val totalHeight = if (fitsSameLine) {
+                                textPlaceable.height
+                            } else {
+                                (iconY + iconSizePx).coerceAtLeast(textPlaceable.height)
+                            }
+                            layout(constraints.maxWidth, totalHeight) {
+                                textPlaceable.place(0, 0)
+                                if (lastLineBottomPx > 0f) {
+                                    iconPlaceable.place(iconX, iconY.coerceAtLeast(0))
+                                } else {
+                                    iconPlaceable.place(0, -(iconSizePx * 2))
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // 토글 버튼
@@ -808,11 +1049,11 @@ private fun RecommendationCard(
                         .size(20.dp)
                         .border(
                             width = 1.5.dp,
-                            color = if (activity.isSelected) Color(0xFF3A3A3A) else Color(0xFFD1D1D1),
+                            color = if (activity.isSelected) Color(0xFFFF9447) else Color(0xFFD1D1D1),
                             shape = CircleShape
                         )
                         .background(
-                            color = if (activity.isSelected) Color(0xFF3A3A3A) else Color.Transparent,
+                            color = if (activity.isSelected) Color(0xFFFF9447) else Color.Transparent,
                             shape = CircleShape
                         )
                         .clickable(
@@ -827,14 +1068,14 @@ private fun RecommendationCard(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (activity.isSelected) {
+//                    if (activity.isSelected) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_check),
                             contentDescription = "선택됨",
                             modifier = Modifier.size(12.dp),
-                            tint = Color.White
+                            tint = if (activity.isSelected) Color.White else Color(0xFFD1D1D1)
                         )
-                    }
+//                    }
                 }
             }
 
@@ -857,6 +1098,7 @@ private fun RecommendationCard(
 private fun BottomButtonSection(
     selectedCount: Int,
     aiCallCount: Int?,
+    isPreviousRecommend: Boolean,
     onRegenerate: () -> Unit,
     onAdd: () -> Unit
 ) {
@@ -884,37 +1126,40 @@ private fun BottomButtonSection(
                 .padding(top = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 재생성 버튼
-            Button(
-                onClick = onRegenerate,
-                modifier = Modifier
-                    .size(56.dp),
-                enabled = isRegenerateEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    disabledContainerColor = Color.White
-                ),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFD1D1D1)),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+            // 재생성 버튼 (추천 받은 활동리스트에서 온 경우 숨김)
+            if (!isPreviousRecommend) {
+                Button(
+                    onClick = onRegenerate,
+                    modifier = Modifier
+                        .size(56.dp),
+                    enabled = isRegenerateEnabled,
+                    interactionSource = remember { NoRippleInteractionSource() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        disabledContainerColor = Color.White
+                    ),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFD1D1D1)),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.icon_reload),
-                        contentDescription = "재생성",
-                        modifier = Modifier.size(20.dp),
-                        tint = if (isRegenerateEnabled) Color(0xFF3A3A3A) else Color(0xFFB5B5B5)
-                    )
-                    Text(
-                        text = "${aiCallCount ?: 0}/3",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = if (isRegenerateEnabled) Color(0xFF7A7A7A) else Color(0xFFB5B5B5),
-                        lineHeight = 16.8.sp
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.icon_reload),
+                            contentDescription = "재생성",
+                            modifier = Modifier.size(20.dp),
+                            tint = if (isRegenerateEnabled) Color(0xFF3A3A3A) else Color(0xFFB5B5B5)
+                        )
+                        Text(
+                            text = "${aiCallCount ?: 0}/3",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = if (isRegenerateEnabled) Color(0xFF7A7A7A) else Color(0xFFB5B5B5),
+                            lineHeight = 16.8.sp
+                        )
+                    }
                 }
             }
 
@@ -924,6 +1169,7 @@ private fun BottomButtonSection(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
+                interactionSource = remember { NoRippleInteractionSource() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (selectedCount > 0) Color(0xFFFF9447) else Color(0xFFFFE6D1),
                     disabledContainerColor = Color(0xFFFFE6D1)
@@ -932,7 +1178,7 @@ private fun BottomButtonSection(
                 enabled = selectedCount > 0
             ) {
                 Text(
-                    text = "추가",
+                    text = if (isPreviousRecommend) "활동 담기" else "추가",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -946,7 +1192,11 @@ private fun BottomButtonSection(
 @Preview(showBackground = true)
 @Composable
 private fun InitialScreenPreview() {
-    InitialScreen(onAiRecommendClick = {})
+    InitialScreen(
+        onAiRecommendClick = {},
+        aiCallRemainingCount = TODO(),
+        onPreviousRecommendClick = TODO()
+    )
 }
 
 
@@ -971,6 +1221,8 @@ private fun ResultScreenPreview() {
         onTitleChange = { _, _ -> },
         onRegenerate = {},
         onAdd = {},
-        aiCallCount = 0
+        aiCallCount = 0,
+        isPreviousRecommend = TODO(),
+        recommendedText = TODO(),
     )
 }

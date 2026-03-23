@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
@@ -48,18 +51,10 @@ import com.forday.app.presentation.allsettings.SettingsViewModel
 @Composable
 fun CancelAccountScreen(
     onBackClick: () -> Unit = {},
-    onNavigateToLogin: () -> Unit = {},
     viewModel: SettingsViewModel,
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isAgreed by remember { mutableStateOf(false) }
-
-    // 탈퇴 성공 시 로그인 화면으로 이동
-    LaunchedEffect(uiState.isAccountCancelled) {
-        if (uiState.isAccountCancelled) {
-            onNavigateToLogin()
-        }
-    }
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -173,9 +168,19 @@ fun CancelAccountScreen(
         BottomNextButton(
             text = "탈퇴하기",
             state = if (isAgreed) BottomButtonState.ENABLED else BottomButtonState.DISABLED,
-            onClick = { viewModel.cancelAccount() },
+            onClick = { showCancelDialog = true },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        if (showCancelDialog) {
+            CancelAccountDialog(
+                onDismiss = { showCancelDialog = false },
+                onConfirm = {
+                    showCancelDialog = false
+                    viewModel.cancelAccount()
+                }
+            )
+        }
     }
 }
 
@@ -252,6 +257,102 @@ private fun InfoSection(
                 color = Color(0xFF9E9E9E)
             )
         )
+    }
+}
+
+@Composable
+private fun CancelAccountDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "정말 탈퇴하시겠어요?",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp),
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    lineHeight = 21.6.sp,
+                    fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                    fontWeight = FontWeight(700),
+                    color = Color(0xFF1E1E1E)
+                )
+            )
+
+            Text(
+                text = "삭제한 계정은 복구할 수 없습니다.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp),
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    lineHeight = 19.6.sp,
+                    fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                    fontWeight = FontWeight(400),
+                    color = Color(0xFF3A3A3A)
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF0F0F0),
+                        contentColor = Color(0xFF3A3A3A)
+                    )
+                ) {
+                    Text(
+                        text = "취소",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                            fontWeight = FontWeight(600),
+                            color = Color(0xFF3A3A3A)
+                        )
+                    )
+                }
+
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF9447),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "탈퇴하기",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
+                            fontWeight = FontWeight(600),
+                            color = Color.White
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 

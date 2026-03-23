@@ -58,6 +58,14 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# Polymorphic 직렬화 — MainNavigationState의 serializersConfig에서
+# PolymorphicSerializer(NavKey::class) + SerializersModule { polymorphic(...) } 사용
+-keep class kotlinx.serialization.PolymorphicSerializer { *; }
+-keep class kotlinx.serialization.modules.** { *; }
+-keepclassmembers class kotlinx.serialization.modules.** {
+    *;
+}
+
 # 직렬화 가능한 클래스 보존
 -keep,includedescriptorclasses class com.forday.app.**$$serializer { *; }
 -keepclassmembers class com.forday.app.** {
@@ -116,13 +124,14 @@
 -keepclassmembers class com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod { <fields>; }
 -keepclassmembers class com.forday.app.core.navigation.LoadingRoutines { <fields>; }
 -keepclassmembers class com.forday.app.core.navigation.RoutineAiRecommend { <fields>; }
+-keepclassmembers class com.forday.app.presentation.mypage.routinedetail.navigation.SaveCard { <fields>; }
 
 # ===================================
 # Repository & UseCase
 # ===================================
 -keep class com.forday.app.domain.repository.** { *; }
 -keep class com.forday.app.domain.usecase.** { *; }
--keep class com.forday.app.data.repository.** { *; }
+-keep class com.forday.app.data.impl.** { *; }
 
 # ===================================
 # Retrofit
@@ -228,11 +237,24 @@
 -dontwarn coil.**
 
 # ===================================
-# Navigation
+# Navigation (Navigation3)
 # ===================================
 -keep class androidx.navigation.** { *; }
 -keepnames class androidx.navigation.**
 -keepclassmembers class androidx.navigation.** {
+    <methods>;
+}
+
+# Navigation3 패키지 (androidx.navigation3.*)
+-keep class androidx.navigation3.** { *; }
+-keepnames class androidx.navigation3.**
+-keepclassmembers class androidx.navigation3.** {
+    <methods>;
+}
+
+# SavedState — Navigation3의 rememberSerializable / SavedStateConfiguration / MutableStateSerializer 사용
+-keep class androidx.savedstate.** { *; }
+-keepclassmembers class androidx.savedstate.** {
     <methods>;
 }
 
@@ -309,10 +331,7 @@
 
 # NavKey 구현체 보존
 -keep class * implements androidx.navigation3.runtime.NavKey { *; }
-
-# Navigation 패키지 전체 보존
--keep class com.forday.app.core.navigation.** { *; }
--keep class com.forday.app.presentation.**.navigation.** { *; }
+-keepclassmembers class * implements androidx.navigation3.runtime.NavKey { *; }
 
 # BottomNavItem 보존
 -keep class com.forday.app.presentation.main.BottomNavItem { *; }
@@ -331,3 +350,32 @@
 
 -keep enum com.forday.app.presentation.onboarding.purposeselect.Purpose { *; }
 -keepclassmembers enum com.forday.app.presentation.onboarding.purposeselect.Purpose { <fields>; }
+
+# ===================================
+# R8 Class Merging 명시적 방지
+# proguard-android-optimize.txt에 포함되어 있으나 R8 full mode에서
+# 명시적 선언이 더 안전. 동일 구조 data object NavKey들(Sosik, Register 등)이
+# 수평 병합되면 when (backStackEntry) { is Sosik -> ... } 타입 매칭 실패
+# → 간헐적 화면 전환 불가 증상 발생
+# ===================================
+-optimizations !class/merging/vertical,!class/merging/horizontal
+
+# ===================================
+# HiltViewModel 명시적 보호
+# hiltViewModel()은 런타임 리플렉션으로 ViewModel 클래스를 조회.
+# Hilt AAR에 consumer rule이 포함되어 있으나 릴리즈 빌드에서
+# 클래스 타입을 찾지 못하는 간헐적 오류 방지를 위해 명시적으로 보호.
+# ===================================
+-keep @dagger.hilt.android.lifecycle.HiltViewModel class * extends androidx.lifecycle.ViewModel { *; }
+-keepclassmembers @dagger.hilt.android.lifecycle.HiltViewModel class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+
+# ===================================
+# 최근 추가된 NavKey - 필드명 명시적 보존
+# com.forday.app.presentation.**.navigation.** 규칙으로 클래스 자체는 보존되나
+# 직렬화 안정성을 위해 필드명을 명시적으로 선언
+# ===================================
+-keepclassmembers class com.forday.app.presentation.mypage.navigation.UserPage { <fields>; }
+-keepclassmembers class com.forday.app.presentation.sosik.navigation.Sosik { <fields>; }
+-keepclassmembers class com.forday.app.presentation.sosik.navigation.Register { <fields>; }

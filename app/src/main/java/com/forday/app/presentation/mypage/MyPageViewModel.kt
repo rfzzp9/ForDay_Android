@@ -3,7 +3,13 @@ package com.forday.app.presentation.mypage
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import com.forday.app.core.datastore.UserLocalDataSource
+import com.forday.app.domain.usecase.BlockUserUseCase
+import com.forday.app.domain.usecase.ReportUserUseCase
 import com.forday.app.domain.usecase.CancelMyReactionUseCase
+import com.forday.app.domain.usecase.GetIsNicknameDuplicateUseCase
+import com.forday.app.domain.usecase.RegisterNicknameUseCase
+import com.forday.app.domain.usecase.ReportPostingUseCase
+import com.forday.app.domain.usecase.SaveNicknameUseCase
 import com.forday.app.domain.usecase.CancelScrapPostingUseCase
 import com.forday.app.domain.usecase.DeletePostingUseCase
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
@@ -24,6 +30,7 @@ import com.forday.app.domain.usecase.SwitchAccountUseCase
 import com.forday.app.domain.usecase.UploadImageToS3UseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
+import com.forday.app.presentation.httpCatch
 import com.forday.app.presentation.mypage.main.FeedContainerUiModel
 import com.forday.app.presentation.mypage.main.UserInfoUiModel
 import com.forday.app.core.util.UserMessageCategory
@@ -41,15 +48,16 @@ import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 import com.forday.app.presentation.mypage.main.toPresentation
+import com.forday.app.presentation.mypage.routinedetail.screen.ReactionDetailUiModel
 import com.forday.app.presentation.mypage.routinedetail.toPresentation
-import com.forday.app.presentation.mypage.routinedetail.toUiModel
+import com.forday.app.presentation.mypage.routinedetail.screen.toUiModel
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.user.UserApiClient
 
 @HiltViewModel
-class MyPageViewModel @Inject constructor(
+class MyPageViewModel @Inject constructor(  //TODO 새로 반응한 사용자리스트에 빨간점 제대로 표시 안되고 있음
     private val getMyRoutineRecordDetailUseCase: GetMyRoutineRecordDetailUseCase,
     private val reactionToRoutinePostingUseCase: ReactionToRoutinePostingUseCase,  // 활동 기록에 반응 남기기
     private val cancelMyReactionUseCase: CancelMyReactionUseCase,
@@ -69,6 +77,12 @@ class MyPageViewModel @Inject constructor(
     private val getUserScrapListUseCase: GetUserScrapListUseCase,  // 스크랩 목록 조회
     private val scrapPostingUseCase: ScrapPostingUseCase,  // 스크랩
     private val cancelScrapPostingUseCase: CancelScrapPostingUseCase,  // 스크랩 취소
+    private val reportPostingUseCase: ReportPostingUseCase,  // 활동기록 신고
+    private val reportUserUseCase: ReportUserUseCase,  // 사용자 신고
+    private val blockUserUseCase: BlockUserUseCase,  // 사용자 차단
+    private val getIsNicknameDuplicateUseCase: GetIsNicknameDuplicateUseCase,  // 닉네임 중복 확인
+    private val registerNicknameUseCase: RegisterNicknameUseCase,  // 닉네임 등록
+    private val saveNicknameUseCase: SaveNicknameUseCase,  // 닉네임 로컬 저장
     private val getUserData: UserLocalDataSource,   // 나중에 수정 예정 usecase로
     private val snackbarManager: SnackbarManager,
 ): BaseViewModel<MyPageSideEffect>() {
@@ -77,18 +91,19 @@ class MyPageViewModel @Inject constructor(
     val uiState: StateFlow<MyPageUiState> = _uiState.toStateIn()
 
 
-    fun refresh(selectedTab: Int, selectedHobbyIds: List<Int?>) = viewModelScope.launch {
+    fun refresh(selectedTab: Int, selectedHobbyIds: List<Int?>, userId: String? = null) = viewModelScope.launch {
         _uiState.update { it.copy(isRefreshing = true) }
         try {
             withTimeout(4_000L) {
                 val jobs = mutableListOf(
-                    launch { getUserInfo().join() },
-                    launch { getUsersProgressHobbyTabs().join() },
+                    launch { getUserInfo(userId).join() },
+                    launch { getUsersProgressHobbyTabs(userId).join() },
                     launch {
                         getUserFeedList(
                             hobbyIds = selectedHobbyIds,
                             lastRecordId = null,
-                            feedSize = 24
+                            feedSize = 24,
+                            userId = userId
                         ).join()
                     }
                 )
@@ -120,6 +135,7 @@ class MyPageViewModel @Inject constructor(
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
+            Timber.e("@@PROFILE_DEBUG writerNickname=${data?.writerNickname}, writerProfileImageUrl=${data?.writerProfileImageUrl}, isMine=${data?.isMine}")
             _uiState.update { state ->
                 state.copy(
                     myRoutineDetails = data?.toPresentation()
@@ -128,7 +144,7 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
-    fun reactionToRoutinePosting(recordId: Int, reactionType: String) = viewModelScope.launch {  // 활동 기록에 반응 남기기
+    fun reactionToRoutinePosting(recordId: Int, reactionType: String, refreshUsers: Boolean = false) = viewModelScope.launch {  // 활동 기록에 반응 남기기
         flow {
             emit(reactionToRoutinePostingUseCase(recordId.toInt(), reactionType))
         }.catch { throwable ->
@@ -136,10 +152,11 @@ class MyPageViewModel @Inject constructor(
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             if (data.status != 200) snackbarManager.show(data.message)
+            else if (refreshUsers) getReactionUsers(recordId, reactionType, "", 10)
         }
     }
 
-    fun cancelMyReaction(recordId: Int, reactionType: String) = viewModelScope.launch {  // 활동 기록에 반응 취소하기
+    fun cancelMyReaction(recordId: Int, reactionType: String, refreshUsers: Boolean = false) = viewModelScope.launch {  // 활동 기록에 반응 취소하기
         flow {
             emit(cancelMyReactionUseCase(recordId, reactionType))
         }.catch { throwable ->
@@ -147,6 +164,7 @@ class MyPageViewModel @Inject constructor(
             snackbarManager.show(throwable.toUserMessage())
         }.collect { data ->
             if (data.status != 200) snackbarManager.show(data.message)
+            else if (refreshUsers) getReactionUsers(recordId, reactionType, "", 10)
         }
     }
 
@@ -167,35 +185,30 @@ class MyPageViewModel @Inject constructor(
             // 1. UseCase 호출 (Domain 모델 반환)
             emit(deletePostingUseCase(recordId))
         }.catch { throwable ->
-            // 네트워크 에러나 예상치 못한 예외 처리
-            Timber.e("@#@@@@@@@@@@@@111 deletePosting Delete Posting Error $throwable")
-            Timber.e("Delete Posting Error: $throwable")
             snackbarManager.show(throwable.toUserMessage())
         }.collect { domainData ->
             // 2. 결과 처리
-            if (domainData.isSuccess) {
-                Timber.e("@#@@@@@@@@@@@@111 "+domainData.isSuccess)
-                _uiState.update {
-                    it.copy(
-                        deletePostingSuccess = true
-                    )
-                }
-                // 성공 시: 보통 삭제 성공 토스트를 띄우거나 리스트를 새로고침하는 SideEffect를 보냅니다.
+
+            Timber.e("@#@@@@@@@@@@@@111 "+domainData.isSuccess)
+            _uiState.update {
+                it.copy(
+                    deletePostingSuccess = true
+                )
+            }
+            // 성공 시: 보통 삭제 성공 토스트를 띄우거나 리스트를 새로고침하는 SideEffect를 보냅니다.
 //                _sideEffectChannel.send(MyPageSideEffect.DeleteSuccess(domainData.message))
 
-                // 필요하다면 UiState에서 해당 아이템을 즉시 제거하는 로직을 추가할 수 있습니다.
-                // updateListAfterDeletion(recordId)
-            } else {
-                // 실패 시 (404 등): 서버에서 온 에러 메시지를 전달
-                snackbarManager.show(domainData.message)
-            }
+            // 필요하다면 UiState에서 해당 아이템을 즉시 제거하는 로직을 추가할 수 있습니다.
+            // updateListAfterDeletion(recordId)
+            snackbarManager.show(domainData.message)
+
         }
     }
 
     fun getReactionUsers(recordId: Int, reactionType: String, lastUserId: String, size: Int) = viewModelScope.launch {  // 활동 기록에 새로 반응한 사용자 목록 조회
         _uiState.update { state ->
             state.copy(
-                reactionUsers = com.forday.app.presentation.mypage.routinedetail.ReactionDetailUiModel(
+                reactionUsers = ReactionDetailUiModel(
                     reactionType = reactionType,
                     users = emptyList()
                 )
@@ -217,9 +230,9 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
-    fun getUserInfo() = viewModelScope.launch {  // 사용자 정보 조회
+    fun getUserInfo(userId: String? = null) = viewModelScope.launch {  // 사용자 정보 조회
         flow {
-            emit(getUserInfoUseCase())
+            emit(getUserInfoUseCase(userId))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
@@ -236,19 +249,8 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
-//    fun setProfileImage(imageUrl: String) = viewModelScope.launch {  // 사용자 프로필 이미지 설정
-//        flow {
-//            emit(setProfileImageUseCase(imageUrl))
-//        }.catch { throwable ->
-//            Timber.e("@#@@@@@@@@@@@@111 "+throwable)
-//            _sideEffectChannel.send(MyPageSideEffect.Exception(throwable))
-//        }.collect { data ->
-//            if (data.status != 200) _sideEffectChannel.send(MyPageSideEffect.DomainError(data.message))
-//        }
-//    }
 
-    // MyPageViewModel.kt
-    fun setProfileImage(imageUrl: String) = viewModelScope.launch {
+    fun setProfileImage(imageUrl: String? = null) = viewModelScope.launch {
         flow {
             emit(setProfileImageUseCase(imageUrl))
         }.catch { throwable ->
@@ -272,10 +274,9 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
-    fun getUsersProgressHobbyTabs() = viewModelScope.launch {  // 사용자 취미 진행 상단탭 조회
-        Timber.e("@@@@@@@#################################getUsersProgressHobbyTabs")
+    fun getUsersProgressHobbyTabs(userId: String? = null) = viewModelScope.launch {  // 사용자 취미 진행 상단탭 조회
         flow {
-            emit(getUsersProgressHobbyTabsUseCase())
+            emit(getUsersProgressHobbyTabsUseCase(userId))
         }.catch { throwable ->
             Timber.e("@#@@@@@@@@@@@@111 "+throwable)
             snackbarManager.show(throwable.toUserMessage())
@@ -292,13 +293,13 @@ class MyPageViewModel @Inject constructor(
     fun getUserFeedList(
         hobbyIds: List<Int?>,
         lastRecordId: Long?,
-        feedSize: Long?
+        feedSize: Long?,
+        userId: String? = null
     ) = viewModelScope.launch {
         flow {
-            emit(getUserFeedListUseCase(hobbyIds, lastRecordId, feedSize))
-        }.catch { throwable ->
-            Timber.e("getUserFeedList Error: $throwable")
-            snackbarManager.show(throwable.toUserMessage())
+            emit(getUserFeedListUseCase(hobbyIds, lastRecordId, feedSize, userId))
+        }.httpCatch(tag = "getUserFeedList") { errorData ->
+            snackbarManager.show(errorData.message)
         }.collect { data ->
             Timber.d("getUserFeedList Success: ${data.toPresentation().feedList.size}개 조회")
 
@@ -331,8 +332,6 @@ class MyPageViewModel @Inject constructor(
     }
 
     fun getPresignedUrl(images: List<Map<String, Any>>) = viewModelScope.launch {  // 이미지 업로드용 Presigned URL 발급
-        images.map { Timber.e("@#@############ "+it) }
-        Timber.e("!!!!!!!!!!!!!!!!!getPresignedUrl")
         flow {
             emit(getPresignedUrlUseCase(images).data)
         }.catch { throwable ->
@@ -403,7 +402,7 @@ class MyPageViewModel @Inject constructor(
     }
 
     fun getNickname() = viewModelScope.launch {
-        getNicknameUseCase()  // 이미 Flow를 반환하므로 그대로 사용
+        getNicknameUseCase()
             .catch { throwable ->
                 snackbarManager.show(throwable.toUserMessage())
             }
@@ -446,8 +445,115 @@ class MyPageViewModel @Inject constructor(
                     isScraped = data.data.scraped
                 )
             }
-            if (data.data.scraped == false) snackbarManager.show(data.data.message)
+            snackbarManager.show(data.data.message)
+//            if (data.data.scraped == false) snackbarManager.show(data.data.message)
         }
+    }
+
+    fun reportPosting(recordId: Int, reason: String) = viewModelScope.launch {  // 활동기록 신고
+        flow {
+            emit(reportPostingUseCase(recordId, reason))
+        }.httpCatch(tag = "reportPosting") { errorData ->
+            snackbarManager.show(errorData.message)
+        }.collect { data ->
+            if (data.success) {
+                _uiState.update {
+                    it.copy(
+                        reportPostingSuccess = true,
+                        reportedWriterId = data.data.recordWriterId
+                    )
+                }
+            } else {
+                snackbarManager.show(data.data.message)
+            }
+        }
+    }
+
+    fun resetReportPostingSuccess() {
+        _uiState.update { it.copy(reportPostingSuccess = false) }
+        // reportedWriterId는 유저가 "완료"를 누를 때까지 유지 (clearReportedWriterId로 별도 초기화)
+    }
+
+    fun clearReportedWriterId() {
+        _uiState.update { it.copy(reportedWriterId = "") }
+    }
+
+    fun reportUser(userId: String, reason: String) = viewModelScope.launch {  // 사용자 신고
+        flow {
+            emit(reportUserUseCase(userId, reason))
+        }.httpCatch(tag = "reportUser") { errorData ->
+            snackbarManager.show(errorData.message)
+        }.collect { data ->
+            snackbarManager.show(data.data.message)
+            _uiState.update { it.copy(reportUserSuccess = true) }
+
+        }
+    }
+
+    fun resetReportUserSuccess() {
+        _uiState.update { it.copy(reportUserSuccess = false) }
+    }
+
+    fun blockUser(userId: String, nickname: String = "") = viewModelScope.launch {  // 사용자 차단
+        flow {
+            emit(blockUserUseCase(userId))
+        }.httpCatch(tag = "blockUser") { errorData ->
+            snackbarManager.show(errorData.message)
+        }.collect { data ->
+            if (data.success) {
+                val displayNickname = if (nickname.length > 10) nickname.take(10) else nickname
+                snackbarManager.show("${displayNickname} 님이 차단되었어요.")
+                _uiState.update { it.copy(blockUserSuccess = true, isBlockedUser = true) }
+            } else {
+                snackbarManager.show(data.data.message)
+            }
+        }
+    }
+
+    fun resetBlockUserSuccess() {
+        _uiState.update { it.copy(blockUserSuccess = false) }
+    }
+
+    fun getIsNicknameDuplicate(nickName: String) = viewModelScope.launch {
+        _uiState.update { it.copy(isNicknameCheckLoading = true) }
+        flow {
+            emit(getIsNicknameDuplicateUseCase(nickName))
+        }.catch { throwable ->
+            _uiState.update { it.copy(isNicknameCheckLoading = false) }
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect { result ->
+            _uiState.update {
+                it.copy(
+                    isNicknameCheckLoading = false,
+                    nicknameCheckMessage = result.data.message,
+                    isNicknameChecked = result.data.available
+                )
+            }
+        }
+    }
+
+    fun resetNicknameCheck() {
+        _uiState.update {
+            it.copy(
+                nicknameCheckMessage = "",
+                isNicknameChecked = null
+            )
+        }
+    }
+
+    fun registerNickname(nickName: String?) = viewModelScope.launch {
+        flow {
+            emit(registerNicknameUseCase(nickName))
+        }.catch { throwable ->
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect { data ->
+            _uiState.update { it.copy(nicknameRegisterSuccess = data.isSuccess) }
+            nickName?.let { saveNicknameUseCase(it) }
+        }
+    }
+
+    fun resetNicknameRegisterSuccess() {
+        _uiState.update { it.copy(nicknameRegisterSuccess = false) }
     }
 
     fun cancelScrapPosting(routineId: Int) = viewModelScope.launch {  // 스크랩 취소
@@ -461,7 +567,6 @@ class MyPageViewModel @Inject constructor(
                     isScraped = data.isScraped
                 )
             }
-            if (data.isScraped == true) snackbarManager.show(data.message)
         }
     }
 

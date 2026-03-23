@@ -45,16 +45,20 @@ fun BottomBar(
     val stroke001 = Color(0xFFE5E5E5)
     val gray005 = Color(0xFFE7E7E7)
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
             .background(neutralWhite)
             .border(1.dp, stroke001)
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         // 홈 탭
         BottomBarIconItem(
             iconRes = if (selectedTab == BottomBarTab.HOME) R.drawable.home_selected else R.drawable.home,
@@ -66,16 +70,16 @@ fun BottomBar(
         )
 
         // 발견 탭
-//        BottomBarIconItem(
-//            iconRes = if (selectedTab == BottomBarTab.DISCOVERY) R.drawable.discovery_selected else R.drawable.discovery,
-//            label = "발견",
-//            isSelected = selectedTab == BottomBarTab.DISCOVERY,
-//            neutral900 = neutral900,
-//            neutral400 = neutral400,
-//            iconSize = 17.dp,
-//            iconHeight = 23.375.dp,
-//            onClick = { onTabSelected(BottomBarTab.DISCOVERY) }
-//        )
+        BottomBarIconItem(
+            iconRes = if (selectedTab == BottomBarTab.DISCOVERY) R.drawable.discovery_selected else R.drawable.discovery,
+            label = "발견",
+            isSelected = selectedTab == BottomBarTab.DISCOVERY,
+            neutral900 = neutral900,
+            neutral400 = neutral400,
+            iconSize = 17.dp,
+            iconHeight = 23.375.dp,
+            onClick = { onTabSelected(BottomBarTab.DISCOVERY) }
+        )
 
         // 가운데 플러스 버튼
         Box(
@@ -89,7 +93,7 @@ fun BottomBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.icon_pencil),
+                painter = painterResource(id = R.drawable.ic_logo_gnb),
                 contentDescription = "기록하기",
                 modifier = Modifier.fillMaxSize(),
                 tint = Color.Unspecified
@@ -98,73 +102,74 @@ fun BottomBar(
         }
 
         // 소식 탭
-//        Box(
-//            modifier = Modifier
-//                .size(60.dp, 44.dp)
-//                .clickable { onTabSelected(BottomBarTab.STORY) },
-//            contentAlignment = Alignment.TopCenter
-//        ) {
-//            Column(
-//                horizontalAlignment = Alignment.CenterHorizontally,
-//                modifier = Modifier.fillMaxSize()
-//            ) {
-//                Spacer(modifier = Modifier.height(4.dp))
-//
-//                // 스토리 아이콘
-//                Box(
-//                    modifier = Modifier.size(20.dp, 24.dp)
-//                ) {
-//                    if (selectedTab == BottomBarTab.STORY) {
-//                        // 선택된 상태
-//                        Box(
-//                            modifier = Modifier
-//                                .offset(x = 0.dp, y = 0.84.dp)
-//                                .size(14.941.dp, 17.929.dp)
-//                                .clip(RoundedCornerShape(2.988.dp))
-//                                .background(neutral900)
-//                                .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
-//                        )
-//                        Box(
-//                            modifier = Modifier
-//                                .offset(x = 5.98.dp, y = 5.07.dp)
-//                                .size(14.941.dp, 17.929.dp)
-//                                .clip(RoundedCornerShape(2.988.dp))
-//                                .background(neutral900)
-//                                .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
-//                        )
-//                    } else {
-//                        // 기본 상태
-//                        Box(
-//                            modifier = Modifier
-//                                .offset(x = 0.dp, y = 0.dp)
-//                                .size(14.941.dp, 17.929.dp)
-//                                .clip(RoundedCornerShape(2.988.dp))
-//                                .background(gray005)
-//                                .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
-//                        )
-//                        Box(
-//                            modifier = Modifier
-//                                .offset(x = 5.98.dp, y = 5.23.dp)
-//                                .size(14.941.dp, 17.929.dp)
-//                                .clip(RoundedCornerShape(2.988.dp))
-//                                .background(gray005)
-//                                .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
-//                        )
-//                    }
-//                }
-//
-//                Spacer(modifier = Modifier.height(2.dp))
-//
-//                Text(
-//                    text = "소식",
-//                    fontSize = 10.sp,
-//                    fontWeight = FontWeight.Normal,
-//                    color = if (selectedTab == BottomBarTab.STORY) neutral900 else neutral400,
-//                    textAlign = TextAlign.Center,
-//                    lineHeight = 14.sp
-//                )
-//            }
-//        }
+        Column(
+            modifier = Modifier
+                .width(60.dp)
+                .wrapContentHeight()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = { onTabSelected(BottomBarTab.STORY) }
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 스토리 아이콘
+            Box(
+                modifier = Modifier.size(20.dp, 24.dp)
+            ) {
+                if (selectedTab == BottomBarTab.STORY) {
+                    // 선택된 상태
+                    Box(
+                        modifier = Modifier
+                            .offset(x = 0.dp, y = 0.84.dp)
+                            .size(14.941.dp, 17.929.dp)
+                            .clip(RoundedCornerShape(2.988.dp))
+                            .background(neutral900)
+                            .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(x = 5.98.dp, y = 5.07.dp)
+                            .size(14.941.dp, 17.929.dp)
+                            .clip(RoundedCornerShape(2.988.dp))
+                            .background(neutral900)
+                            .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
+                    )
+                } else {
+                    // 기본 상태
+                    Box(
+                        modifier = Modifier
+                            .offset(x = 0.dp, y = 0.dp)
+                            .size(14.941.dp, 17.929.dp)
+                            .clip(RoundedCornerShape(2.988.dp))
+                            .background(gray005)
+                            .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(x = 5.98.dp, y = 5.23.dp)
+                            .size(14.941.dp, 17.929.dp)
+                            .clip(RoundedCornerShape(2.988.dp))
+                            .background(gray005)
+                            .border(0.747.dp, neutralWhite, RoundedCornerShape(2.988.dp))
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = "소식",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
+                color = if (selectedTab == BottomBarTab.STORY) neutral900 else neutral400,
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp
+            )
+        }
 
         // 마이 탭
         BottomBarIconItem(
@@ -175,6 +180,8 @@ fun BottomBar(
             neutral400 = neutral400,
             onClick = { onTabSelected(BottomBarTab.MYPAGE) }
         )
+    }
+    Spacer(modifier = Modifier.navigationBarsPadding())
     }
 }
 

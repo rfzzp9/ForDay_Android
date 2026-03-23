@@ -14,6 +14,7 @@ import com.forday.app.remote.model.request.RoutineRequest
 import com.forday.app.remote.model.request.WriteRoutineRequest
 import com.forday.app.remote.model.response.AiRecommendedResponse
 import com.forday.app.remote.model.response.CreateHobbyResponse
+import com.forday.app.remote.model.response.PreviousAiRecommendResponse
 import com.forday.app.remote.model.response.CreateRoutinesResponse
 import com.forday.app.remote.model.response.DeleteRoutineResponse
 import com.forday.app.remote.model.response.HobbyCardAgainResponse
@@ -103,7 +104,7 @@ interface HobbyApi {
         @Body body: ModifyHobbyExecutionCountRequest
     ): UpdateHobbyExecutionCountResponse
 
-    @PATCH("/hobbies/{hobbyId}/goal_days")  // 취미 정보 수정 - 목표 기간
+    @PATCH("/hobbies/{hobbyId}/goal-days")  // 취미 정보 수정 - 목표 기간
     suspend fun modifyHobbyDuration(
         @Path("hobbyId") hobbyId: Long?,
         @Body body: ModifyHobbyDurationRequest
@@ -150,7 +151,9 @@ interface HobbyApi {
     ): HobbyMainImageResponse
 
     @GET("/users/hobbies/in-progress")   //사용자 취미 진행 상단탭 조회
-    suspend fun getUsersProgressHobbyTabs(): UserHobbyTabResponse
+    suspend fun getUsersProgressHobbyTabs(
+        @Query("userId") userId: String?
+    ): UserHobbyTabResponse
 
     @GET("/hobbies/info/re-check")
     suspend fun getHobbyCardDataAgain(): HobbyCardAgainResponse  // 취미 정보 재조회
@@ -160,4 +163,10 @@ interface HobbyApi {
         @Path("hobbyId") hobbyId: Long?,
         @Body body: RecreateHobbyRequest
     ): RecreateHobbyResponse
+
+    @GET("/activities/ai-recommend/items")  // AI 추천 활동 리스트 재조회
+    suspend fun getAiRecommendedRoutinesAgain(
+        @Query("hobbyId") hobbyId: Long?,
+        @Query("type") type: String?,
+    ): PreviousAiRecommendResponse
 }

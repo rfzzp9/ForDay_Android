@@ -48,6 +48,7 @@ class UserLocalDataSource @Inject constructor(
 
         private val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
         private val IS_NICKNAME_SET = booleanPreferencesKey("is_nickname_set")
+        private val HAS_SEEN_INTRO = booleanPreferencesKey("has_seen_intro")
 
         private val CREATED_HOBBY_ID = longPreferencesKey("created_hobby_id")
 
@@ -79,6 +80,7 @@ class UserLocalDataSource @Inject constructor(
     val socialTypeFlow = dataStore.data.map { it[SOCIAL_TYPE] ?: "" }
     val isOnboardingCompletedFlow = dataStore.data.map { it[IS_ONBOARDING_COMPLETED] == true }
     val isNicknameSetFlow = dataStore.data.map { it[IS_NICKNAME_SET] == true }
+    val hasSeenIntroFlow = dataStore.data.map { it[HAS_SEEN_INTRO] == true }
 
     suspend fun saveUserNickname(nickname: String) {
         dataStore.edit { it[USER_NICKNAME] = nickname }
@@ -152,6 +154,10 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit { it[IS_NICKNAME_SET] = isNicknameSet }
     }
 
+    suspend fun saveHasSeenIntro(hasSeen: Boolean) {
+        dataStore.edit { it[HAS_SEEN_INTRO] = hasSeen }
+    }
+
     suspend fun saveAiRoutineList(routines: List<AiRoutineItemState>) {
         val json = Json.encodeToString(routines)
         dataStore.edit { it[AI_ROUTINE_LIST] = json }
@@ -186,15 +192,12 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit { it[REFRESH_TOKEN] = refreshToken }
     }
 
-    suspend fun saveHobbyId(hobbyId: Long?) {// 나중엔 지우기..? UT용으로 우선 넣어둠 todo
-        dataStore.edit { it[HOBBY_ID_1] = hobbyId ?: 0L }
-    }
-
     suspend fun saveCreatedHobbyId(hobbyId: Long) {
         dataStore.edit { it[HOBBY_ID_1] = hobbyId }  //서버로부터 받은 취미 id
     }
 
     suspend fun saveOnboardingData(selectedHobbyId: Long?, selectedHobbyName: String?, selectedMinutes: Int?, selectedPurpose: String?, selectedFrequency: Int?, selectedPeriod: Boolean) {
+        Timber.e("@@@@@@@@@@@@@@saveOnboardingData "+selectedHobbyId+", "+selectedHobbyName+", "+selectedMinutes+", "+selectedPurpose+", "+selectedFrequency+", "+selectedPeriod)
         dataStore.edit {
 //            it.remove(LEGACY_HOBBY_ID_1_STRING)  // 주석 풀면 hobbyId가 없어짐
 //            it.remove(LEGACY_HOBBY_INFO_1_LONG)
@@ -256,6 +259,13 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit { it.remove(REFRESH_TOKEN) }
     }
 
+    suspend fun clearTokensOnly() {
+        dataStore.edit {
+            it.remove(ACCESS_TOKEN)
+            it.remove(REFRESH_TOKEN)
+        }
+    }
+
     suspend fun removeTokenAndLoginType() {
         dataStore.edit {
             it.remove(ACCESS_TOKEN)
@@ -270,7 +280,6 @@ class UserLocalDataSource @Inject constructor(
             it.remove(IS_NICKNAME_SET)
             it.remove(USER_NICKNAME)
             it.remove(KAKAO_USER_ID)
-            it.remove(GUEST_USER_ID)
             it.remove(HOBBY_ID_1)
             it.remove(HOBBY_1)
             it.remove(HOBBY_TAKE_TIME)
@@ -283,6 +292,10 @@ class UserLocalDataSource @Inject constructor(
             it.remove(HOBBY_INFO_1)
             it.remove(CREATED_HOBBY_ID)
         }
+    }
+
+    suspend fun removeGuestId() {
+        dataStore.edit { it.remove(GUEST_USER_ID) }
     }
 
     fun getAccessToken(): Flow<String?> {

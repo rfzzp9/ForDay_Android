@@ -1,5 +1,6 @@
 package com.forday.app.presentation.modifyhobby.screen
 
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,6 +9,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,7 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +57,7 @@ enum class HobbyStatus {
 @Serializable
 data class HobbyModifyParams(
     val hobbyId: Int,
+    val hobbyInfoId: Int? = null,
     val hobbyName: String,
     val hobbyTimeMinutes: Int,
     val executionCount: Int,
@@ -103,7 +109,7 @@ fun ModifyHobbyScreenRoot(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    viewModel.logEvent("modify_hobby_screen")
+    viewModel.logEvent(AnalyticsEvents.MODIFY_HOBBY_SCREEN)
 
     LaunchedEffect(Unit) {
         viewModel.fetchMyHobbyList()
@@ -224,7 +230,7 @@ fun ModifyHobbyScreen(
                                 hobbyInfoId = hobby.hobbyInfoId,
                                 duration = "${hobby.hobbyTimeMinutes}분",
                                 frequency = "주 ${hobby.executionCount}회",
-                                journeyDays = "${hobby.goalDays}일",
+                                journeyDays = if (hobby.goalDays == 0) "기간 미지정" else "${hobby.goalDays}일",
                                 onStorageClick = {
                                     selectedHobby = Pair(hobby.hobbyId, hobby.hobbyName)
                                     showStorageDialog = true
@@ -244,6 +250,7 @@ fun ModifyHobbyScreen(
                                         onChangeDuration(
                                             HobbyModifyParams(
                                                 hobbyId = hobby.hobbyId,
+                                                hobbyInfoId = hobby.hobbyInfoId,
                                                 hobbyName = hobby.hobbyName,
                                                 hobbyTimeMinutes = hobby.hobbyTimeMinutes,
                                                 executionCount = hobby.executionCount,
@@ -259,6 +266,7 @@ fun ModifyHobbyScreen(
                                         onChangeFrequency(
                                             HobbyModifyParams(
                                                 hobbyId = hobby.hobbyId,
+                                                hobbyInfoId = hobby.hobbyInfoId,
                                                 hobbyName = hobby.hobbyName,
                                                 hobbyTimeMinutes = hobby.hobbyTimeMinutes,
                                                 executionCount = hobby.executionCount,
@@ -274,6 +282,7 @@ fun ModifyHobbyScreen(
                                         onChangeJourneyDays(
                                             HobbyModifyParams(
                                                 hobbyId = hobby.hobbyId,
+                                                hobbyInfoId = hobby.hobbyInfoId,
                                                 hobbyName = hobby.hobbyName,
                                                 hobbyTimeMinutes = hobby.hobbyTimeMinutes,
                                                 executionCount = hobby.executionCount,
@@ -581,7 +590,7 @@ private fun HobbyManagementTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 44.dp)
-            .background(Color.White)
+            .background(Color(0xFFF9F9F9))
             .padding(vertical = 8.dp)
     ) {
         Icon(
@@ -599,7 +608,7 @@ private fun HobbyManagementTopBar(
         )
 
         Text(
-            text = "내 취미관리",
+            text = "취미 설정",
             modifier = Modifier.align(Alignment.Center),
             style = TextStyle(
                 fontSize = 16.sp,
@@ -675,7 +684,7 @@ private fun TabMenu(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
         ) {
             TabItem(
                 label = "진행중",
@@ -714,13 +723,32 @@ private fun TabItem(
 ) {
     Box(
         modifier = modifier
-            .heightIn(min = 54.dp)
-            .clickable(onClick = rememberThrottledClick { onClick() })
-            .padding(vertical = 8.dp),
+            .height(54.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = rememberThrottledClick { onClick() }
+            )
+            .then(
+                if (isSelected)
+                    Modifier.drawBehind {
+                        val strokeWidth = 4.dp.toPx()
+                        val y = size.height - strokeWidth / 2
+                        drawLine(
+                            color = Color(0xFF3A3A3A),
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
@@ -739,17 +767,6 @@ private fun TabItem(
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                     color = if (isSelected) Color(0xFF3A3A3A) else Color(0xFFB5B5B5)
                 )
-            )
-        }
-
-        // 선택된 탭의 하단 굵은 검은 선
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(Color(0xFF3A3A3A))
-                    .align(Alignment.BottomCenter)
             )
         }
     }
@@ -946,7 +963,7 @@ private fun AddHobbyButton(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    painter = painterResource(R.drawable.ic_plus_btn),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = Color(0xFFB5B5B5)
@@ -963,7 +980,7 @@ private fun AddHobbyButton(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = Color(0xFF3A3A3A)

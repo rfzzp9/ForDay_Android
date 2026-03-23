@@ -3,8 +3,13 @@ package com.forday.app.presentation.allsettings.settings.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.foundation.layout.Arrangement
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
@@ -48,20 +51,10 @@ fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onTermsOfServiceClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {},
-    navigateToLogin: () -> Unit = {},
     onCancelAccountClick: () -> Unit = {},
     viewModel: SettingsViewModel,
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
-
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(state.isLoggedOut) {
-        if (state.isLoggedOut) {
-            // 로그인 화면으로 이동
-            navigateToLogin()
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -147,7 +140,8 @@ private fun SettingsHeader(
             .height(56.dp)
     ) {
         IconButton(
-            onClick = onBackClick,
+            onClick = rememberThrottledClick { onBackClick() },
+            interactionSource = remember { NoRippleInteractionSource() },
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             Icon(
@@ -268,83 +262,104 @@ private fun LogoutDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             dismissOnBackPress = true,
-            dismissOnClickOutside = true
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false
         )
     ) {
-        Card(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            shape = RoundedCornerShape(20.dp)
+                .padding(horizontal = 24.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+                .padding(top = 24.dp, bottom = 24.dp)
         ) {
-            Column(
+            // 제목
+            Text(
+                text = "로그아웃 하시겠습니까?",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E1E1E),
+                lineHeight = 21.6.sp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 10.dp)
+            )
+
+            // 버튼들
+            var closeTextSize by remember { mutableStateOf(14.sp) }
+            var logoutTextSize by remember { mutableStateOf(14.sp) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // 제목
-                Text(
-                    text = "로그아웃 하시겠습니까?",
-                    style = TextStyle(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                // 닫기 버튼
+                DialogButton(
+                    text = "닫기",
+                    backgroundColor = Color(0xFFE5E5E5),
+                    textColor = Color(0xFF1E1E1E),
+                    textSize = closeTextSize,
+                    onTextSizeChange = { closeTextSize = it },
+                    modifier = Modifier.weight(1f),
+                    onClick = onDismiss
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // 버튼들
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // 닫기 버튼
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE0E0E0)
-                        )
-                    ) {
-                        Text(
-                            text = "닫기",
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.Black
-                            )
-                        )
-                    }
-
-                    // 로그아웃 버튼
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9D5C)
-                        )
-                    ) {
-                        Text(
-                            text = "로그아웃",
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
+                // 로그아웃 버튼
+                DialogButton(
+                    text = "로그아웃",
+                    backgroundColor = Color(0xFFFF9447),
+                    textColor = Color.White,
+                    textSize = logoutTextSize,
+                    onTextSizeChange = { logoutTextSize = it },
+                    modifier = Modifier.weight(1f),
+                    onClick = rememberThrottledClick { onConfirm() }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun DialogButton(
+    text: String,
+    backgroundColor: Color,
+    textColor: Color,
+    textSize: TextUnit,
+    onTextSizeChange: (TextUnit) -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(40.dp))
+            .background(backgroundColor)
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            )
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = textSize,
+            fontWeight = FontWeight.Bold,
+            color = textColor,
+            textAlign = TextAlign.Center,
+            lineHeight = 16.8.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            softWrap = false,
+            onTextLayout = { result ->
+                if (result.hasVisualOverflow) onTextSizeChange(textSize * 0.9f)
+            }
+        )
     }
 }
 
@@ -356,7 +371,6 @@ private fun SettingsScreenPreview() {
             onBackClick = TODO(),
             onTermsOfServiceClick = TODO(),
             onPrivacyPolicyClick = TODO(),
-            navigateToLogin = TODO(),
             viewModel = TODO()
         )
     }

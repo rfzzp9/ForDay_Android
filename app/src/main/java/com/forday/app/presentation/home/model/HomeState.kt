@@ -1,5 +1,6 @@
 package com.forday.app.presentation.home.model
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.domain.model.AiRoutineItemDomain
 import com.forday.app.presentation.home.StickerInfoUiModel
 import com.forday.app.presentation.home.StickerUiModel
@@ -16,9 +17,12 @@ data class HomeState(
     val routinePreview: RoutinePreviewUiModel? = null,
     val routineList: List<RoutineUiModel> = emptyList(),  // 여기에 routineId 있음
     val aiCallRemaining: Boolean? = null,
+    val aiCallRemainingCount: Int? = null,
 
     val aiRoutineList: List<AiRoutineItemState> = emptyList(),
+    val aiRoutineLoaded: Boolean = false,  // aiRoutineList 업데이트 트리거
     val aiCallCount: Int? = null,  // ai 호출횟수
+    val recommendedText: String = "",  // ai 추천 텍스트
 
     val currentStickerPage: Int = 0,
     val nickName: String? = "",
@@ -38,6 +42,7 @@ data class HomeState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val routineId: Int? = null,  // AI 취미활동 생성한 고유 번호
+    val errorData: ErrorDataUiState? = null,
 ) {
     val totalStickerPages: Int
         get() = maxOf(1, (stickerCnt + 27) / 28)

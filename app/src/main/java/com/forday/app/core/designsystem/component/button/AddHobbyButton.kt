@@ -11,8 +11,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +52,7 @@ fun AddHobbyButton(
             .fillMaxWidth()
             .padding(horizontal = 0.dp, vertical = 6.dp),
         enabled = enabled,
+        interactionSource = remember { NoRippleInteractionSource() },
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = ForDayColors.Primary003,

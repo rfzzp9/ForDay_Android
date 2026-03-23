@@ -1,14 +1,18 @@
 package com.forday.app.remote.impl
 
+import com.forday.app.data.model.BlockUserEntity
 import com.forday.app.data.model.IsNicknameDuplicateEntity
 import com.forday.app.data.model.ProfileEntity
 import com.forday.app.data.model.ProfileImageEntity
 import com.forday.app.data.model.RegisterNicknameEntity
+import com.forday.app.data.model.ReportUserEntity
 import com.forday.app.data.model.UserDataEntity
 import com.forday.app.data.remote.UserDataSource
 import com.forday.app.remote.api.service.UserApi
+import com.forday.app.remote.model.request.BlockUserRequest
 import com.forday.app.remote.model.request.ProfileImageRequest
 import com.forday.app.remote.model.request.RegisterNicknameRequest
+import com.forday.app.remote.model.request.ReportUserRequest
 import com.forday.app.remote.model.response.IsNicknameDuplicateResponse
 import retrofit2.HttpException
 import timber.log.Timber
@@ -50,10 +54,16 @@ class UserDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getUserInfo(): ProfileEntity =
-        userApi.getUserInfo().toData()
+    override suspend fun getUserInfo(userId: String?): ProfileEntity =
+        userApi.getUserInfo(userId).toData()
 
-    override suspend fun setProfileImage(imageUrl: String): ProfileImageEntity =
+    override suspend fun setProfileImage(imageUrl: String?): ProfileImageEntity =
         userApi.setProfileImage(ProfileImageRequest(imageUrl)).toData()
+
+    override suspend fun blockUser(userId: String): BlockUserEntity =
+        userApi.blockUser(BlockUserRequest(userId)).toData()
+
+    override suspend fun reportUser(userId: String, reason: String): ReportUserEntity =
+        userApi.reportUser(ReportUserRequest(userId, reason)).toData()
 
 }

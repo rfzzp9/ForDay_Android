@@ -11,8 +11,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -44,20 +46,22 @@ fun BottomNextButton(
     text: String,
     state: BottomButtonState = BottomButtonState.ENABLED,
     onClick: () -> Unit = {},
-    modifier: Modifier = Modifier.background(Color.White),
-    showBackgroundGradient: Boolean = true
+    modifier: Modifier = Modifier,
+    showBackgroundGradient: Boolean = true,
+    backgroundColor: Color = Color.White
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(88.dp)
+            .background(backgroundColor)
             .then(
                 if (showBackgroundGradient) {
                     Modifier.background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0f),
-                                Color.White
+                                backgroundColor.copy(alpha = 0f),
+                                backgroundColor
                             ),
                             startY = 0f,
                             endY = Float.POSITIVE_INFINITY
@@ -75,6 +79,7 @@ fun BottomNextButton(
                 .fillMaxSize()
                 .padding(16.dp)
                 .align(Alignment.BottomCenter),
+            interactionSource = remember { NoRippleInteractionSource() },
             colors = ButtonDefaults.buttonColors(
                 containerColor = when (state) {
                     BottomButtonState.ENABLED -> Color(0xFFEE9449)  // Action/001
@@ -114,14 +119,16 @@ fun BottomNextButton(
     enabled: Boolean = true,
     onNext: () -> Unit = {},
     modifier: Modifier = Modifier,
-    showBackgroundGradient: Boolean = true
+    showBackgroundGradient: Boolean = true,
+    backgroundColor: Color = Color.White
 ) {
     BottomNextButton(
         text = text,
         state = if (enabled) BottomButtonState.ENABLED else BottomButtonState.DISABLED,
         onClick = onNext,
         modifier = modifier,
-        showBackgroundGradient = showBackgroundGradient
+        showBackgroundGradient = showBackgroundGradient,
+        backgroundColor = backgroundColor
     )
 }
 

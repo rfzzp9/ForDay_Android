@@ -9,6 +9,7 @@ class GetUserFeedListUseCase @Inject constructor(
     suspend operator fun invoke(
         hobbyIds: List<Int?>,
         lastRecordId: Long?,
-        feedSize: Long?
-    ) = routineRepository.getUserFeedList(hobbyIds, lastRecordId, feedSize)
+        feedSize: Long?,
+        userId: String? = null
+    ) = routineRepository.getUserFeedList(hobbyIds, lastRecordId, feedSize, userId)
 }

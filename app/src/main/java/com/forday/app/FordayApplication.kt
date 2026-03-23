@@ -1,15 +1,12 @@
 package com.forday.app
 
 import android.app.Application
-import android.util.Log
 import com.dayn.forday.BuildConfig
-import com.dayn.forday.R
 import com.forday.app.core.logger.crashlytics.CrashlyticsManager
 import com.forday.app.core.logger.timber.TimberInitializer
 import com.google.firebase.FirebaseApp
 import com.kakao.sdk.common.KakaoSdk
 import dagger.hilt.android.HiltAndroidApp
-import timber.log.Timber
 import javax.inject.Inject
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -40,15 +37,11 @@ class FordayApplication : Application() {
         timberInitializer.execute()
         crashlyticsManager.setUp()
 
-        if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
-        }
-
         // ✅ Coil3 이미지 로더 초기화
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)
                 .crossfade(true)
-                .logger(DebugLogger()) // 디버그 로그 활성화
+                .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
                 .components {
                     // ✅ OkHttp 설정 (components 블록 안에서)
                     add(

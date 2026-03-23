@@ -1,11 +1,13 @@
 package com.forday.app.presentation.inputhobbyroutines.screen
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import com.forday.app.core.logger.analytics.AnalyticsEvents
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -36,6 +39,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.state.ErrorContent
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import timber.log.Timber
@@ -52,38 +57,55 @@ fun AIRecommendationRoutinesScreenRoot(
     onNextClick: () -> Unit,
     viewModel: InputRoutinesAndAiRecommendViewModel
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
-
-    viewModel.logEvent("ai_recommend_hobby_routine_screen")
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    state.aiCallCount
+    viewModel.logEvent(AnalyticsEvents.AI_RECOMMEND_SCREEN)
 
     LaunchedEffect(Unit) {
         viewModel.getAiRecommendedRoutines(hobbyId)
     }
 
-    LaunchedEffect(state.value.aiRoutineList.size) {
-        if (state.value.aiRoutineList.size == 3) {
-            viewModel.saveAiRoutines(state.value.aiRoutineList)
+    LaunchedEffect(state.aiRoutineList.size) {
+        if (state.aiRoutineList.size == 3) {
+            viewModel.saveAiRoutines(state.aiRoutineList)
+            viewModel.logEvent(AnalyticsEvents.aiRecommendationShown(state.selectedHobbyName, state.aiCallCount))
         }
-        Timber.d("📊@@@ Root에서 감지된 루틴 변경: ${state.value.aiRoutineList.size}개")
-        Timber.d("📊@@@ 루틴 내용: ${state.value.aiRoutineList.map { it.content }}")
+        Timber.d("@@@ Root에서 감지된 루틴 변경: ${state.aiRoutineList.size}개")
+        Timber.d("@@@ 루틴 내용: ${state.aiRoutineList.map { it.content }}")
     }
 
-    AIRecommendationRoutinesScreen(
-        routineTitle = state.value.recommendedText,
-        routines = state.value.aiRoutineList,
-        isLoading = state.value.isLoading,
-        onBackClick = {
-            viewModel.logEvent("ai_recommend_hobby_routine_screen_back_btn_click")
-            onBackClick()
-        },
-        onNextClick = { selectedRoutine ->
-            viewModel.logEvent("ai_recommend_hobby_routine_screen_selected_routine_result_${selectedRoutine.content}")
-            viewModel.setSelectedAiRoutine(selectedRoutine)
-            onNextClick()
-        },
-        hobbyId = hobbyId,
-        viewModel = viewModel
-    )
+    val errorData = state.errorData
+    if (errorData != null) {
+        ErrorContent(
+            errorData = errorData,
+            onAction = {
+                when (errorData.errorType) {
+                    ErrorDataUiState.ErrorType.TYPE_RETRY ->
+                        viewModel.getAiRecommendedRoutines(hobbyId)
+                    ErrorDataUiState.ErrorType.TYPE_BACK ->
+                        onBackClick()
+                }
+            }
+        )
+    } else {
+        AIRecommendationRoutinesScreen(
+            routineTitle = state.recommendedText,
+            routines = state.aiRoutineList,
+            isLoading = state.isLoading,
+            onBackClick = {
+                viewModel.logEvent(AnalyticsEvents.AI_RECOMMEND_BACK)
+                onBackClick()
+            },
+            onNextClick = { selectedRoutine ->
+                viewModel.logEvent(AnalyticsEvents.aiRecommendSelectedRoutine(selectedRoutine.content))
+                viewModel.setSelectedAiRoutine(selectedRoutine)
+                onNextClick()
+            },
+            hobbyId = hobbyId,
+            viewModel = viewModel
+        )
+    }
+
 }
 
 @Composable
@@ -104,9 +126,9 @@ fun AIRecommendationRoutinesScreen(
     var selectedRoutineIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(routines.size, routines.hashCode()) {
-        Timber.d("🎨@@@ UI 렌더링: ${routines.size}개 루틴")
-        Timber.d("🎨@@@ 루틴 내용: ${routines.map { it.content }}")
-        Timber.d("🎨@@@ API 호출 횟수: $apiCallCount")
+        Timber.d("@@@ UI 렌더링: ${routines.size}개 루틴")
+        Timber.d("@@@ 루틴 내용: ${routines.map { it.content }}")
+        Timber.d("@@@ API 호출 횟수: $apiCallCount")
         selectedRoutineIndex = null
     }
 
@@ -133,14 +155,13 @@ fun AIRecommendationRoutinesScreen(
                     .padding(top = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AITitleSection(routineTitle = routineTitle)
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // ✅ 로딩 상태에 따라 스켈레톤 또는 실제 데이터 표시
                 if (isLoading) {
+                    AiRecommendTitleSkeleton()
+                    Spacer(modifier = Modifier.height(40.dp))
                     SkeletonRoutineList()
                 } else {
+                    AITitleSection(routineTitle = routineTitle)
+                    Spacer(modifier = Modifier.height(40.dp))
                     Column(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -150,6 +171,7 @@ fun AIRecommendationRoutinesScreen(
                                 isSelected = selectedRoutineIndex == index,
                                 onSelect = {
                                     selectedRoutineIndex = index
+                                    viewModel.logEvent(AnalyticsEvents.aiRecommendationClicked(state.selectedHobbyName, routine.content, index))
                                 }
                             )
                         }
@@ -190,7 +212,7 @@ fun AIRecommendationRoutinesScreen(
                     isMaxReached = maxReached,
                     onClick = {
                         Timber.d("🔘 CounterButton 클릭: 현재 count=$apiCallCount")
-                        viewModel.logEvent("ai_activity_retry_click_cnt_${apiCallCount}")
+                        viewModel.logEvent(AnalyticsEvents.aiRetryClick(apiCallCount))
 
                         if (apiCallCount < maxApiCalls) {
                             Timber.d("🔘 API 호출 요청")
@@ -204,7 +226,7 @@ fun AIRecommendationRoutinesScreen(
                 NextButton(
                     enabled = hasSelection && !isLoading,
                     onClick = {
-                        viewModel.logEvent("click_ai_recommendation_next")
+                        viewModel.logEvent(AnalyticsEvents.CLICK_AI_RECOMMENDATION_NEXT)
                         selectedRoutineIndex?.let { index ->
                             val selectedRoutine = routines[index]
                             onNextClick(selectedRoutine)
@@ -214,6 +236,60 @@ fun AIRecommendationRoutinesScreen(
                 )
             }
         }
+    }
+}
+
+// ─── Shimmer Skeleton ────────────────────────────────────────────────────────
+
+// 피그마 모션 스펙: Left to Right / 1.8s / LinearEasing / Infinite / 15°
+@Composable
+private fun Modifier.shimmerEffect(): Modifier {
+    val shimmerColors = listOf(
+        Color(0xFFF9F9F9),
+        Color(0xFFF2F2F2),
+        Color(0xFFF9F9F9)
+    )
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+    val offsetY = (1000f * Math.tan(Math.toRadians(15.0))).toFloat()
+    return this.background(
+        brush = Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(translateAnim - 1000f, -offsetY),
+            end = Offset(translateAnim, offsetY)
+        )
+    )
+}
+
+@Composable
+private fun AiRecommendTitleSkeleton() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .shimmerEffect()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .height(20.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .shimmerEffect()
+        )
     }
 }
 
@@ -231,73 +307,13 @@ private fun SkeletonRoutineList() {
 
 @Composable
 private fun SkeletonRoutineCard() {
-    val infiniteTransition = rememberInfiniteTransition(label = "skeleton")
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer"
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .shimmerEffect()
+            .height(80.dp)
     )
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        shadowElevation = 4.dp,
-        color = Color.White
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 제목 스켈레톤
-                Box(
-                    modifier = Modifier
-                        .width(180.dp)
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFE5E5E5).copy(alpha = shimmerAlpha))
-                )
-
-                // 체크박스 스켈레톤
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE5E5E5).copy(alpha = shimmerAlpha))
-                )
-            }
-
-            // 설명 스켈레톤
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(16.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFE5E5E5).copy(alpha = shimmerAlpha))
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .height(16.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFE5E5E5).copy(alpha = shimmerAlpha))
-                )
-            }
-        }
-    }
 }
 
 @Composable

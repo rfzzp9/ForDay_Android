@@ -2,6 +2,7 @@ package com.forday.app.presentation.onboarding.frequencyselect
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.layout.Box
@@ -20,7 +21,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,8 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -46,6 +50,7 @@ import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import timber.log.Timber
@@ -76,23 +81,24 @@ fun SelectFrequencyScreenRoot(
     viewModel: OnboardingViewModel,
 ) {
 
-    viewModel.logEvent("hobby_info_frequency_entry")
+    viewModel.logEvent(AnalyticsEvents.HOBBY_FREQUENCY_ENTRY)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val shouldAutoAdvance by viewModel.shouldAutoAdvanceFromFrequency.collectAsStateWithLifecycle()  // ✅ 추가
 
     SelectFrequencyScreen(
-        hobbyName = state.selectedHobbyName,
-        hobbyInfoId = state.selectedHobbyId?.toInt(), // hobbyInfoId 추가
-        selectedTime = if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
+        hobbyName = if (mode == ScreenMode.DEFAULT) params?.hobbyName else state.selectedHobbyName,
+        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyInfoId else state.selectedHobbyId?.toInt(),
+        selectedTime = if (mode == ScreenMode.DEFAULT && params != null) {
+            val minutes = params.hobbyTimeMinutes
+            if (minutes == 60 || minutes == 120) "${minutes / 60}시간" else "${minutes}분"
+        } else if (state.selectedMinutes == 60 || state.selectedMinutes == 120) {
             "${state.selectedMinutes!! / 60}시간"
         } else {
             "${state.selectedMinutes}분"
         },
         selectedFrequency = state.selectedFrequency,
-        shouldAutoAdvance = shouldAutoAdvance,  // ✅ 추가
+        journeyDays = if (mode == ScreenMode.DEFAULT) params?.goalDays else null,
         onBack = {
-            viewModel.logEvent("hobby_frequency_back_click")
-            viewModel.disableAutoAdvanceFromTime()
+            viewModel.logEvent(AnalyticsEvents.HOBBY_FREQUENCY_BACK)
             onBack()
         },
         onNext = { executionCount ->
@@ -102,30 +108,27 @@ fun SelectFrequencyScreenRoot(
             onNext()
         },
         onFrequencySelect = { frequency ->
-            viewModel.logEvent("hobby_weekly_count_$frequency")
+            viewModel.logEvent(AnalyticsEvents.hobbyWeeklyCount(frequency))
             if (mode == ScreenMode.ONBOARDING) {
-                viewModel.enableAutoAdvanceFromFrequency()  // ✅ 추가
                 viewModel.saveFrequency(frequency)
             }
         },
         params = params,
         mode = mode,
-        viewModel = viewModel
     )
 }
 @Composable
 fun SelectFrequencyScreen(
     hobbyName: String? = "독서",
-    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
+    hobbyInfoId: Int? = null,
     selectedTime: String = "30분",
     selectedFrequency: Int? = null,
+    journeyDays: Int? = null,
     params: HobbyModifyParams?,
     mode: ScreenMode,
     onBack: () -> Unit = {},
     onNext: (Int) -> Unit = {},
     onFrequencySelect: (Int) -> Unit = {},
-    shouldAutoAdvance: Boolean = true,  // ✅ 추가
-    viewModel: OnboardingViewModel
 ) {
     // DEFAULT 모드일 때는 로컬 상태로 관리, ONBOARDING일 때는 ViewModel 상태 사용
     val localSelectedFrequency = remember(params?.executionCount, selectedFrequency) {
@@ -143,20 +146,6 @@ fun SelectFrequencyScreen(
         localSelectedFrequency.value
     } else {
         selectedFrequency
-    }
-
-    // 화면 진입 시 자동 진행 방지 추가
-    LaunchedEffect(Unit) {
-        if (mode == ScreenMode.ONBOARDING && currentFrequency != null && currentFrequency > 0) {
-            viewModel.disableAutoAdvanceFromFrequency()
-        }
-    }
-
-    // 자동 진행 처리
-    LaunchedEffect(currentFrequency, shouldAutoAdvance) {
-        if (mode == ScreenMode.ONBOARDING && currentFrequency != null && currentFrequency > 0 && shouldAutoAdvance) {
-            onNext(currentFrequency)
-        }
     }
 
     OnboardingLayout(
@@ -191,9 +180,10 @@ fun SelectFrequencyScreen(
                     // Hobby Summary Card - hobbyInfoId 전달
                     HobbySummaryCard(
                         hobbyName = hobbyName,
-                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyId else hobbyInfoId,
+                        hobbyInfoId = if (mode == ScreenMode.DEFAULT) params?.hobbyInfoId else hobbyInfoId,
                         selectedTime = selectedTime,
                         selectedFrequency = currentFrequency,
+                        journeyDays = journeyDays,
                     )
 
                     Spacer(modifier = Modifier.height(40.dp))
@@ -215,15 +205,14 @@ fun SelectFrequencyScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (mode == ScreenMode.DEFAULT) {
-                    BottomNextButton(
-                        text = "변경하기",
-                        enabled = currentFrequency != null && currentFrequency > 0,
-                        onNext = {
-                            currentFrequency?.let { onNext(it) }
-                        }
-                    )
-                }
+                BottomNextButton(
+                    text = if (mode == ScreenMode.DEFAULT) "변경하기" else "다음",
+                    enabled = currentFrequency != null && currentFrequency > 0,
+                    onNext = {
+                        currentFrequency?.let { onNext(it) }
+                    },
+                    backgroundColor = ForDayTheme.color.Neutral50
+                )
             }
         }
     }
@@ -262,9 +251,10 @@ fun FrequencyTitleSection(hobbyName: String?) {
 @Composable
 fun HobbySummaryCard(
     hobbyName: String?,
-    hobbyInfoId: Int? = null, // hobbyInfoId 파라미터 추가
+    hobbyInfoId: Int? = null,
     selectedTime: String,
-    selectedFrequency: Int?
+    selectedFrequency: Int?,
+    journeyDays: Int? = null,
 ) {
     val isSelected = selectedFrequency != null
 
@@ -331,6 +321,22 @@ fun HobbySummaryCard(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Normal,
                             color = ForDayTheme.color.StrongDivider,
+                            lineHeight = 14.sp
+                        )
+                    }
+
+                    if (journeyDays != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(2.dp)
+                                .background(ForDayTheme.color.Neutral600, CircleShape)
+                        )
+
+                        Text(
+                            text = if (journeyDays == 0) "기간 미지정" else "${journeyDays}일",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = ForDayTheme.color.Neutral600,
                             lineHeight = 14.sp
                         )
                     }
@@ -453,43 +459,122 @@ fun FrequencyButton(
             .background(backgroundColor, shape)
             .drawBehind {
                 val strokeWidth = 1.dp.toPx()
+                val halfStroke = strokeWidth / 2
+                val radius = 8.dp.toPx()
 
-                // 위쪽 border
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = strokeWidth
-                )
+                when (number) {
+                    1 -> {
+                        // 버튼 1: 왼쪽 둥근 모서리 + top + bottom (borderColor)
+                        val path = Path().apply {
+                            // top-left 둥근 모서리에서 시작
+                            moveTo(halfStroke + radius, halfStroke)
+                            // top 직선
+                            lineTo(size.width, halfStroke)
+                        }
+                        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
 
-                // 아래쪽 border
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = strokeWidth
-                )
+                        val bottomPath = Path().apply {
+                            moveTo(size.width, size.height - halfStroke)
+                            // bottom 직선
+                            lineTo(halfStroke + radius, size.height - halfStroke)
+                            // bottom-left 둥근 모서리
+                            arcTo(
+                                rect = androidx.compose.ui.geometry.Rect(
+                                    halfStroke, size.height - halfStroke - radius * 2,
+                                    halfStroke + radius * 2, size.height - halfStroke
+                                ),
+                                startAngleDegrees = 90f,
+                                sweepAngleDegrees = 90f,
+                                forceMoveTo = false
+                            )
+                            // left 직선
+                            lineTo(halfStroke, halfStroke + radius)
+                            // top-left 둥근 모서리
+                            arcTo(
+                                rect = androidx.compose.ui.geometry.Rect(
+                                    halfStroke, halfStroke,
+                                    halfStroke + radius * 2, halfStroke + radius * 2
+                                ),
+                                startAngleDegrees = 180f,
+                                sweepAngleDegrees = 90f,
+                                forceMoveTo = false
+                            )
+                        }
+                        drawPath(bottomPath, color = borderColor, style = Stroke(width = strokeWidth))
 
-                // 왼쪽 border (첫 번째 버튼만)
-                if (number == 1) {
-                    drawLine(
-                        color = borderColor,
-                        start = Offset(0f, 0f),
-                        end = Offset(0f, size.height),
-                        strokeWidth = strokeWidth
-                    )
+                        // 오른쪽 border (rightBorderColor 별도 적용)
+                        drawLine(
+                            color = rightBorderColor,
+                            start = Offset(size.width - halfStroke, 0f),
+                            end = Offset(size.width - halfStroke, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                    7 -> {
+                        // 버튼 7: 왼쪽 직각 + 오른쪽 둥근 모서리
+                        val path = Path().apply {
+                            moveTo(0f, halfStroke)
+                            // top 직선
+                            lineTo(size.width - halfStroke - radius, halfStroke)
+                            // top-right 둥근 모서리
+                            arcTo(
+                                rect = androidx.compose.ui.geometry.Rect(
+                                    size.width - halfStroke - radius * 2, halfStroke,
+                                    size.width - halfStroke, halfStroke + radius * 2
+                                ),
+                                startAngleDegrees = 270f,
+                                sweepAngleDegrees = 90f,
+                                forceMoveTo = false
+                            )
+                            // right 직선
+                            lineTo(size.width - halfStroke, size.height - halfStroke - radius)
+                            // bottom-right 둥근 모서리
+                            arcTo(
+                                rect = androidx.compose.ui.geometry.Rect(
+                                    size.width - halfStroke - radius * 2, size.height - halfStroke - radius * 2,
+                                    size.width - halfStroke, size.height - halfStroke
+                                ),
+                                startAngleDegrees = 0f,
+                                sweepAngleDegrees = 90f,
+                                forceMoveTo = false
+                            )
+                            // bottom 직선
+                            lineTo(0f, size.height - halfStroke)
+                        }
+                        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
+                    }
+                    else -> {
+                        // 버튼 2~6: 직각 border (기존 방식)
+                        // 위쪽 border
+                        drawLine(
+                            color = borderColor,
+                            start = Offset(0f, halfStroke),
+                            end = Offset(size.width, halfStroke),
+                            strokeWidth = strokeWidth
+                        )
+                        // 아래쪽 border
+                        drawLine(
+                            color = borderColor,
+                            start = Offset(0f, size.height - halfStroke),
+                            end = Offset(size.width, size.height - halfStroke),
+                            strokeWidth = strokeWidth
+                        )
+                        // 오른쪽 border
+                        drawLine(
+                            color = rightBorderColor,
+                            start = Offset(size.width - halfStroke, 0f),
+                            end = Offset(size.width - halfStroke, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                    }
                 }
-
-                // 오른쪽 border (모든 버튼)
-                drawLine(
-                    color = rightBorderColor,
-                    start = Offset(size.width, 0f),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = strokeWidth
-                )
             }
             .clip(shape)
-            .clickable(onClick = rememberThrottledClick { onClick() }),
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = rememberThrottledClick { onClick() }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -517,8 +602,6 @@ fun SelectFrequencyScreenPreview() {
             onBack = {},
             onNext = {},
             onFrequencySelect = {},
-            shouldAutoAdvance = false,
-            viewModel = TODO()
         )
     }
 }

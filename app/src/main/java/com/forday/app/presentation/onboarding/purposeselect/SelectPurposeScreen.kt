@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -25,7 +27,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,10 +48,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.dialog.HobbyInputDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -85,9 +89,8 @@ fun SelectPurposeScreenRoot(
     onBack: () -> Unit,
     viewModel: OnboardingViewModel,
 ) {
-    viewModel.logEvent("hobby_purpose_selection_screen")//취미정보 - 목적 선택 화면 진입
+    viewModel.logEvent(AnalyticsEvents.HOBBY_PURPOSE_SELECTION_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val shouldAutoAdvance by viewModel.shouldAutoAdvanceFromPurpose.collectAsStateWithLifecycle()
     Timber.e("@#@##@#@#@# "+state.selectedPurpose+", "+state.selectedHobbyId+", "+state.selectedFrequency)
     val scope = rememberCoroutineScope()
     SelectPurposeScreen(
@@ -99,8 +102,7 @@ fun SelectPurposeScreenRoot(
         customPurposeText = state.customPurposeText,
         selectedPurpose = state.selectedPurpose,
         onBack = {
-            viewModel.logEvent("hobby_purpose_selection_screen_back_click")
-            viewModel.disableAutoAdvanceFromFrequency()
+            viewModel.logEvent(AnalyticsEvents.HOBBY_PURPOSE_SELECTION_BACK)
             scope.launch {
                 delay(400L)
                 onBack()
@@ -113,28 +115,24 @@ fun SelectPurposeScreenRoot(
             }
         },
         onShowCustomDialog = {
-            viewModel.logEvent("hobby_purpose_selection_screen_custom_purpose_click")  // 목적 직접 입력하기 클릭
+            viewModel.logEvent(AnalyticsEvents.HOBBY_PURPOSE_CUSTOM_CLICK)
             viewModel.showDialog()
         },
         onDismissCustomDialog = {
             viewModel.dismissDialog()
         },
         onCustomHobbyConfirm = { text ->
-            viewModel.logEvent("user_custom_purpose_is_$text")  //사용자가 입력한 목적
+            viewModel.logEvent(AnalyticsEvents.userCustomPurpose(text))
             viewModel.confirmCustomPurpose(text)
             onNext()
         },
         onPurposeSelect = { purposes ->
-            viewModel.logEvent("selected_purpose_$purposes")  // 선택한 목적
+            viewModel.logEvent(AnalyticsEvents.selectedPurpose(purposes.joinToString(", ")))
             viewModel.savePurposes(purposes)
         },
         showCustomHobbyDialog = state.showDialog,
-        shouldAutoAdvance = shouldAutoAdvance,
-        viewModel = viewModel,
         selectedFrequency = state.selectedFrequency,
     )
-
-
 }
 
 @Composable
@@ -151,8 +149,6 @@ fun SelectPurposeScreen(
     onDismissCustomDialog: () -> Unit,
     onCustomHobbyConfirm: (String) -> Unit,
     onPurposeSelect: (Set<String>) -> Unit = {},
-    shouldAutoAdvance: Boolean,
-    viewModel: OnboardingViewModel,
     selectedFrequency: Int?
 ) {
     // 단일 선택을 위해 Set 대신 단일 String으로 변경
@@ -177,13 +173,6 @@ fun SelectPurposeScreen(
     // 최소 1개 이상의 목적이 선택되었는지 확인 (PurposeCard 또는 customHobbyText)
     val hasSelectedPurpose = selectedPurpose.isNotEmpty() || localCustomPurposeText.isNotEmpty()
 
-    // 자동 진행 처리
-    LaunchedEffect(hasSelectedPurpose, shouldAutoAdvance) {
-        if (hasSelectedPurpose && shouldAutoAdvance) {
-            onNext()
-        }
-    }
-
     OnboardingLayout(
         title = "취미 목적",
         currentStep = 3,
@@ -203,6 +192,8 @@ fun SelectPurposeScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -233,7 +224,6 @@ fun SelectPurposeScreen(
                                 localCustomPurposeText = ""  // PurposeCard를 선택하면 customHobbyText 초기화
                                 selectedPurpose = purpose
                                 onPurposeSelect(setOf(purpose))
-                                viewModel.enableAutoAdvanceFromPurpose()  // ✅ 추가
                             }
                         }
                     )
@@ -245,6 +235,13 @@ fun SelectPurposeScreen(
                         onClick = onShowCustomDialog,
                     )
                 }
+
+                BottomNextButton(
+                    text = "다음",
+                    enabled = hasSelectedPurpose,
+                    onNext = onNext,
+                    backgroundColor = ForDayTheme.color.Neutral50
+                )
             }
 
             if (showCustomHobbyDialog) {
@@ -625,8 +622,6 @@ fun SelectPurposeScreenPreview() {
             onPurposeSelect = {},
             showCustomHobbyDialog = false,
             selectedPurpose = "",
-            shouldAutoAdvance = true,
-            viewModel = TODO(),
             selectedFrequency = 2,
         )
     }

@@ -6,7 +6,7 @@ import com.forday.app.core.navigation.MyPage
 import com.forday.app.presentation.discovery.navigation.Discovery
 import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.onboarding.login.navigation.Login
-import com.forday.app.presentation.story.navigation.Story
+import com.forday.app.presentation.sosik.navigation.Sosik
 import timber.log.Timber
 
 /**
@@ -26,21 +26,11 @@ class Navigator(val state: MainNavigationState) {
         Timber.e(
             "Navigator.navigate(route=$route) currentTop=$currentTop stackSizeBefore=${currentStackBefore?.size} lastBefore=${currentStackBefore?.lastOrNull()}"
         )
-        if (route in state.backStacks.keys) {
+        if (route in TOP_LEVEL_DESTINATIONS.keys) {
             // 탭 전환
             state.topLevelRoute = route
         } else {
-            // startRoute가 Login/온보딩처럼 Top-level이 아닌 경우,
-            // 현재 topLevelRoute가 Home 같은 탭으로 잡혀있더라도 startRoute 스택에 화면을 추가해야
-            // 실제 표시되고 있는 플로우(Login/온보딩)가 정상적으로 전환됩니다.
-            val activeStackKey =
-                if (state.startRoute !in TOP_LEVEL_DESTINATIONS.keys && state.topLevelRoute in TOP_LEVEL_DESTINATIONS.keys) {
-                    state.startRoute
-                } else {
-                    state.topLevelRoute
-                }
-
-            state.backStacks[activeStackKey]?.add(route)
+            state.backStacks[state.topLevelRoute]?.add(route)
         }
 
         state.notifyNavChanged()
@@ -73,11 +63,10 @@ class Navigator(val state: MainNavigationState) {
 
         val currentRoute = currentStack.last()
 
-        return if (currentRoute == state.topLevelRoute) {
-            // 탭의 첫 화면이면 시작 탭으로 이동
-            // 단, Login 화면에서는 뒤로가기로 이전 화면 복귀가 불가능해야 함
+        return if (currentStack.size <= 1) {
+            // 스택에 루트만 남아있으면 더 이상 뒤로 갈 수 없음
             if (state.topLevelRoute == Login) {
-                true
+                false  // Login에서는 처리하지 않음 → 전역 BackHandler에서 앱 종료 처리
             } else {
                 // startRoute가 탭(Home/Discovery/Story/MyPage)인 경우에만 startRoute로 이동
                 // startRoute가 Login/온보딩이면 여기서 더 이상 처리하지 않음(상위에서 앱 종료 UX 처리)
@@ -104,15 +93,22 @@ class Navigator(val state: MainNavigationState) {
     /**
      * 모든 백스택을 초기화한 뒤, 지정 route로 이동합니다.
      * 뒤로가기를 눌러도 이전 화면으로 돌아가지 않도록 하기 위해 사용합니다.
+     *
+     * @param preloadStack 루트 위에 미리 쌓을 화면 목록 (순서대로 추가, 뒤로가기 지원용)
      */
-    fun resetTo(route: NavKey) {
+    fun resetTo(route: NavKey, preloadStack: List<NavKey> = emptyList()) {
         state.backStacks.forEach { (key, stack) ->
             while (stack.removeLastOrNull() != null) { }
             stack.add(key)
         }
 
         state.topLevelRoute = route
-        state.startRoute = route  // ← startRoute도 갱신 (val → var로 변경 필요)
+        // Home 또는 탭이 아닌 경로(Login, 온보딩 등)에만 startRoute 갱신
+        // 비Home 탭(MyPage, Sosik 등)으로 resetTo 시엔 startRoute를 유지해
+        // 뒤로가기 시 원래 홈(Home)으로 돌아갈 수 있도록 함
+        if (route == Home || route !in TOP_LEVEL_DESTINATIONS.keys) {
+            state.startRoute = route
+        }
 
         val targetStack = state.backStacks[route]
             ?: error("Back stack for $route doesn't exist")
@@ -120,6 +116,8 @@ class Navigator(val state: MainNavigationState) {
         if (targetStack.lastOrNull() != route) {
             targetStack.add(route)
         }
+
+        preloadStack.forEach { targetStack.add(it) }
 
         state.notifyNavChanged()
     }
@@ -162,7 +160,7 @@ val TOP_LEVEL_DESTINATIONS = mapOf(
         iconSelected = com.dayn.forday.R.drawable.discovery_selected,
         title = "발견"
     ),
-    Story to BottomNavItem(
+    Sosik to BottomNavItem(
         icon = com.dayn.forday.R.drawable.ic_story_unselected,
         iconSelected = com.dayn.forday.R.drawable.ic_story_unselected,  //selected로 수정해야 함
         title = "소식"
@@ -180,7 +178,7 @@ val TOP_LEVEL_DESTINATIONS = mapOf(
 fun NavKey.toBottomBarTab(): BottomBarTab = when(this) {
     Home -> BottomBarTab.HOME
     Discovery -> BottomBarTab.DISCOVERY
-    Story -> BottomBarTab.STORY
+    Sosik -> BottomBarTab.STORY
     MyPage -> BottomBarTab.MYPAGE
     else -> BottomBarTab.HOME
 }
@@ -191,6 +189,6 @@ fun NavKey.toBottomBarTab(): BottomBarTab = when(this) {
 fun BottomBarTab.toNavKey(): NavKey = when(this) {
     BottomBarTab.HOME -> Home
     BottomBarTab.DISCOVERY -> Discovery
-    BottomBarTab.STORY -> Story
+    BottomBarTab.STORY -> Sosik
     BottomBarTab.MYPAGE -> MyPage
 }

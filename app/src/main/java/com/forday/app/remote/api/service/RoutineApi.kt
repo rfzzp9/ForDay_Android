@@ -4,12 +4,15 @@ import com.forday.app.remote.model.request.GetUserScrapListRequest
 import com.forday.app.remote.model.request.ModifyPostingRequest
 import com.forday.app.remote.model.request.PostingVisibilityRequest
 import com.forday.app.remote.model.request.ReactionRequest
+import com.forday.app.remote.model.request.ReportPostingRequest
 import com.forday.app.remote.model.response.CancelScrapResponse
 import com.forday.app.remote.model.response.DeletePostingResponse
+import com.forday.app.remote.model.response.SosikResponse
 import com.forday.app.remote.model.response.ModifyPostingResponse
 import com.forday.app.remote.model.response.ReactionCancelResponse
 import com.forday.app.remote.model.response.ReactionResponse
 import com.forday.app.remote.model.response.ReactionUsersResponse
+import com.forday.app.remote.model.response.ReportPostingResponse
 import com.forday.app.remote.model.response.RoutineRecordDetailResponse
 import com.forday.app.remote.model.response.ScrapListResponse
 import com.forday.app.remote.model.response.ScrapResponse
@@ -27,7 +30,7 @@ import retrofit2.http.Query
 interface RoutineApi {
 
     @GET("/records/{recordId}")
-    suspend fun getMyRoutineRecordDetail(  // 내 활동 기록 상세 조회
+    suspend fun getMyRoutineRecordDetail(  // 활동 기록 상세 조회
         @Path("recordId") recordId: Int,
     ): RoutineRecordDetailResponse
 
@@ -61,7 +64,8 @@ interface RoutineApi {
     suspend fun getMyRoutineFeedList(
         @Query("hobbyId") hobbyIds: List<Int?>,
         @Query("lastRecordId") lastRecordId: Long?,
-        @Query("feedSize") feedSize: Long?
+        @Query("feedSize") feedSize: Long?,
+        @Query("userId") userId: String?,
     ): UserFeedResponse
 
     @PUT("/records/{recordId}")  // 활동 기록 수정하기
@@ -91,4 +95,19 @@ interface RoutineApi {
     suspend fun cancelScrap(
         @Path("recordId") recordId: Int
     ): CancelScrapResponse
+
+    @GET("/records/stories")  // 소식에서 기록 목록 조회
+    suspend fun getPeopleRoutineList(
+        @Query("hobbyId") hobbyId: Long?,
+        @Query("lastRecordId") lastRecordId: Long?,
+        @Query("size") size: Long?,
+        @Query("keyword") keyword: String?,
+        @Query("storyFilterType") storyFilterType: String?
+    ): SosikResponse
+
+    @POST("/records/{recordId}/report")  // 활동기록 신고하기
+    suspend fun reportPosting(
+        @Path("recordId") recordId: Int,
+        @Body body: ReportPostingRequest
+    ): ReportPostingResponse
 }

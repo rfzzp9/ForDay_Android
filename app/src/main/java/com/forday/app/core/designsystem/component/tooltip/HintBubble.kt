@@ -14,6 +14,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -86,7 +88,8 @@ fun HintBubble(
             if (showIcon) {
                 IconButton(
                     onClick = { onDismiss?.invoke() },
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
+                    interactionSource = remember { NoRippleInteractionSource() }
                 ) {
                     Icon(
                         painter = painterResource(

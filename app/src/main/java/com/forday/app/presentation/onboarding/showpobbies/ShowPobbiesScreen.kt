@@ -1,6 +1,7 @@
 package com.forday.app.presentation.onboarding.showpobbies
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import androidx.annotation.DrawableRes
 import com.forday.app.presentation.onboarding.OnboardingViewModel
@@ -38,10 +40,6 @@ fun ShowPobbiesScreen(
     onNext: () -> Unit = {},
     viewModel: OnboardingViewModel
 ) {
-
-    LaunchedEffect(Unit) {
-        viewModel.resetOnboardingState()
-    }
 
     val characters = listOf(
         PobyCharacter(
@@ -233,6 +231,7 @@ fun BoxScope.BottomButton(onClick: () -> Unit) {
         // Button
         Button(
             onClick = rememberThrottledClick { onClick() },
+            interactionSource = remember { NoRippleInteractionSource() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp, vertical = 16.dp)

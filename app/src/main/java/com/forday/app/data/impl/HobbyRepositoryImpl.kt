@@ -23,6 +23,7 @@ import com.forday.app.domain.model.UpdateHobbyTimeDomain
 import com.forday.app.domain.model.UpdateRoutineDomain
 import com.forday.app.domain.model.UserHobbyTabDomain
 import com.forday.app.domain.model.WriteRoutineDomain
+import com.forday.app.domain.model.PreviousAiRecommendDomain
 import com.forday.app.domain.model.RecreateHobbyDomain
 import com.forday.app.domain.repository.HobbyRepository
 import javax.inject.Inject
@@ -123,8 +124,8 @@ class HobbyRepositoryImpl @Inject constructor(
     override suspend fun extendHobbyPeriod(hobbyId: Long?, type: String): SetHobbyPeriodDomain =
         hobbyDataSource.extendHobbyPeriod(hobbyId, type).toDomain()
 
-    override suspend fun getUsersProgressHobbyTabs(): UserHobbyTabDomain =
-        hobbyDataSource.getUsersProgressHobbyTabs().toDomain()
+    override suspend fun getUsersProgressHobbyTabs(userId: String?): UserHobbyTabDomain =
+        hobbyDataSource.getUsersProgressHobbyTabs(userId).toDomain()
 
     override suspend fun setHobbyMainImage(
         hobbyId: Long?,
@@ -135,6 +136,9 @@ class HobbyRepositoryImpl @Inject constructor(
 
     override suspend fun getHobbyCardDataAgain(): HobbyCardAgainDomain =
         hobbyDataSource.getHobbyCardDataAgain().toDomain()
+
+    override suspend fun getAiRecommendedRoutinesAgain(hobbyId: Long?, type: String?): PreviousAiRecommendDomain =
+        hobbyDataSource.getAiRecommendedRoutinesAgain(hobbyId, type).toDomain()
 
     override suspend fun reCreateHobby(
         hobbyId: Long?,

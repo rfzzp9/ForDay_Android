@@ -1,7 +1,10 @@
 package com.forday.app.presentation.inputhobbyroutines.screen
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,12 +34,12 @@ fun LoadingRoutinesScreen(
     onNext: (Long?) -> Unit,
     viewModel: InputRoutinesAndAiRecommendViewModel
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     val loadingMessages = listOf(
         "당신의 취향과 패턴을 분석했어요",
-        "AI 가 맞는 활동을 찾아줄게요",
-        "활동은 추가로 만들 수 있어요"
+        "AI가 꼭 맞는 활동을 찾아줄게요",
+        "활동은 추가로 받을 수 있어요"
     )
 
     var currentMessageIndex by remember { mutableStateOf(0) }
@@ -73,7 +76,7 @@ fun LoadingRoutinesScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "${state.value.nickname}의 취미를 분석 중",
+                    text = "${state.nickname}의 취미를 분석 중",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = ForDayTheme.color.Neutral900,
@@ -81,7 +84,7 @@ fun LoadingRoutinesScreen(
                 )
 
                 Text(
-                    text = "독서 습관 활동을 생성 중이에요.",
+                    text = "${state.selectedHobbyName} AI 활동을 생성 중이에요.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     color = ForDayTheme.color.Gray800,
@@ -152,21 +155,31 @@ fun BoxScope.LoadingToast(message: String) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
-        Crossfade(
-            targetState = message,
-            animationSpec = tween(durationMillis = 300),
-            label = "toast_crossfade"
-        ) { currentMessage ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xCC000000))
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xCC000000))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = message,
+                modifier = Modifier.fillMaxWidth(),
+                transitionSpec = {
+                    slideInHorizontally(
+                        animationSpec = tween(durationMillis = 450),
+                        initialOffsetX = { it }
+                    ) togetherWith slideOutHorizontally(
+                        animationSpec = tween(durationMillis = 450),
+                        targetOffsetX = { -it }
+                    )
+                },
+                label = "toast_slide"
+            ) { currentMessage ->
                 Text(
                     text = currentMessage,
+                    modifier = Modifier.fillMaxWidth(),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = ForDayTheme.color.White,

@@ -1,6 +1,7 @@
 package com.forday.app.presentation.onboarding
 
 import androidx.navigation3.runtime.NavKey
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.util.ImageCodeMapper.getDrawableResId
 import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
@@ -37,7 +38,10 @@ data class OnboardingUiState(
     val isHobbyRecreated: Boolean = false,
     val initialRoute: NavKey? = null,
     val isSplashLoading: Boolean = true,
-    val isLoginSuccess: Boolean = false// ✅ 로그인 성공 플래그
+    val isLoginSuccess: Boolean = false, // 로그인 성공 플래그
+    val errorData: ErrorDataUiState? = null,
+    val hasSeenIntro: Boolean? = null,
+    val socialType: String? = null,
 )
 
 fun HobbyCardDomain.toPresentation() =

@@ -12,7 +12,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -79,6 +81,7 @@ fun BottomNavigationButtons(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
+                interactionSource = remember { NoRippleInteractionSource() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFE5E5E5),  // Action/003
                     contentColor = Color(0xFF7A7A7A)     // Neutral/600
@@ -104,6 +107,7 @@ fun BottomNavigationButtons(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
+                interactionSource = remember { NoRippleInteractionSource() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (nextEnabled) {
                         Color(0xFFEE9449)  // Action/001

@@ -3,6 +3,7 @@ package com.forday.app.data.impl
 import com.forday.app.data.model.toDomain
 import com.forday.app.data.remote.RoutineDataSource
 import com.forday.app.domain.model.CancelScrapDomain
+import com.forday.app.domain.model.ReportPostingDomain
 import com.forday.app.domain.model.DeletePostingDomain
 import com.forday.app.domain.model.ModifyPostingDomain
 import com.forday.app.domain.model.ReactionCancelDomain
@@ -53,9 +54,10 @@ class RoutineRepositoryImpl @Inject constructor(
     override suspend fun getUserFeedList(
         hobbyIds: List<Int?>,
         lastRecordId: Long?,
-        feedSize: Long?
+        feedSize: Long?,
+        userId: String?
     ): UserFeedDomain =
-        routineDataSource.getUserFeedList(hobbyIds, lastRecordId, feedSize).toDomain()
+        routineDataSource.getUserFeedList(hobbyIds, lastRecordId, feedSize, userId).toDomain()
 
     override suspend fun modifyPosting(
         recordId: Int,
@@ -80,4 +82,7 @@ class RoutineRepositoryImpl @Inject constructor(
 
     override suspend fun cancelScrapPosting(recordId: Int): CancelScrapDomain =
         routineDataSource.cancelScrapPosting(recordId).toDomain()
+
+    override suspend fun reportPosting(recordId: Int, reason: String): ReportPostingDomain =
+        routineDataSource.reportPosting(recordId, reason).toDomain()
 }

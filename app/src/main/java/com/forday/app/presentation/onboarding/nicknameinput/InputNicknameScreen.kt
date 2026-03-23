@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.OnboardingUiState
 import timber.log.Timber
@@ -87,7 +89,7 @@ fun InputNicknameScreenRoot(
     onNext: () -> Unit,
     viewModel: OnboardingViewModel
 ) {
-    viewModel.logEvent("nickname_direct_input_screen")
+    viewModel.logEvent(AnalyticsEvents.NICKNAME_INPUT_SCREEN)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // ✅ 닉네임 등록 성공 시 자동으로 다음 화면으로
@@ -101,12 +103,12 @@ fun InputNicknameScreenRoot(
     InputNicknameScreen(
         uiState = uiState,
         onNext = {
-            viewModel.logEvent("nickname_register_click")
+            viewModel.logEvent(AnalyticsEvents.NICKNAME_REGISTER_CLICK)
             viewModel.registerNickname(uiState.selectedHobbyName)
             // ✅ 여기서는 API 호출만! navigation은 LaunchedEffect에서 처리
         },
         onCheckDuplicate = { nickname ->
-            viewModel.logEvent("current_input_nickname_${nickname}")
+            viewModel.logEvent(AnalyticsEvents.currentInputNickname(nickname))
             viewModel.getIsNicknameDuplicate(nickname)
         },
         onNicknameChange = {

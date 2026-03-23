@@ -31,21 +31,26 @@ import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.inputhobbyroutines.navigation.InputRoutine
 import com.forday.app.presentation.modifyhobby.navigation.ModifyHobby
 import com.forday.app.presentation.modifyroutine.navigation.ModifyRoutine
+import com.forday.app.presentation.mypage.hobbyphotosetting.navigation.HobbyPhotoSetting
 import com.forday.app.presentation.mypage.profilesetting.navigation.ProfileSetting
 import com.forday.app.presentation.mypage.routinedetail.navigation.RoutineDetail
+import com.forday.app.presentation.mypage.routinedetail.navigation.SaveCard
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobbyFromModify
 import com.forday.app.presentation.onboarding.login.navigation.Login
+import com.forday.app.presentation.onboarding.swipeintro.navigation.SwipeIntro
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
+import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
 import com.forday.app.presentation.onboarding.showpobbies.navigation.OnboardingSuccess
 import com.forday.app.presentation.onboarding.showpobbies.navigation.ShowPobbies
 import com.forday.app.presentation.onboarding.splash.navigation.Splash
 import com.forday.app.presentation.onboarding.timeselect.navigation.SelectPerTime
 import com.forday.app.presentation.record.navigation.RecordRoutine
-import com.forday.app.presentation.story.navigation.Story
+import com.forday.app.presentation.mypage.navigation.UserPage
+import com.forday.app.presentation.sosik.navigation.Sosik
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -103,10 +108,13 @@ fun rememberMainNavigationState(
 
     // ✅ startRoute가 topLevelRoutes에 없으면 추가
     // ✅ Login도 항상 포함시켜, 전역 로그아웃 시 backstack reset이 가능하게 함
+    // ✅ SelectHobby도 항상 포함시켜, 로그인 후 온보딩 진입 시 resetTo(SelectHobby)가 동작하도록 함
     val allRoutes = buildSet {
         addAll(topLevelRoutes)
         add(startRoute)
         add(Login)
+        add(SelectHobby)
+        add(SelectPeriod(mode = ScreenMode.ONBOARDING))
     }
 
     // ✅ 모든 route에 대한 백스택 생성
@@ -136,13 +144,14 @@ val serializersConfig = SavedStateConfiguration {
             // Bottom Bar 탭들
             subclass(Home::class, Home.serializer())
             subclass(Discovery::class, Discovery.serializer())
-            subclass(Story::class, Story.serializer())
+            subclass(Sosik::class, Sosik.serializer())
             subclass(MyPage::class, MyPage.serializer())
 
             // 기타 화면들
             subclass(RecordRoutine::class, RecordRoutine.serializer())
             subclass(Splash::class, Splash.serializer())
             subclass(Login::class, Login.serializer())
+            subclass(SwipeIntro::class, SwipeIntro.serializer())
             subclass(Settings::class, Settings.serializer())
             subclass(TermsOfService::class, TermsOfService.serializer())
             subclass(PrivacyPolicy::class, PrivacyPolicy.serializer())
@@ -168,6 +177,9 @@ val serializersConfig = SavedStateConfiguration {
             subclass(RoutineDetail::class, RoutineDetail.serializer())
             subclass(ModifyHobby::class, ModifyHobby.serializer())
             subclass(ProfileSetting::class, ProfileSetting.serializer())
+            subclass(HobbyPhotoSetting::class, HobbyPhotoSetting.serializer())
+            subclass(SaveCard::class, SaveCard.serializer())
+            subclass(UserPage::class, UserPage.serializer())
 
         }
     }

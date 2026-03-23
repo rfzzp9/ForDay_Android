@@ -28,6 +28,10 @@ data class ReactionUsersDataResponse(
     val reactionType: String?,
     @SerializedName("reactionUsers")
     val reactionUsers: List<ReactionUserResponse>?,
+    @SerializedName("hasNext")
+    val hasNext: Boolean?,
+    @SerializedName("lastUserId")
+    val lastUserId: String?,
     @SerializedName("message")
     val message: String?,
     @SerializedName("errorClassName")
@@ -37,6 +41,8 @@ data class ReactionUsersDataResponse(
         return ReactionUsersDataEntity(
             reactionType = reactionType ?: "",
             reactionUsers = reactionUsers?.map { it.toData() } ?: emptyList(),
+            hasNext = hasNext ?: false,
+            lastUserId = lastUserId ?: "",
             message = message ?: "",
             errorClassName = errorClassName ?: ""
         )
@@ -51,14 +57,17 @@ data class ReactionUserResponse(
     @SerializedName("profileImageUrl")
     val profileImageUrl: String?,
     @SerializedName("reactedAt")
-    val reactedAt: String
+    val reactedAt: String,
+    @SerializedName("newReactionUser")
+    val newReactionUser: Boolean?
 ) : RemoteMapper<ReactionUserEntity> {
     override fun toData(): ReactionUserEntity {
         return ReactionUserEntity(
             userId = userId,
             nickname = nickname,
             profileImageUrl = profileImageUrl,
-            reactedAt = reactedAt
+            reactedAt = reactedAt,
+            newReactionUser = newReactionUser ?: false
         )
     }
 }

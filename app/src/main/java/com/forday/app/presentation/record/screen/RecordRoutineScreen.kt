@@ -1,7 +1,10 @@
 package com.forday.app.presentation.record.screen
 
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -12,9 +15,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -23,6 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -50,10 +56,12 @@ import com.forday.app.core.designsystem.component.dropdown.VisibilityOption
 import com.forday.app.core.designsystem.component.dropdown.VisibilitySelector
 import com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.presentation.record.RecordRoutineViewModel
 import com.forday.app.presentation.record.RoutineUiModel
 import timber.log.Timber
 import java.io.File
+import androidx.core.content.FileProvider
 
 data class StickerItem(
     val id: Int,
@@ -70,13 +78,25 @@ fun RecordRoutineScreenRoot(
     viewModel: RecordRoutineViewModel,
     onClose: () -> Unit,
     onRoutineCreate: () -> Unit = {},
-    onAddHobbyClick: () -> Unit = {}
+    onAddHobbyClick: () -> Unit = {},
+    entryPoint: String = "",
+    hobbyName: String? = null,
+    activityName: String? = null
 ) {
-    viewModel.logEvent("record_routine_screen")
+    viewModel.logEvent(AnalyticsEvents.RECORD_ROUTINE_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    Timber.e("@@@@@@@@########## "+modifyData?.recordId)
-    Timber.e("@@@@@@@@########## hobbyId : "+hobbyId)
+
+    LaunchedEffect(entryPoint) {
+        if (entryPoint.isNotEmpty()) {
+            viewModel.logEvent(AnalyticsEvents.recordEntryClicked(
+                entryPoint = entryPoint,
+                hobbyName = hobbyName,
+                activityName = activityName
+            ))
+        }
+    }
+
     fun getStickerFileName(iconRes: Int): String {
         return when (iconRes) {
             R.drawable.ic_sticker_smile -> "smile.jpg"
@@ -118,6 +138,8 @@ fun RecordRoutineScreenRoot(
     var removedExistingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
 
     var shouldOpenGallery by remember { mutableStateOf(false) }
+    var showAddPhotoBottomSheet by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     // ✅ 수정모드 초기화: memo, visibility, sticker, existingImageUrls
     LaunchedEffect(modifyMode, modifyData) {
@@ -167,8 +189,8 @@ fun RecordRoutineScreenRoot(
 
         val imageInfoList = selectedImages.mapIndexed { index, uri ->
             mapOf(
-                "fileName" to getFileName(context, uri),
-                "contentType" to getContentType(context, uri),
+                "fileName" to "img_${System.currentTimeMillis()}.jpg",
+                "contentType" to "image/jpeg",
                 "usage" to "ACTIVITY_RECORD",
                 "order" to (index + 1)
             )
@@ -199,6 +221,15 @@ fun RecordRoutineScreenRoot(
             }
         }
         shouldOpenGallery = false
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            cameraImageUri?.let { uri -> startImageUpload(listOf(uri)) }
+        }
+        cameraImageUri = null
     }
 
     // ✅ 3. 권한 승인 후 갤러리 열기
@@ -245,7 +276,7 @@ fun RecordRoutineScreenRoot(
                         val uri = selectedImages.getOrNull(index)
                         uri?.let {
                             Timber.d("Starting upload for image $index: ${presignedItem.uploadUrl}")
-                            val file = uriToFile(context, uri)
+                            val file = uriToJpegFile(context, uri)
 
                             if (file != null) {
                                 viewModel.uploadImageToS3(
@@ -316,8 +347,7 @@ fun RecordRoutineScreenRoot(
         },
         onPhotoClick = {
             if (totalImageCount < 1) {
-                Timber.d("Photo button clicked - opening gallery")
-                shouldOpenGallery = true
+                showAddPhotoBottomSheet = true
             }
         },
         onImageRemove = { uri ->
@@ -349,7 +379,7 @@ fun RecordRoutineScreenRoot(
         hobbyId = hobbyId,
         onAddHobbyClick = onAddHobbyClick,
         onComplete = {
-            Timber.d("Complete button clicked, modifyMode: $modifyMode")
+            Timber.d("Complete button clicked, modifyMode=$modifyMode")
 
             if (selectedImages.isNotEmpty() && !uploadComplete) {
                 if (isUploading) {
@@ -406,12 +436,37 @@ fun RecordRoutineScreenRoot(
                     imageUrl = imageUrls,
                     visibility = visibilityValue,
                     onSuccess = { newRecordId ->
+                        viewModel.logEvent(AnalyticsEvents.recordCreated(
+                            entryPoint = entryPoint,
+                            hobbyName = hobbyName,
+                            activityName = state.recordDetail.routineList.getOrNull(selectedRoutineIndex ?: 0)?.content ?: "",
+                            hasPhoto = selectedImages.isNotEmpty(),
+                            hasMemo = memoText.isNotBlank()
+                        ))
                         onComplete(newRecordId)
                     }
                 )
             }
         }
     )
+
+    if (showAddPhotoBottomSheet) {
+        AddPhotoBottomSheet(
+            onDismiss = { showAddPhotoBottomSheet = false },
+            onSelectFromAlbum = { shouldOpenGallery = true },
+            onTakePhoto = {
+                val imageDir = File(context.filesDir, "images").also { it.mkdirs() }
+                val tempFile = File.createTempFile("camera_", ".jpg", imageDir)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    tempFile
+                )
+                cameraImageUri = uri
+                cameraLauncher.launch(uri)
+            }
+        )
+    }
 }
 
 @Composable
@@ -637,7 +692,7 @@ fun RecordRoutineScreen(
                     VisibilitySelector(
                         selectedOption = selectedVisibility,
                         onOptionSelected = onVisibilitySelected,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.wrapContentWidth()
                     )
                 }
             }
@@ -678,7 +733,7 @@ private fun RecordActivityTopBar(
                 .padding(start = 11.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                painter = painterResource(R.drawable.ic_close_record),
                 contentDescription = "닫기",
                 tint = Color(0xFF3A3A3A)
             )
@@ -836,55 +891,84 @@ private fun MemoInputField(
                 ) {
                     existingImageUrls.forEach { url ->
                         Box(
-                            modifier = Modifier.size(60.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             AsyncImage(
                                 model = url,
                                 contentDescription = "기존 이미지",
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.LightGray, RoundedCornerShape(8.dp)),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = Color(0xFFE5E5E5),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ),
                                 contentScale = ContentScale.Crop
                             )
 
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_close_btn),
-                                contentDescription = "삭제",
+                            Box(
                                 modifier = Modifier
+                                    .size(16.dp)
                                     .align(Alignment.TopEnd)
+                                    .offset(x = 4.dp, y = (-4).dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF3A3A3A))
                                     .clickable(
                                         onClick = rememberThrottledClick { onExistingImageRemove(url) },
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    )
-                            )
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_close_small),
+                                    contentDescription = "삭제",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
 
                     selectedImages.forEach { uri ->
                         Box(
-                            modifier = Modifier.size(60.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Image(
                                 painter = rememberAsyncImagePainter(uri),
                                 contentDescription = "선택된 이미지",
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.LightGray, RoundedCornerShape(8.dp)),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = Color(0xFFE5E5E5),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ),
                                 contentScale = ContentScale.Crop
                             )
-
-                            Image(
-                                painter = painterResource(id = R.drawable.close_image),
-                                contentDescription = "삭제",
+                            Box(
                                 modifier = Modifier
+                                    .size(16.dp)
                                     .align(Alignment.TopEnd)
+                                    .offset(x = 4.dp, y = (-4).dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF3A3A3A))
                                     .clickable(
                                         onClick = rememberThrottledClick { onImageRemove(uri) },
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    )
-                            )
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_close_small),
+                                    contentDescription = "이미지 삭제",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -895,31 +979,24 @@ private fun MemoInputField(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Surface(
-                    onClick = rememberThrottledClick { onPhotoClick() },
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (totalImageCount >= 1) Color(0xFFE5E5E5) else Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE5E5E5))
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                if (totalImageCount == 0) {
+                    Surface(
+                        onClick = rememberThrottledClick { onPhotoClick() },
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE5E5E5))
                     ) {
-                        if (totalImageCount == 0) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_camera),
                                 contentDescription = "사진 추가",
                                 modifier = Modifier.padding(14.dp),
                                 tint = Color(0xFF7A7A7A)
                             )
-                        } else {
-//                            Text(
-//                                text = "$totalImageCount/1",
-//                                fontSize = 12.sp,
-//                                fontWeight = FontWeight.Medium,
-//                                color = if (totalImageCount >= 1) Color(0xFFB5B5B5) else Color(0xFF7A7A7A)
-//                            )
                         }
                     }
                 }
@@ -1059,6 +1136,108 @@ private fun uriToFile(context: Context, uri: Uri): File? {
     } catch (e: Exception) {
         Timber.e(e, "Failed to convert Uri to File")
         null
+    }
+}
+
+private fun uriToJpegFile(context: Context, uri: Uri): File? {
+    return try {
+        // 1. URI → Bitmap 디코딩 (ImageDecoder가 EXIF 회전을 자동 적용)
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, _, _ ->
+            decoder.isMutableRequired = true
+        }
+
+        // 2. JPG로 압축 저장
+        val fileName = "img_${System.currentTimeMillis()}.jpg"
+        val file = File(context.cacheDir, fileName)
+        file.outputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+
+        // 변환 결과 로그
+        Timber.d("[JPG변환] 파일명: ${file.name}")
+        Timber.d("[JPG변환] 확장자: ${file.extension}")
+        Timber.d("[JPG변환] 파일크기: ${file.length() / 1024}KB")
+        Timber.d("[JPG변환] 원본 contentType: ${getContentType(context, uri)}")
+
+        file
+    } catch (e: Exception) {
+        Timber.e(e, "JPG 변환 실패")
+        null
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddPhotoBottomSheet(
+    onDismiss: () -> Unit,
+    onSelectFromAlbum: () -> Unit,
+    onTakePhoto: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "사진 추가",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            AddPhotoOptionItem(
+                text = "앨범에서 사진 선택",
+                onClick = {
+                    onSelectFromAlbum()
+                    onDismiss()
+                }
+            )
+
+            AddPhotoOptionItem(
+                text = "직접 촬영",
+                onClick = {
+                    onTakePhoto()
+                    onDismiss()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddPhotoOptionItem(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color(0xFFE0E0E0),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 18.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            color = Color.Black
+        )
     }
 }
 

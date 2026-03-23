@@ -21,15 +21,17 @@ data class HomeHobbyDataEntity(
     val greetingMessage: String, // 추가
     val userSummaryText: String, // 추가
     val recommendMessage: String, // 추가
-    val aiCallRemaining: Boolean
+    val aiCallRemaining: Boolean,
+    val aiCallRemainingCount: Int?
 ) : DataMapper<HomeHobbyDataDomain> {
     override fun toDomain(): HomeHobbyDataDomain = HomeHobbyDataDomain(
         inProgressHobbies = inProgressHobbies.map { it.toDomain() },
         activityPreview = activityPreview?.toDomain(),
-        greetingMessage = greetingMessage, // 매핑 추가
-        userSummaryText = userSummaryText, // 매핑 추가
-        recommendMessage = recommendMessage, // 매핑 추가
-        aiCallRemaining = aiCallRemaining
+        greetingMessage = greetingMessage,
+        userSummaryText = userSummaryText,
+        recommendMessage = recommendMessage,
+        aiCallRemaining = aiCallRemaining,
+        aiCallRemainingCount = aiCallRemainingCount
     )
 }
 

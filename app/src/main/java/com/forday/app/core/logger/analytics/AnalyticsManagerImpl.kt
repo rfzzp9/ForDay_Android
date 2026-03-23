@@ -13,6 +13,16 @@ class AnalyticsManagerImpl @Inject constructor(
         firebaseAnalytics.logEvent(name, bundle)
     }
 
+    override fun logEvent(event: AnalyticsEvent) {
+        val bundle = Bundle().apply {
+            putString("description", event.description)
+            if (event.params.isNotEmpty()) {
+                putAll(mapToBundle(event.params))
+            }
+        }
+        firebaseAnalytics.logEvent(event.id, bundle)
+    }
+
     override fun setUserId(userId: String) {
         firebaseAnalytics.setUserId(userId)
     }

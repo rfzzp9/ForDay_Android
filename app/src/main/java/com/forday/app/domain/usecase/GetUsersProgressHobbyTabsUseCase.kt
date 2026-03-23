@@ -6,5 +6,5 @@ import javax.inject.Inject
 class GetUsersProgressHobbyTabsUseCase @Inject constructor(
     private val hobbyRepository: HobbyRepository
 ) {
-    suspend operator fun invoke() = hobbyRepository.getUsersProgressHobbyTabs()
+    suspend operator fun invoke(userId: String? = null) = hobbyRepository.getUsersProgressHobbyTabs(userId)
 }

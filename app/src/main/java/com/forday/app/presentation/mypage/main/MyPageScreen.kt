@@ -1,32 +1,36 @@
 package com.forday.app.presentation.mypage.main
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -51,7 +55,12 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.mypage.MyPageViewModel
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.bottomsheet.HintBubble
-import kotlinx.coroutines.delay
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import timber.log.Timber
 
 // 색상 정의
@@ -86,21 +95,6 @@ object MyPageColors {
     )
 }
 
-// 데이터 클래스
-data class HobbyCategory1(
-    val name: String,
-    val imageUrl: String,
-    val isActive: Boolean = true
-)
-
-data class StickerCard(
-    val imageUrl: String,
-    val quote: String? = null,
-    val hasGradient: Boolean = false,
-    val gradientColors: List<Color> = emptyList(),
-    val hasOverlay: Boolean = false
-)
-
 data class HobbyCard(
     val title: String,
     val imageUrl: String,
@@ -117,12 +111,21 @@ fun MyPageScreen(
     onAllSettingsClick: () -> Unit,
     onRoutineFeedClick: (Int) -> Unit,
     onAddHobbyClick: () -> Unit,
-    onNavigateToRecordRoutine: () -> Unit,
+    onNavigateToRecordRoutine: (Int?) -> Unit,
     onDismiss: () -> Unit,  //바텀시트(로그인) x버튼 눌렀을 때
+    onBackClick: () -> Unit = {},
+    onNavigateToSosik: () -> Unit = {},
+    onReportUserClick: () -> Unit = {},
+    userId: String? = null,
+    recordAuthor: Boolean = true,
+    isUserPageEntry: Boolean = false,
 ) {
     val context = LocalContext.current.applicationContext
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showSettingsMenu by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    var settingsButtonBottomPx by remember { mutableFloatStateOf(0f) }
+    var containerTopPx by remember { mutableFloatStateOf(0f) }
     var selectedTab by remember { mutableStateOf(0) }
     state.userHobbyTabUiModel?.hobbyItems?.map { it.hobbyId }
     // 선택된 취미 ID들을 상위에서 관리 (무한 스크롤 시에도 같은 필터 유지)
@@ -133,6 +136,10 @@ fun MyPageScreen(
 
     // 로딩 상태 (추가 로딩 중인지)
     var isLoadingMore by remember { mutableStateOf(false) }
+    // 초기 로딩 상태: 핵심 데이터가 모두 도착할 때까지 스켈레톤 표시
+    val isInitialLoading = state.userInfo == null || state.userHobbyTabUiModel == null || state.userFeedUiModel == null
+    // 차단 확인 다이얼로그
+    var showBlockDialog by remember { mutableStateOf(false) }
     // 바텀 시트 상태 - socialType이 "GUEST"일 때만 표시
     var showGuestBottomSheet by remember { mutableStateOf(false) }
     var dismissedByUser by remember { mutableStateOf(false) }
@@ -153,35 +160,49 @@ fun MyPageScreen(
         }
     }
 
+    LaunchedEffect(state.blockUserSuccess) {
+        if (state.blockUserSuccess) {
+            viewModel.resetBlockUserSuccess()
+        }
+    }
+
+    BackHandler(enabled = state.isBlockedUser && userId != null) {
+        onNavigateToSosik()
+    }
+
     LaunchedEffect(selectedTab) {
         if (selectedTab == 2) {
             viewModel.getUserScrapList(
                 lastScrapId = null,
                 size = 24,
-                userId = null
+                userId = userId
             )
         }
     }
 
     LaunchedEffect(Unit) {
-        viewModel.getUserInfo()
+        viewModel.getUserInfo(userId)
         viewModel.getUserLoginInfo()  // 로그인 정보 (소셜 or 게스트)
-        viewModel.getUsersProgressHobbyTabs()
+        viewModel.getUsersProgressHobbyTabs(userId)
         viewModel.getUserFeedList(
             hobbyIds = emptyList(),
             lastRecordId = null,
-            feedSize = 24
+            feedSize = 24,
+            userId = userId
         )
     }
 
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = {
-            viewModel.refresh(selectedTab, selectedHobbyIds.toList())
+            viewModel.refresh(selectedTab, selectedHobbyIds.toList(), userId)
         },
         modifier = modifier
             .fillMaxSize()
             .background(MyPageColors.Background001)
+            .onGloballyPositioned { coords ->
+                containerTopPx = coords.boundsInRoot().top
+            }
     ) {
         Column(
             modifier = Modifier
@@ -189,58 +210,52 @@ fun MyPageScreen(
                 .verticalScroll(scrollState)
         ) {
             MyPageHeader(
-                onSettingsClick = { showSettingsMenu = !showSettingsMenu }
+                isMine = recordAuthor,
+                isBlockedUser = state.isBlockedUser,
+                isUserPageEntry = isUserPageEntry,
+                onBackClick = onBackClick,
+                onSettingsClick = { showSettingsMenu = !showSettingsMenu },
+                onSettingsButtonPositioned = { coords ->
+                    settingsButtonBottomPx = coords.boundsInRoot().bottom
+                },
+                userId = userId,
             )
 
-            ProfileSection(
-                profileImageUrl = state.userInfo?.profileImageUrl,
-                nickName = state.userInfo?.nickName,
-                totalCollectedStickerCount = state.userInfo?.totalCollectedStickerCount,
-            )
+            if (isInitialLoading) {
+                MypageSkeletonContent()
+            } else {
 
-            TabSection(
-                inProgressCount = state.userHobbyTabUiModel?.inProgressCount,
-                hobbyCardCount = state.userHobbyTabUiModel?.hobbyCardCount,
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                scrapCount = state.scrapCount,
-                socialType = state.socialType
-            )
+                ProfileSection(
+                    profileImageUrl = state.userInfo?.profileImageUrl,
+                    nickName = state.userInfo?.nickName,
+                    totalCollectedStickerCount = state.userInfo?.totalCollectedStickerCount,
+                )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                TabSection(
+                    inProgressCount = state.userHobbyTabUiModel?.inProgressCount,
+                    hobbyCardCount = state.userHobbyTabUiModel?.hobbyCardCount,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    scrapCount = state.scrapCount,
+                    socialType = state.socialType
+                )
 
-            when (selectedTab) {
-                0 -> {
-                    // ✅ 게스트 여부에 따라 다른 UI 표시
-                    if (state.socialType == "GUEST") {
-                        GuestInProgressEmptyState(
-                            onKakaoLogin = {
-                                viewModel.loginWithKakao(context, "KAKAO")
-                            }
-                        )
-                    } else {
-                        // ✅ 로그인 사용자: 활동 기록 여부에 따라 분기
-                        if (state.userFeedUiModel?.feedList?.isEmpty() == true) {
-                            LoggedInEmptyState(
-                                selectedHobbyIds = selectedHobbyIds,
-                                onHobbySelectionChange = { newSelection ->  // ✅ 전달
-                                    selectedHobbyIds = newSelection
-                                    viewModel.getUserFeedList(
-                                        hobbyIds = newSelection.toList(),
-                                        lastRecordId = null,
-                                        feedSize = 24
-                                    )
-                                },
-                                hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
-                                onAddHobbyClick = onAddHobbyClick,
-                                onRecordActivity = {
-                                    // TODO: 활동 기록 화면으로 이동
-                                    Timber.d("활동 기록하러 가기 클릭")
-                                    onNavigateToRecordRoutine()
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (state.isBlockedUser) {
+                    BlockedUserEmptyState()
+                } else when (selectedTab) {
+                    0 -> {
+                        // ✅ 게스트 여부에 따라 다른 UI 표시
+                        if (state.socialType == "GUEST") {
+                            GuestInProgressEmptyState(
+                                onKakaoLogin = {
+                                    viewModel.loginWithKakao(context, "KAKAO")
                                 }
                             )
                         } else {
-                            if (state.userFeedUiModel?.totalFeedCount == 0) {
+                            // ✅ 로그인 사용자: 활동 기록 여부에 따라 분기
+                            if (state.userFeedUiModel?.feedList?.isEmpty() == true) {
                                 LoggedInEmptyState(
                                     selectedHobbyIds = selectedHobbyIds,
                                     onHobbySelectionChange = { newSelection ->  // ✅ 전달
@@ -248,76 +263,115 @@ fun MyPageScreen(
                                         viewModel.getUserFeedList(
                                             hobbyIds = newSelection.toList(),
                                             lastRecordId = null,
-                                            feedSize = 24
+                                            feedSize = 24,
+                                            userId = userId
                                         )
                                     },
                                     hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
                                     onAddHobbyClick = onAddHobbyClick,
-                                    onRecordActivity = {
+                                    onRecordActivity = { hobbyId ->
                                         Timber.d("활동 기록하러 가기 클릭")
-                                        onNavigateToRecordRoutine()
-                                    }
+                                        onNavigateToRecordRoutine(hobbyId)
+                                    },
+                                    inProgressCount = state.userHobbyTabUiModel?.inProgressCount
                                 )
                             } else {
-                                InProgressTabContent(
-                                    hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
-                                    feedList = state.userFeedUiModel?.feedList,
-                                    viewModel = viewModel,
-                                    selectedHobbyIds = selectedHobbyIds,
-                                    onHobbySelectionChange = { newSelection ->
-                                        selectedHobbyIds = newSelection
-                                        viewModel.getUserFeedList(
-                                            hobbyIds = newSelection.toList(),
-                                            lastRecordId = null,
-                                            feedSize = 24
-                                        )
-                                    },
-                                    onStickerClick = { feedUiModel ->
-                                        Timber.d("Sticker clicked: ${feedUiModel.recordId}")
-                                        onRoutineFeedClick(feedUiModel.recordId)
-                                    },
-                                    feedCount = state.userFeedUiModel?.totalFeedCount,
-                                    onAddHobbyClick = onAddHobbyClick
-                                )
-                            }
+                                if (state.userFeedUiModel?.totalFeedCount == 0) {
+                                    LoggedInEmptyState(
+                                        selectedHobbyIds = selectedHobbyIds,
+                                        onHobbySelectionChange = { newSelection ->  // ✅ 전달
+                                            selectedHobbyIds = newSelection
+                                            viewModel.getUserFeedList(
+                                                hobbyIds = newSelection.toList(),
+                                                lastRecordId = null,
+                                                feedSize = 24,
+                                                userId = userId
+                                            )
+                                        },
+                                        hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
+                                        onAddHobbyClick = onAddHobbyClick,
+                                        onRecordActivity = { hobbyId ->
+                                            Timber.d("활동 기록하러 가기 클릭")
+                                            onNavigateToRecordRoutine(hobbyId)
+                                        },
+                                        inProgressCount = state.userHobbyTabUiModel?.inProgressCount
+                                    )
+                                } else {
+                                    InProgressTabContent(
+                                        hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
+                                        feedList = state.userFeedUiModel?.feedList,
+                                        viewModel = viewModel,
+                                        selectedHobbyIds = selectedHobbyIds,
+                                        onHobbySelectionChange = { newSelection ->
+                                            selectedHobbyIds = newSelection
+                                            viewModel.getUserFeedList(
+                                                hobbyIds = newSelection.toList(),
+                                                lastRecordId = null,
+                                                feedSize = 24,
+                                                userId = userId
+                                            )
+                                        },
+                                        onStickerClick = { feedUiModel ->
+                                            Timber.d("Sticker clicked: ${feedUiModel.recordId}")
+                                            onRoutineFeedClick(feedUiModel.recordId)
+                                        },
+                                        feedCount = state.userFeedUiModel?.totalFeedCount,
+                                        onAddHobbyClick = onAddHobbyClick,
+                                        inProgressCount = state.userHobbyTabUiModel?.inProgressCount
+                                    )
+                                }
 
+                            }
                         }
                     }
-                }
-                1 -> HobbyCardTabContent()
-                2 -> ScrapTabContent(
-                    scrapListUiModel = state.scrapListUiModel,
-                    onScrapItemClick = { scrapItem ->
-                        Timber.d("Scrap clicked: ${scrapItem.recordId}")
-                        onRoutineFeedClick(scrapItem.recordId)
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 로딩 인디케이터
-            if (isLoadingMore) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color(0xFFFF9447)
+                    1 -> HobbyCardTabContent()
+                    2 -> ScrapTabContent(
+                        scrapListUiModel = state.scrapListUiModel,
+                        onScrapItemClick = { scrapItem ->
+                            Timber.d("Scrap clicked: ${scrapItem.recordId}")
+                            onRoutineFeedClick(scrapItem.recordId)
+                        }
                     )
                 }
-            }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 로딩 인디케이터
+                if (isLoadingMore) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFFFF9447)
+                        )
+                    }
+                }
+
+            } // end else (isInitialLoading)
         }
 
         // Settings Menu Popup
         if (showSettingsMenu) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showSettingsMenu = false }
+                    )
+            )
+            val popupTopDp = with(density) {
+                (settingsButtonBottomPx - containerTopPx).toDp()
+            } + 8.dp
             SettingsMenuPopup(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 95.dp, end = 20.dp),
+                    .padding(top = popupTopDp, end = 20.dp),
                 onDismiss = { showSettingsMenu = false },
                 onProfileSettingClick = {
                     onProfileSetting()
@@ -332,6 +386,27 @@ fun MyPageScreen(
                     showSettingsMenu = false
                 },
                 socialType = state.socialType,
+                isMine = recordAuthor,
+                onBlockClick = {
+                    showBlockDialog = true
+                    showSettingsMenu = false
+                },
+                onRegisterClick = {
+                    showSettingsMenu = false
+                    onReportUserClick()
+                }
+            )
+        }
+        // 차단 확인 다이얼로그
+        if (showBlockDialog) {
+            BlockUserConfirmDialog(
+                nickname = state.userInfo?.nickName ?: "",
+                onDismiss = { showBlockDialog = false },
+                onConfirm = {
+                    showBlockDialog = false
+                    viewModel.blockUser(userId ?: "", state.userInfo?.nickName ?: "")
+                }
+
             )
         }
         // 게스트일 때만 바텀 시트 표시
@@ -358,12 +433,20 @@ fun LoggedInEmptyState(
     selectedHobbyIds: Set<Int?>,
     onHobbySelectionChange: (Set<Int?>) -> Unit,
     onAddHobbyClick: () -> Unit,
-    onRecordActivity: () -> Unit
+    onRecordActivity: (Int?) -> Unit,
+    inProgressCount: Int?
 ) {
+    val resolvedHobbyId = if (selectedHobbyIds.isNotEmpty()) {
+        selectedHobbyIds.first()
+    } else {
+        hobbyItems?.firstOrNull { it.status == "IN_PROGRESS" }?.hobbyId
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 0.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // 취미 카테고리 섹션
         HobbyCategoriesSection(
@@ -371,7 +454,8 @@ fun LoggedInEmptyState(
             hobbyItems = hobbyItems,
             selectedHobbyIds = selectedHobbyIds,
             onHobbySelectionChange = onHobbySelectionChange,
-            onAddHobbyClick = onAddHobbyClick
+            onAddHobbyClick = onAddHobbyClick,
+            inProgressCount = inProgressCount
         )
 
         // Empty State UI
@@ -394,7 +478,7 @@ fun LoggedInEmptyState(
                 topSpacerHeight = 147.dp,
                 button = {
                     Button(
-                        onClick = onRecordActivity,
+                        onClick = { onRecordActivity(resolvedHobbyId) },
                         modifier = Modifier
                             .wrapContentWidth()
                             .wrapContentHeight()
@@ -406,7 +490,7 @@ fun LoggedInEmptyState(
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = "활동 기록하러가기",
+                            text = "활동 기록하기",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.W400,
                             color = Color.White,
@@ -516,7 +600,7 @@ fun GuestLoginBottomSheet(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = rememberThrottledClick { /* 배경 클릭 무시 */ }
+                    onClick = rememberThrottledClick { onDismiss() }
                 ),
             contentAlignment = Alignment.BottomCenter
         ) {
@@ -583,7 +667,7 @@ fun GuestLoginBottomSheet(
 
                     // 타이틀
                     Text(
-                        text = "포데이에\n오신 것을 환영합니다!",
+                        text = "취미 시작이 어려울 때.\n포데이",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF1E1E1E),
@@ -595,7 +679,7 @@ fun GuestLoginBottomSheet(
 
                     // 서브타이틀
                     Text(
-                        text = "당신만의 취미 루틴, AI가 추천해드립니다",
+                        text = "AI 추천으로 쉽게 시작하는 취미생활",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color(0xFFF25F59),
@@ -650,7 +734,13 @@ fun GuestLoginBottomSheet(
 
 @Composable
 fun MyPageHeader(
-    onSettingsClick: () -> Unit = {}
+    isMine: Boolean = true,
+    isBlockedUser: Boolean = false,
+    isUserPageEntry: Boolean = false,
+    onBackClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onSettingsButtonPositioned: (LayoutCoordinates) -> Unit = {},
+    userId: String?,
 ) {
     Row(
         modifier = Modifier
@@ -659,12 +749,25 @@ fun MyPageHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "마이페이지",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MyPageColors.Neutral900
-        )
+        if (isUserPageEntry && !isBlockedUser) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_chevron_left),
+                    contentDescription = "뒤로가기",
+                    tint = MyPageColors.Neutral900
+                )
+            }
+        } else {
+            Text(
+                text = "마이페이지",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MyPageColors.Neutral900
+            )
+        }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -680,15 +783,35 @@ fun MyPageHeader(
 //                )
 //            }
 
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_settings),
-                    contentDescription = "설정",
-                    tint = MyPageColors.Neutral800
-                )
+            when {
+                !isUserPageEntry -> {
+                    IconButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .onGloballyPositioned(onSettingsButtonPositioned)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_settings),
+                            contentDescription = "설정",
+                            tint = MyPageColors.Neutral800
+                        )
+                    }
+                }
+                isUserPageEntry && !isMine -> {
+                    IconButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .onGloballyPositioned(onSettingsButtonPositioned)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_kebab),
+                            contentDescription = "더보기",
+                            tint = MyPageColors.Neutral800
+                        )
+                    }
+                }
             }
         }
     }
@@ -777,95 +900,144 @@ fun TabSection(
             .padding(horizontal = 20.dp)
     ) {
         // 진행중 탭
-        Column(
+        Box(
             modifier = Modifier
-                .weight(1f)
+                .wrapContentWidth()
                 .fillMaxHeight()
-                .clickable(onClick = rememberThrottledClick { onTabSelected(0) }),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = rememberThrottledClick { onTabSelected(0) }
+                ),
+            contentAlignment = Alignment.CenterStart
         ) {
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .fillMaxHeight()
+                    .then(
+                        if (selectedTab == 0)
+                            Modifier.drawBehind {
+                                val strokeWidth = 2.dp.toPx()
+                                val y = size.height - strokeWidth / 2
+                                drawLine(
+                                    color = MyPageColors.Neutral800,
+                                    start = Offset(0f, y),
+                                    end = Offset(size.width, y),
+                                    strokeWidth = strokeWidth
+                                )
+                            }
+                        else Modifier
+                    )
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                Text(
-                    text = "진행중",
-                    fontSize = 14.sp,
-                    fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
-                )
-                Text(
-                    text = (inProgressCount ?: 0).toString(),
-                    fontSize = 14.sp,
-                    fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
-                )
-            }
-
-            if (selectedTab == 0) {
-                Divider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = MyPageColors.Neutral800
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "진행중",
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                    Text(
+                        text = (inProgressCount ?: 0).toString(),
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 0) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                }
             }
         }
 
         // 취미카드 탭
-        Column(
+        Box(
             modifier = Modifier
-                .weight(1f)
+                .wrapContentWidth()
                 .fillMaxHeight()
-                .clickable(onClick = rememberThrottledClick { onTabSelected(1) }),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = rememberThrottledClick { onTabSelected(1) }
+                ),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "취미카드",
-                    fontSize = 14.sp,
-                    fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
-                )
-                Text(
-                    text = (hobbyCardCount ?: 0).toString(),
-                    fontSize = 14.sp,
-                    fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
-                )
-            }
-
-            if (selectedTab == 1) {
-                Divider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = MyPageColors.Neutral800
-                )
-            }
-        }
-        // ✅ 스크랩 탭 추가
-        if (!isGuest) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .wrapContentWidth()
                     .fillMaxHeight()
-                    .clickable(onClick = rememberThrottledClick { onTabSelected(2) }),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .then(
+                        if (selectedTab == 1)
+                            Modifier.drawBehind {
+                                val strokeWidth = 2.dp.toPx()
+                                val y = size.height - strokeWidth / 2
+                                drawLine(
+                                    color = MyPageColors.Neutral800,
+                                    start = Offset(0f, y),
+                                    end = Offset(size.width, y),
+                                    strokeWidth = strokeWidth
+                                )
+                            }
+                        else Modifier
+                    )
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "취미카드",
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                    Text(
+                        text = (hobbyCardCount ?: 0).toString(),
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal,
+                        color = if (selectedTab == 1) MyPageColors.Neutral800 else MyPageColors.Neutral400
+                    )
+                }
+            }
+        }
+
+        // 스크랩 탭
+        if (!isGuest) {
+            Box(
+                modifier = Modifier
+                    .wrapContentWidth()
+                    .fillMaxHeight()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = rememberThrottledClick { onTabSelected(2) }
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Box(
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .fillMaxHeight()
+                        .then(
+                            if (selectedTab == 2)
+                                Modifier.drawBehind {
+                                    val strokeWidth = 2.dp.toPx()
+                                    val y = size.height - strokeWidth / 2
+                                    drawLine(
+                                        color = MyPageColors.Neutral800,
+                                        start = Offset(0f, y),
+                                        end = Offset(size.width, y),
+                                        strokeWidth = strokeWidth
+                                    )
+                                }
+                            else Modifier
+                        )
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
                         text = "스크랩",
@@ -873,25 +1045,9 @@ fun TabSection(
                         fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
                         color = if (selectedTab == 2) MyPageColors.Neutral800 else MyPageColors.Neutral400
                     )
-                    Text(
-                        text = (scrapCount ?: 0).toString(),
-                        fontSize = 14.sp,
-                        fontWeight = if (selectedTab == 2) FontWeight.Medium else FontWeight.Normal,
-                        color = if (selectedTab == 2) MyPageColors.Neutral800 else MyPageColors.Neutral400
-                    )
-                }
-
-                if (selectedTab == 2) {
-                    Divider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp),
-                        color = MyPageColors.Neutral800
-                    )
                 }
             }
         }
-
     }
 }
 
@@ -1031,14 +1187,18 @@ fun ScrapCardItem(
     ) {
         // URL이 있을 때만 이미지 표시
         if (!isEmptyUrl) {
-            AsyncImage(
-                model = scrapItemUiModel.imageUrl,
-                contentDescription = "스크랩 이미지",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.ic_profile_empty),
-                error = painterResource(id = R.drawable.ic_profile_empty)
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF2F2F2))
+            ) {
+                AsyncImage(
+                    model = scrapItemUiModel.imageUrl,
+                    contentDescription = "스크랩 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
         } else if (scrapItemUiModel.memoPreview.isNotEmpty()) {
             // URL이 비어있고 memo가 있으면 텍스트 표시
             Column(
@@ -1047,14 +1207,9 @@ fun ScrapCardItem(
                     .width(86.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = "\"",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
-                        fontWeight = FontWeight(400),
-                        color = Color(0xFFFFFFFF)
-                    )
+                Image(
+                    painter = painterResource(id = R.drawable.ic_text_ttaompyo),
+                    contentDescription = null,
                 )
                 Text(
                     text = scrapItemUiModel.memoPreview,
@@ -1096,7 +1251,8 @@ fun InProgressTabContent(
     selectedHobbyIds: Set<Int?>,
     onHobbySelectionChange: (Set<Int?>) -> Unit,
     onStickerClick: (FeedUiModel) -> Unit,
-    onAddHobbyClick: () -> Unit  // ✅ 추가
+    onAddHobbyClick: () -> Unit,
+    inProgressCount: Int?
 ) {
     Column(
         modifier = Modifier
@@ -1109,7 +1265,8 @@ fun InProgressTabContent(
             hobbyItems = hobbyItems,
             selectedHobbyIds = selectedHobbyIds,
             onHobbySelectionChange = onHobbySelectionChange,
-            onAddHobbyClick = onAddHobbyClick  // ✅ 전달
+            onAddHobbyClick = onAddHobbyClick,
+            inProgressCount = inProgressCount
         )
 
         StickerGridSection(
@@ -1126,7 +1283,8 @@ fun HobbyCategoriesSection(
     hobbyItems: List<HobbyUiModel>?,
     selectedHobbyIds: Set<Int?>,
     onHobbySelectionChange: (Set<Int?>) -> Unit,
-    onAddHobbyClick: () -> Unit  // ✅ 추가
+    onAddHobbyClick: () -> Unit,
+    inProgressCount: Int?
 ) {
     val displayHobbies = hobbyItems?.filter {
         it.status == "IN_PROGRESS" || it.status == "ARCHIVED"
@@ -1142,40 +1300,41 @@ fun HobbyCategoriesSection(
         Timber.d("displayHobbies size: ${displayHobbies.size}")
     }
 
+    val showAddButton = (inProgressCount ?: 0) < 1
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ✅ hobbyItems가 비어있거나 null일 때 "취미 추가" 버튼 표시
-        if (displayHobbies.isEmpty()) {
+        if (showAddButton) {
             HobbyCategoryItem(
                 hobbyName = "취미 추가",
                 thumbnail = null,
                 isActive = true,
                 isSelected = false,
-                isAddButton = true,  // ✅ 추가 버튼 플래그
+                isAddButton = true,
                 onClick = onAddHobbyClick
             )
-        } else {
-            displayHobbies.forEach { hobby ->
-                HobbyCategoryItem(
-                    hobbyName = hobby.hobbyName,
-                    thumbnail = hobby.thumbnail,
-                    isActive = hobby.status == "IN_PROGRESS",
-                    isSelected = selectedHobbyIds.contains(hobby.hobbyId),
-                    isAddButton = false,
-                    onClick = {
-                        val newSelection = if (selectedHobbyIds.contains(hobby.hobbyId)) {
-                            selectedHobbyIds - hobby.hobbyId
-                        } else {
-                            selectedHobbyIds + hobby.hobbyId
-                        }
-                        onHobbySelectionChange(newSelection)
+        }
+        displayHobbies.forEach { hobby ->
+            HobbyCategoryItem(
+                hobbyName = hobby.hobbyName,
+                thumbnail = hobby.thumbnail,
+                isActive = hobby.status == "IN_PROGRESS",
+                isSelected = selectedHobbyIds.contains(hobby.hobbyId),
+                isAddButton = false,
+                onClick = {
+                    val newSelection = if (selectedHobbyIds.contains(hobby.hobbyId)) {
+                        selectedHobbyIds - hobby.hobbyId
+                    } else {
+                        selectedHobbyIds + hobby.hobbyId
                     }
-                )
-            }
+                    onHobbySelectionChange(newSelection)
+                }
+            )
         }
     }
 }
@@ -1235,7 +1394,7 @@ fun HobbyCategoryItem(
                         painter = painterResource(id = R.drawable.ic_plus),
                         contentDescription = "취미 추가",
                         modifier = Modifier.size(24.dp),
-                        tint = Color(0xFFFF9447)
+                        tint = Color(0xFF3A3A3A)
                     )
                 }
 
@@ -1441,14 +1600,18 @@ fun StickerCardItem(
         feedUiModel?.let { feed ->
             // URL이 있을 때만 이미지 표시
             if (!feed.url.isNullOrEmpty()) {
-                AsyncImage(
-                    model = feed.url,
-                    contentDescription = "스티커 이미지",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.ic_profile_empty),
-                    error = painterResource(id = R.drawable.ic_profile_empty)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF2F2F2))
+                ) {
+                    AsyncImage(
+                        model = feed.url,
+                        contentDescription = "스티커 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
             } else if (!feed.memo.isNullOrEmpty()) {
                 // URL이 비어있고 memo가 있으면 텍스트 표시
                 Column(
@@ -1457,14 +1620,9 @@ fun StickerCardItem(
                         .width(86.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "\"",
-                        style = TextStyle(
-                            fontSize = 16.sp,
-                            fontFamily = FontFamily(Font(R.font.pretendard_std_variable)),
-                            fontWeight = FontWeight(400),
-                            color = Color(0xFFFFFFFF)
-                        )
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_text_ttaompyo),
+                        contentDescription = null,
                     )
                     Text(
                         text = feed.memo,
@@ -1757,7 +1915,10 @@ fun SettingsMenuPopup(
     onDismiss: () -> Unit,
     onProfileSettingClick: () -> Unit,
     onHobbyPhotoManagementClick: () -> Unit,
-    onAllSettingsClick: () -> Unit
+    onAllSettingsClick: () -> Unit,
+    isMine: Boolean = true,
+    onBlockClick: () -> Unit = {},
+    onRegisterClick: () -> Unit = {}
 ) {
     val isGuest = socialType == "GUEST"  // ✅ 게스트 여부 확인
     Surface(
@@ -1770,21 +1931,33 @@ fun SettingsMenuPopup(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            if (!isGuest) {
-//                SettingsMenuItem(
-//                    text = "내 프로필 설정",
-//                    onClick = onProfileSettingClick
-//                )
-//                SettingsMenuItem(
-//                    text = "취미 대표사진 관리",
-//                    onClick = onHobbyPhotoManagementClick
-//                )
+            Timber.e("1@@@@@@@@@@@@"+isMine)
+            if (!isMine) {
+                Timber.e("2@@@@@@@@@@@@"+isMine)
+                SettingsMenuItem(
+                    text = "차단하기",
+                    onClick = onBlockClick
+                )
+                SettingsMenuItem(
+                    text = "신고하기",
+                    onClick = onRegisterClick
+                )
+            } else {
+                if (!isGuest) {
+                    SettingsMenuItem(
+                        text = "내 프로필 설정",
+                        onClick = onProfileSettingClick
+                    )
+                    SettingsMenuItem(
+                        text = "취미 대표사진 관리",
+                        onClick = onHobbyPhotoManagementClick
+                    )
+                }
+                SettingsMenuItem(
+                    text = "전체설정",
+                    onClick = onAllSettingsClick
+                )
             }
-
-            SettingsMenuItem(
-                text = "전체설정",
-                onClick = onAllSettingsClick
-            )
         }
     }
 }
@@ -1807,6 +1980,338 @@ fun SettingsMenuItem(
                 interactionSource = remember { MutableInteractionSource() }
             )
     )
+}
+
+// ==================== 차단된 유저 Empty State ====================
+@Composable
+fun BlockedUserEmptyState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.icon_sad),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "차단한 유저예요.",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = MyPageColors.Neutral600
+        )
+    }
+}
+
+// ==================== 차단 확인 다이얼로그 ====================
+@Composable
+fun BlockUserConfirmDialog(
+    nickname: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val displayNickname = if (nickname.length > 10) nickname.take(10) else nickname
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MyPageColors.White
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                // 타이틀
+                Text(
+                    text = "${nickname} 님을 차단하시겠어요?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MyPageColors.Neutral900,
+                    lineHeight = 25.2.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 본문 1
+                Text(
+                    text = "${displayNickname} 님이 올리는 모든 활동기록은 숨김처리되며, 회원님의 프로필 또는 활동기록은 공개되지 않습니다.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MyPageColors.Neutral800,
+                    lineHeight = 19.6.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 본문 2
+                Text(
+                    text = "상대방에게는 회원님이 차단한 사실은 알려지지 않으며, 언제든지 차단 해지 가능합니다.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MyPageColors.Neutral800,
+                    lineHeight = 19.6.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 버튼 행
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 아니오 버튼
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.dp, MyPageColors.Stroke001, RoundedCornerShape(10.dp))
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = onDismiss
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "아니오",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MyPageColors.Neutral600
+                        )
+                    }
+
+                    // 예 버튼
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFFF9447))
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = onConfirm
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "예",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MyPageColors.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Shimmer Skeleton ────────────────────────────────────────────────────────
+
+// 피그마 모션 스펙: Left to Right / 1.8s / LinearEasing / Infinite / 15°
+@Composable
+fun Modifier.shimmerEffect(): Modifier {
+    val shimmerColors = listOf(
+        Color(0xFFF9F9F9),
+        Color(0xFFF2F2F2),
+        Color(0xFFF9F9F9)
+    )
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+    val offsetY = (1000f * Math.tan(Math.toRadians(15.0))).toFloat()
+    return this.background(
+        brush = Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(translateAnim - 1000f, -offsetY),
+            end = Offset(translateAnim, offsetY)
+        )
+    )
+}
+
+@Composable
+fun MypageSkeletonContent() {
+    Spacer(modifier = Modifier.height(20.dp))
+    ProfileSkeletonSection()
+    Spacer(modifier = Modifier.height(16.dp))
+    TabSkeletonSection()
+    Spacer(modifier = Modifier.height(24.dp))
+    HobbyListSkeletonSection()
+    Spacer(modifier = Modifier.height(8.dp))
+    CalendarGridSkeletonSection()
+}
+
+@Composable
+private fun ProfileSkeletonSection() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .shimmerEffect()
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(111.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+            Box(
+                modifier = Modifier
+                    .width(111.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+
+@Composable
+private fun TabSkeletonSection() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        listOf(true, false, false).forEach { isSelected ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .then(
+                        if (isSelected) Modifier.drawBehind {
+                            val strokeWidth = 2.dp.toPx()
+                            drawLine(
+                                color = Color(0xFF3A3A3A),
+                                start = Offset(0f, size.height - strokeWidth / 2),
+                                end = Offset(size.width, size.height - strokeWidth / 2),
+                                strokeWidth = strokeWidth
+                            )
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 24.dp, height = 16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .shimmerEffect()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(9.dp)
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .shimmerEffect()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HobbyListSkeletonSection() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        repeat(4) { HobbyItemSkeletonItem() }
+    }
+}
+
+@Composable
+private fun HobbyItemSkeletonItem() {
+    Column(
+        modifier = Modifier.width(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .shimmerEffect()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .shimmerEffect()
+        )
+    }
+}
+
+@Composable
+private fun CalendarGridSkeletonSection() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .height(20.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .shimmerEffect()
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        repeat(3) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(144.dp)
+                            .shimmerEffect()
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Preview

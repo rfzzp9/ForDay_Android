@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -158,6 +159,7 @@ fun NicknameTextField(
                         Button(
                             onClick = rememberThrottledClick(onClick = onTrailingButtonClick),
                             modifier = Modifier.height(28.dp),
+                            interactionSource = remember { NoRippleInteractionSource() },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF1E1E1E)
                             ),
@@ -178,7 +180,8 @@ fun NicknameTextField(
                             onClick = rememberThrottledClick {
                                 passwordVisible = !passwordVisible
                             },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            interactionSource = remember { NoRippleInteractionSource() }
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_visibility_on),

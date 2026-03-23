@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import androidx.navigation3.runtime.NavKey
+import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.domain.usecase.CreateHobbyUseCase
 import com.forday.app.domain.usecase.GetAccessTokenUseCase
@@ -23,8 +24,8 @@ import com.forday.app.domain.usecase.SaveIsOnboardingCompletedUseCase
 import com.forday.app.domain.usecase.SaveNicknameUseCase
 import com.forday.app.domain.usecase.SaveOnboardingDataUseCase
 import com.forday.app.presentation.BaseViewModel
+import com.forday.app.presentation.httpCatch
 import com.forday.app.presentation.home.navigation.Home
-import com.forday.app.presentation.modifyhobby.ModifyHobbySideEffect
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.periodselect.JourneyMode
@@ -45,13 +46,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import com.google.gson.Gson
-import com.google.gson.JsonObject
-import retrofit2.HttpException
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -59,11 +56,16 @@ import kotlin.coroutines.suspendCoroutine
 
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
+import com.forday.app.domain.usecase.GetGuestUserIdUseCase
+import com.forday.app.domain.usecase.GetHasSeenIntroUseCase
 import com.forday.app.domain.usecase.GetHobbyCardDataAgainUseCase
+import com.forday.app.domain.usecase.GetSocialTypeUseCase
 import com.forday.app.domain.usecase.RecreateHobbyUseCase
 import com.forday.app.domain.usecase.RemoveOnboardingDataUseCase
 import com.forday.app.domain.usecase.SaveCreatedHobbyIdUseCase
+import com.forday.app.domain.usecase.SaveHasSeenIntroUseCase
 import com.forday.app.presentation.common.SnackbarManager
+import com.forday.app.presentation.onboarding.swipeintro.navigation.SwipeIntro as SwipeIntroRoute
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
@@ -89,29 +91,37 @@ class OnboardingViewModel @Inject constructor(
     private val modifyHobbyDurationUseCase: ModifyHobbyDurationUseCase,
     private val saveCreatedHobbyIdUseCase: SaveCreatedHobbyIdUseCase,
     private val removeOnboardingDataUseCase: RemoveOnboardingDataUseCase,
+    private val getHasSeenIntroUseCase: GetHasSeenIntroUseCase,
+    private val saveHasSeenIntroUseCase: SaveHasSeenIntroUseCase,
+    private val getSocialTypeUseCase: GetSocialTypeUseCase,
+    private val getGuestUserIdUseCase: GetGuestUserIdUseCase,
     private val snackbarManager: SnackbarManager,
-) : BaseViewModel<Unit>() {
+) : BaseViewModel<OnboardingSideEffect>() {
 
     private val _uiState: MutableStateFlow<OnboardingUiState> =
         MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.toStateIn()
 
-    private val _shouldAutoAdvanceFromTime = MutableStateFlow(true)
-    val shouldAutoAdvanceFromTime: StateFlow<Boolean> = _shouldAutoAdvanceFromTime.asStateFlow()
-
-    private val _shouldAutoAdvanceFromPurpose = MutableStateFlow(true)
-    val shouldAutoAdvanceFromPurpose: StateFlow<Boolean> =
-        _shouldAutoAdvanceFromPurpose.asStateFlow()
-
-    private val _shouldAutoAdvanceFromFrequency = MutableStateFlow(true)
-    val shouldAutoAdvanceFromFrequency: StateFlow<Boolean> =
-        _shouldAutoAdvanceFromFrequency.asStateFlow()
-
     init {
         Timber.e("@@@@@@@@@@@@@ 호출1 " + uiState.value.isOnboardingCompleted + ", " + uiState.value.isNicknameSet + ", " + uiState.value.accessToken)
         viewModelScope.launch {
+            autoGuestLoginIfNeeded()
             getUserData()
             determineInitialRoute()
+        }
+        viewModelScope.launch {
+            getHasSeenIntroUseCase()
+                .catch { }
+                .collect { hasSeenIntro ->
+                    _uiState.update { it.copy(hasSeenIntro = hasSeenIntro) }
+                }
+        }
+        viewModelScope.launch {
+            getSocialTypeUseCase()
+                .catch { }
+                .collect { socialType ->
+                    _uiState.update { it.copy(socialType = socialType) }
+                }
         }
     }
 
@@ -121,25 +131,26 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    fun fetchHobbyData() = viewModelScope.launch {
+    fun fetchHobbyData() = viewModelScope.launch {  // 취미 카드 데이터 불러오기
+        _uiState.update { it.copy(isLoading = true) }
         flow {
-            emit(getHobbyDataUseCase().toPresentation())
-        }.catch { throwable ->
-            Timber.e("@#@@@@@@@@@@@@111 " + throwable)
-            snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
-        }.collect { data ->
-            Timber.e("@#@@@@@@@@@@@@222 " + data.hobbies.size)
+            emit(getHobbyDataUseCase())
+        }.httpCatch("fetchHobbyData") { errorData ->
             _uiState.update {
                 it.copy(
-                    hobbies = data.hobbies,
-                    appVersion = data.appVersion
+                    errorData = errorData,
+                    isLoading = false
+                )
+            }
+        }.collect { data ->
+            _uiState.update {
+                it.copy(
+                    hobbies = data.hobbies.map { it.toPresentation() },
+                    appVersion = data.appVersion,
+                    isLoading = false
                 )
             }
         }
-    }
-
-    fun updateCustomHobbyText(text: String) {
-        _uiState.update { it.copy(customHobbyText = text) }
     }
 
     // 커스텀 다이얼로그 표시
@@ -197,18 +208,6 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    // OnBoardingViewModel.kt에 추가/수정이 필요한 부분
-
-    // 목적 선택 메서드 (새로 추가)
-    fun selectPurpose(purpose: String) {
-        _uiState.update {
-            it.copy(
-                selectedPurpose = purpose,
-                customPurposeText = "" // 목적 카드 선택 시 커스텀 텍스트 초기화
-            )
-        }
-    }
-
     //시간 선택
     fun saveTime(minutes: Int) {
         Timber.d("ViewModel selectTime called: $minutes")
@@ -217,37 +216,13 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    fun disableAutoAdvanceFromTime() {
-        _shouldAutoAdvanceFromTime.value = false
-    }
-
-    fun enableAutoAdvanceFromTime() {
-        _shouldAutoAdvanceFromTime.value = true
-    }
-
-    fun disableAutoAdvanceFromPurpose() {
-        _shouldAutoAdvanceFromPurpose.value = false
-    }
-
-    fun enableAutoAdvanceFromPurpose() {
-        _shouldAutoAdvanceFromPurpose.value = true
-    }
-
-    fun disableAutoAdvanceFromFrequency() {
-        _shouldAutoAdvanceFromFrequency.value = false
-    }
-
-    fun enableAutoAdvanceFromFrequency() {
-        _shouldAutoAdvanceFromFrequency.value = true
-    }
-
     fun saveFrequency(frequency: Int) {
         _uiState.update {
             it.copy(selectedFrequency = frequency)
         }
     }
 
-    private fun determineInitialRoute() =
+    private fun determineInitialRoute() =  //TODO 앱 실행 시 여정일 화면 진입했을 때 뒤로가기 안되는 문제 수정
         uiState
             .filter { it.accessToken != null || it.isOnboardingCompleted != null }
             .take(1)
@@ -255,10 +230,13 @@ class OnboardingViewModel @Inject constructor(
                 if (state.isSplashLoading) {
                     delay(2000)  // Splash 2초 todo 조건 걸기
                 }
+                // 2초 후 최신 상태로 라우팅 결정 (hasSeenIntro 포함)
+                val freshState = _uiState.value
                 val route = when {
-                    state.accessToken == null -> Login
-                    state.isOnboardingCompleted == false -> SelectHobby
-                    state.isOnboardingCompleted == true && state.isNicknameSet == true -> Home
+                    freshState.accessToken == null && freshState.hasSeenIntro == false -> SwipeIntroRoute
+                    freshState.accessToken == null -> Login
+                    freshState.isOnboardingCompleted == false -> SelectHobby
+                    freshState.isOnboardingCompleted == true && freshState.isNicknameSet == true -> Home
                     else -> {
                         getOnboardingData()
                         SelectPeriod(mode = ScreenMode.ONBOARDING)
@@ -280,7 +258,6 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private fun getUserData() = viewModelScope.launch {
-
         combine(
             getAccessTokenUseCase(),
             getIsOnboardingCompletedUseCase(),
@@ -313,6 +290,7 @@ class OnboardingViewModel @Inject constructor(
             }
             .collect { onboardingData ->
                 _uiState.update {
+                    Timber.e("@@@@@@@@@@@@@@@@@@@ onboardingData : "+onboardingData)
                     it.copy(
                         hobbyId = onboardingData.hobbyId?.toInt(),
                         selectedHobbyId = onboardingData.hobbyInfoId?.toLong(),
@@ -345,14 +323,17 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun getHobbyCardDataAgain() = viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true) }
         flow {
             emit(getHobbyCardDataAgainUseCase().toPresentation())
         }.catch { throwable ->
+            _uiState.update { it.copy(isLoading = false) }
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
         }.collect { data ->
             _uiState.update {
                 it.copy(
-                    hobbies = data.hobbies
+                    hobbies = data.hobbies,
+                    isLoading = false
                 )
             }
         }
@@ -390,7 +371,7 @@ class OnboardingViewModel @Inject constructor(
         selectedFrequency: Int?,
         selectedPeriod: JourneyMode?
     ) = viewModelScope.launch {
-
+        Timber.e("@@@@@@@@@@ saveOnboardingData "+selectedHobbyId+", "+selectedHobbyName+", "+selectedMinutes+", "+selectedPurpose+", "+selectedFrequency+", "+selectedPeriod)
         runCatching {
             saveOnboardingDataUseCase(
                 selectedHobbyId,
@@ -413,17 +394,29 @@ class OnboardingViewModel @Inject constructor(
         selectedFrequency: Int?,
         selectedPeriod: JourneyMode?
     ) = viewModelScope.launch {
-        Timber.e("@@@@@@@@@@@@@ 호출 " + selectedHobbyId + ", " + selectedHobbyName + ", " + selectedMinutes + ", " + selectedPurpose + ", " + selectedFrequency + ", " + (selectedPeriod == JourneyMode.FORDAY_66))
-        try {
-            val result = createHobbyUseCase(
-                selectedHobbyId,
-                selectedHobbyName,
-                selectedMinutes,
-                selectedPurpose,
-                selectedFrequency,
-                selectedPeriod == JourneyMode.FORDAY_66
+        flow {
+            emit(
+                createHobbyUseCase(
+                    selectedHobbyId,
+                    selectedHobbyName,
+                    selectedMinutes,
+                    selectedPurpose,
+                    selectedFrequency,
+                    selectedPeriod == JourneyMode.FORDAY_66
+                )
             )
-            Timber.e("@@@@@@@@@@@@@ " + result.data.message)
+        }.httpCatch("createHobby") { errorData ->
+            Timber.e("1@@@@@@@@@@@@@@@@"+errorData.errorClassName)
+            if (errorData.errorClassName == "DUPLICATE_HOBBY_REQUEST") {
+                Timber.e("2@@@@@@@@@@@@@@@@"+errorData.errorClassName)
+                handleDuplicateHobby(
+                    selectedHobbyId, selectedHobbyName, selectedMinutes,
+                    selectedPurpose, selectedFrequency, selectedPeriod
+                )
+            } else {
+                snackbarManager.show(errorData.message)
+            }
+        }.collect { result ->
             _uiState.update {
                 it.copy(
                     isOnboardingDataSaved = result.isSuccess,
@@ -432,41 +425,15 @@ class OnboardingViewModel @Inject constructor(
             }
             if (result.isSuccess == true) {
                 saveCreatedHobbyIdUseCase(result.data.hobbyId.toLong())
-                saveOnboardingData(
-                    selectedHobbyId = selectedHobbyId,
-                    selectedHobbyName = selectedHobbyName,
-                    selectedMinutes = selectedMinutes,
-                    selectedPurpose = selectedPurpose,
-                    selectedFrequency = selectedFrequency,
-                    selectedPeriod = selectedPeriod
+                saveOnboardingDataUseCase(
+                    selectedHobbyId,
+                    selectedHobbyName,
+                    selectedMinutes,
+                    selectedPurpose,
+                    selectedFrequency,
+                    selectedPeriod == JourneyMode.FORDAY_66
                 )
             }
-        } catch (e: HttpException) {
-            val errorClassName = parseErrorClassName(e)
-            if (errorClassName == "DUPLICATE_HOBBY_REQUEST") {
-                Timber.d("DUPLICATE_HOBBY_REQUEST detected, attempting recreateHobby")
-                handleDuplicateHobby(
-                    selectedHobbyId, selectedHobbyName, selectedMinutes,
-                    selectedPurpose, selectedFrequency, selectedPeriod
-                )
-            } else {
-                Timber.e("@@@@@@@@@@@@@ " + e.stackTrace + ", " + e.cause + ", " + e)
-                snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
-            }
-        } catch (e: Exception) {
-            Timber.e("@@@@@@@@@@@@@ " + e.stackTrace + ", " + e.cause + ", " + e)
-            snackbarManager.show(e.toUserMessage(UserMessageCategory.AUTH))
-        }
-    }
-
-    private fun parseErrorClassName(e: HttpException): String? {
-        return try {
-            val errorBody = e.response()?.errorBody()?.string()
-            val json = Gson().fromJson(errorBody, JsonObject::class.java)
-            json?.get("errorClassName")?.asString
-                ?: json?.getAsJsonObject("data")?.get("errorClassName")?.asString
-        } catch (_: Exception) {
-            null
         }
     }
 
@@ -494,11 +461,64 @@ class OnboardingViewModel @Inject constructor(
                 isHobbyRecreated = false
             )
         }
+    }
 
-        // 3. 자동 전환 플래그 초기화
-        _shouldAutoAdvanceFromTime.value = true
-        _shouldAutoAdvanceFromPurpose.value = true
-        _shouldAutoAdvanceFromFrequency.value = true
+    private suspend fun autoGuestLoginIfNeeded() {
+        runCatching {
+            val accessToken = getAccessTokenUseCase().first()
+            val socialType = getSocialTypeUseCase().first()
+            val guestUserId = getGuestUserIdUseCase().first()
+            if (accessToken == null && socialType == "GUEST" && guestUserId != null) {
+                Timber.d("autoGuestLoginIfNeeded: auto re-login as guest (guestUserId=$guestUserId)")
+                guestLoginUseCase()
+            }
+        }.onFailure { throwable ->
+            Timber.e("autoGuestLoginIfNeeded error: $throwable")
+        }
+    }
+
+    fun guestAutoReLogin() = viewModelScope.launch {
+        guestLoginUseCase()
+            .onSuccess {
+                _sideEffectChannel.send(OnboardingSideEffect.GuestAutoReLoginSuccess)
+            }
+            .onFailure {
+                _sideEffectChannel.send(OnboardingSideEffect.GuestAutoReLoginFailure)
+            }
+    }
+
+    fun resetForNewSession() = viewModelScope.launch {
+        // 1. DataStore 온보딩 데이터 초기화
+        runCatching {
+            removeOnboardingDataUseCase()
+        }.onFailure { throwable ->
+            Timber.e("removeOnboardingData error: $throwable")
+        }
+
+        // 2. 온보딩 선택값 + 로그인 세션 관련 필드 초기화
+        _uiState.update {
+            it.copy(
+                hobbyId = null,
+                selectedHobbyId = null,
+                selectedHobbyName = "",
+                customHobbyText = "",
+                selectedMinutes = null,
+                selectedPurpose = "",
+                customPurposeText = "",
+                selectedFrequency = null,
+                selectedJourneyMode = null,
+                isOnboardingDataSaved = false,
+                isHobbyRecreated = false,
+                isLoginSuccess = false,
+                isNewUser = null,
+                nicknameCheckMessage = "",
+                isNicknameChecked = false,
+                isNicknameAvailable = false,
+                nicknameRegisterSuccess = false,
+                errorData = null,
+                error = ""
+            )
+        }
     }
 
     private suspend fun handleDuplicateHobby(
@@ -509,7 +529,7 @@ class OnboardingViewModel @Inject constructor(
         selectedFrequency: Int?,
         selectedPeriod: JourneyMode?
     ) {
-
+        Timber.e("3@@@@@@@@@@@@@@@@ handleDuplicateHobby")
         try {
             val onboardingData = getOnboardingDataUseCase().first()
             val hobbyId = onboardingData.hobbyId?.toLong()
@@ -588,12 +608,14 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, error = "") }
         try {
             guestLoginUseCase()
-                .onSuccess { isNewUser ->
-                    Timber.d("isNewUser " + isNewUser)
+                .onSuccess { data ->
+                    Timber.d("guestLogin success: isNewUser=${data.isNewUser}, onboardingCompleted=${data.onboardingCompleted}, nicknameSet=${data.nicknameSet}")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            isNewUser = isNewUser,
+                            isNewUser = data.isNewUser,
+                            isOnboardingCompleted = data.onboardingCompleted,
+                            isNicknameSet = data.nicknameSet,
                             isLoginSuccess = true
                         )
                     }
@@ -630,7 +652,6 @@ class OnboardingViewModel @Inject constructor(
 
 
     fun loginWithKakao(context: Context) {
-        Log.e("OnboardingViewModel", "========== loginWithKakao 시작 ==========")
         val kakao = UserApiClient.instance
         Log.e(
             "OnboardingViewModel",
@@ -694,6 +715,10 @@ class OnboardingViewModel @Inject constructor(
         analyticsManager.logEvent(logEvent)
     }
 
+    fun logEvent(event: AnalyticsEvent) {
+        analyticsManager.logEvent(event)
+    }
+
     fun modifyHobbyTime(hobbyId: Long?, minutes: Int) = viewModelScope.launch {
         flow {
             emit(modifyHobbyTimeUseCase(hobbyId, minutes))
@@ -752,6 +777,12 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    fun saveHasSeenIntro() = viewModelScope.launch {
+        runCatching {
+            saveHasSeenIntroUseCase(true)
+        }
+    }
+
     private fun loginIntoApp(kakaoAccessToken: String) = viewModelScope.launch {
         try {
             Log.e("OnboardingViewModel", "========== 카카오 로그인 시작 ==========")
@@ -763,13 +794,23 @@ class OnboardingViewModel @Inject constructor(
                     Log.e("OnboardingViewModel", "Response data: $data")
                     Log.e("OnboardingViewModel", "isNewUser: ${data.data.isNewUser}")
 
+                    val onboardingData = data.data.onboardingData
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isNewUser = data.data.isNewUser,
                             isOnboardingCompleted = data.data.isOnboardingCompleted,
                             isNicknameSet = data.data.isNicknameSet,
-                            isLoginSuccess = true
+                            isLoginSuccess = true,
+                            hobbyId = onboardingData?.id,
+                            selectedHobbyId = onboardingData?.hobbyCardId?.toLong(),
+                            selectedHobbyName = onboardingData?.hobbyName,
+                            selectedMinutes = onboardingData?.hobbyTimeMinutes,
+                            selectedPurpose = onboardingData?.hobbyPurpose,
+                            selectedFrequency = onboardingData?.executionCount,
+                            selectedJourneyMode = onboardingData?.let { od ->
+                                if (od.isDurationSet) JourneyMode.FORDAY_66 else JourneyMode.FREE
+                            }
                         )
                     }
                     Log.e("OnboardingViewModel", "UI State 업데이트 완료 - isLoginSuccess: true")

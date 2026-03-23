@@ -7,6 +7,7 @@ import com.forday.app.domain.model.RoutineUserReactionDomain
 
 data class RoutineRecordDetailEntity(
     val hobbyId: Int,
+    val hobbyName: String,
     val routineId: Int,
     val routineContent: String,
     val routineRecordId: Int,
@@ -25,6 +26,7 @@ data class RoutineRecordDetailEntity(
     override fun toDomain(): RoutineRecordDetailDomain {
         return RoutineRecordDetailDomain(
             hobbyId = hobbyId,
+            hobbyName = hobbyName,
             routineId = this@RoutineRecordDetailEntity.routineId,
             content = routineContent,
             recordId = routineRecordId,
@@ -32,7 +34,9 @@ data class RoutineRecordDetailEntity(
             sticker = sticker,
             date = createdAt,
             isScraped = isScraped,
+            writerId = userInfo?.userId ?: "",
             writerNickname = userInfo?.nickname ?: "익명",
+            writerProfileImageUrl = userInfo?.profileImageUrl ?: "",
             memo = memo,
             isMine = isOwner,
             isVisible = visibility == "PUBLIC",
@@ -72,5 +76,5 @@ data class RoutineRecordDetailEntity(
             val EMPTY = RoutineUserReactionEntity(false, false, false, false)
         }
     }
-    data class UserInfoEntity(val nickname: String, val profileImageUrl: String) // ✅ 추가
+    data class UserInfoEntity(val userId: String, val nickname: String, val profileImageUrl: String) // ✅ 추가
 }

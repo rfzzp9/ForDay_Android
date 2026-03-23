@@ -2,6 +2,7 @@ package com.forday.app.remote.di
 
 import com.dayn.forday.BuildConfig
 import com.forday.app.remote.api.interceptor.TokenInterceptor
+import com.forday.app.remote.api.service.AppVersionPolicyApi
 import com.forday.app.remote.api.service.AuthApi
 import com.forday.app.remote.api.service.FileApi
 import com.forday.app.remote.api.service.HobbyApi
@@ -53,12 +54,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(): Retrofit {
-        return Retrofit.Builder()
+    fun provideRetrofit(): Retrofit =
+        Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create()) // Use your preferred converter
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
 
     @Provides
     @Singleton
@@ -66,6 +66,12 @@ object NetworkModule {
         @TokenRetrofit retrofit: Retrofit
     ): FileApi {
         return retrofit.create(FileApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppVersionPolicyApi(retrofit: Retrofit): AppVersionPolicyApi {
+        return retrofit.create(AppVersionPolicyApi::class.java)
     }
 
     @Provides

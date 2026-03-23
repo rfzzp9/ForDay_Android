@@ -18,10 +18,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,8 +39,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,6 +47,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,9 +71,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.dayn.forday.R
+import com.forday.app.presentation.mypage.main.getHobbyIconByName
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.mypage.MyPageViewModel
 import kotlinx.coroutines.delay
@@ -137,8 +143,8 @@ fun HobbyPhotoManagementScreenRoot(
 
     // ViewModel에서 초기 데이터 로드
     LaunchedEffect(Unit) {
-        viewModel.getUserInfo()
-        viewModel.getUsersProgressHobbyTabs()
+        viewModel.getUserInfo(null)
+        viewModel.getUsersProgressHobbyTabs(null)
         viewModel.getUserFeedList(
             hobbyIds = emptyList(),
             lastRecordId = null,
@@ -160,7 +166,7 @@ fun HobbyPhotoManagementScreenRoot(
             mapOf(
                 "fileName" to getFileName(context, uri),
                 "contentType" to getContentType(context, uri),
-                "usage" to "HOBBY_THUMBNAIL",
+                "usage" to "COVER_IMAGE",
                 "order" to 1
             )
         )
@@ -227,11 +233,14 @@ fun HobbyPhotoManagementScreenRoot(
                     uploadComplete = true
                     isUploading = false
 
-                    // ✅ 해당 취미의 대표사진 설정
+                    // 해당 취미의 대표사진 설정
                     selectedHobbyForUpload?.let { hobby ->
                         Timber.d("Setting hobby thumbnail for: ${hobby.name}")
-                        // TODO: 취미 대표사진 설정 API 호출
-                        // viewModel.setHobbyThumbnail(hobby.id, uploadState.fileUrl)
+                        viewModel.setHobbyMainImage(
+                            hobbyId = hobby.id.toLongOrNull(),
+                            imageUrl = uploadState.fileUrl,
+                            recordId = null
+                        )
                     }
 
                     // 3초 후 완료 상태 초기화
@@ -294,7 +303,8 @@ fun HobbyPhotoManagementScreenRoot(
             viewModel.getUserFeedList(
                 hobbyIds = emptyList(),
                 lastRecordId = null,
-                feedSize = 100
+                feedSize = 100,
+                userId = null
             )
             onBackClick()
         },
@@ -323,13 +333,30 @@ fun HobbyPhotoManagementScreenRoot(
                     viewModel.getUserFeedList(
                         hobbyIds = listOf(hobby.id.toIntOrNull()),
                         lastRecordId = null,
-                        feedSize = 12
+                        feedSize = 12,
+                        userId = null
                     )
                 }
             }
         },
         onHobbySelected = { hobby ->
             selectedHobbyForUpload = hobby
+        },
+        onExitSelectionMode = {
+            selectedHobbyForUpload = null
+            viewModel.getUserFeedList(
+                hobbyIds = emptyList(),
+                lastRecordId = null,
+                feedSize = 100,
+                userId = null
+            )
+        },
+        onCompletePhotoSelection = { hobbyId, recordId ->
+            viewModel.setHobbyMainImage(
+                hobbyId = hobbyId.toLongOrNull(),
+                imageUrl = null,
+                recordId = recordId.toLongOrNull()
+            )
         },
         isUploading = isUploading,
         uploadComplete = uploadComplete
@@ -346,6 +373,8 @@ fun HobbyPhotoManagementScreen(
     onPhotoSourceSelected: (HobbyCategory, PhotoSourceType) -> Unit = { _, _ -> },
     isUploading: Boolean = false,
     onHobbySelected: (HobbyCategory?) -> Unit = {},
+    onExitSelectionMode: () -> Unit = {},
+    onCompletePhotoSelection: (hobbyId: String, recordId: String) -> Unit = { _, _ -> },
     uploadComplete: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -373,13 +402,17 @@ fun HobbyPhotoManagementScreen(
                 onBackClick = {
                     if (showPhotoSelectionMode) {
                         showPhotoSelectionMode = false
-                        selectedPhoto = null  // ✅ 수정
+                        selectedPhoto = null
+                        onExitSelectionMode()
                     } else {
                         onBackClick()
                     }
                 },
                 onCompleteClick = {
-                    if (showPhotoSelectionMode && selectedPhoto != null) {  // ✅ 수정
+                    if (showPhotoSelectionMode && selectedPhoto != null) {
+                        selectedHobby?.let { hobby ->
+                            onCompletePhotoSelection(hobby.id, selectedPhoto!!)
+                        }
                         showPhotoSelectionMode = false
                         toastMessage = "${selectedHobby?.name} 대표사진 변경 완료!"
                         showToast = true
@@ -507,9 +540,6 @@ fun HobbyPhotoManagementScreen(
                     selectedHobby?.let {
                         onPhotoSourceSelected(it, PhotoSourceType.ACTIVITY)
                     }
-                },
-                onConfirmClick = {
-                    showPhotoSourceBottomSheet = false
                 }
             )
         }
@@ -535,7 +565,7 @@ fun HobbyPhotoHeader(
             modifier = Modifier.size(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                painter = painterResource(R.drawable.ic_arrow_back),
                 contentDescription = "뒤로가기",
                 tint = HobbyPhotoColors.Neutral800
             )
@@ -570,7 +600,7 @@ fun HobbyCategoriesRow(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -590,6 +620,9 @@ fun HobbyCategoryItem(
     hobby: HobbyCategory,
     onCameraClick: () -> Unit
 ) {
+    val hasValidThumbnail = hobby.thumbnailUrl.isNotEmpty()
+    val hobbyIcon = getHobbyIconByName(hobby.name)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -598,39 +631,77 @@ fun HobbyCategoryItem(
         Box(
             modifier = Modifier.size(48.dp)
         ) {
-            // Thumbnail Image
-            if (hobby.thumbnailUrl.isNotEmpty()) {
-                AsyncImage(
-                    model = hobby.thumbnailUrl,
-                    contentDescription = hobby.name,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .border(1.dp, HobbyPhotoColors.Stroke001, CircleShape)
-                        .then(
-                            if (!hobby.isActive) {
-                                Modifier.alpha(0.4f)
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(HobbyPhotoColors.Stroke001)
-                        .border(1.dp, HobbyPhotoColors.Stroke001, CircleShape)
-                        .then(
-                            if (!hobby.isActive) {
-                                Modifier.alpha(0.4f)
-                            } else {
-                                Modifier
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .border(1.dp, HobbyPhotoColors.Stroke001, CircleShape)
+                    .background(
+                        color = when {
+                            hasValidThumbnail -> Color.LightGray.copy(alpha = if (hobby.isActive) 1f else 0.4f)
+                            hobbyIcon != null -> Color.White
+                            else -> Color.LightGray.copy(alpha = if (hobby.isActive) 1f else 0.4f)
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    hasValidThumbnail -> {
+                        SubcomposeAsyncImage(
+                            model = hobby.thumbnailUrl,
+                            contentDescription = hobby.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                                    contentDescription = "로딩 중",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            },
+                            error = {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                                    contentDescription = "로딩 실패",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
                             }
                         )
-                )
+                        if (!hobby.isActive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.White.copy(alpha = 0.6f))
+                            )
+                        }
+                    }
+                    hobbyIcon != null -> {
+                        Icon(
+                            painter = painterResource(id = hobbyIcon),
+                            contentDescription = hobby.name,
+                            modifier = Modifier.size(24.dp),
+                            tint = if (hobby.isActive) Color(0xFFFF9447) else Color(0xFFFF9447).copy(alpha = 0.4f)
+                        )
+                        if (!hobby.isActive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.White.copy(alpha = 0.6f))
+                            )
+                        }
+                    }
+                    else -> {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                            contentDescription = "기본 이미지",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
             }
 
             // Camera Icon Button
@@ -640,7 +711,11 @@ fun HobbyCategoryItem(
                     .align(Alignment.BottomEnd)
                     .clip(CircleShape)
                     .background(HobbyPhotoColors.Neutral800)
-                    .clickable(onClick = rememberThrottledClick { onCameraClick() }),
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = rememberThrottledClick { onCameraClick() }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -662,7 +737,9 @@ fun HobbyCategoryItem(
             } else {
                 HobbyPhotoColors.Neutral400
             },
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -671,7 +748,7 @@ fun HobbyCategoryItem(
 fun PhotoGrid(
     photos: List<Photo>,
     isSelectionMode: Boolean,
-    selectedPhoto: String?,  // ✅ Set<String> → String?
+    selectedPhoto: String?,
     onPhotoClick: (Photo) -> Unit
 ) {
     Column(
@@ -686,21 +763,60 @@ fun PhotoGrid(
             color = HobbyPhotoColors.Neutral500,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
-
-        // Photo Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(photos) { photo ->
-                PhotoGridItem(
-                    photo = photo,
-                    isSelectionMode = isSelectionMode,
-                    isSelected = selectedPhoto == photo.id,  // ✅ 수정
-                    onClick = { onPhotoClick(photo) }
+        //TODO 활동기록에서 이미지 선택해서 대표사진 설정하는거 로직 어떻게 되는지 다시 확인하기.그리고 이미지 없을때도 처리되어야 함)
+        if (photos.isEmpty() && isSelectionMode) {
+            // Empty State
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.box_img),
+                    contentDescription = null,
+                    modifier = Modifier.size(240.dp),
+                    contentScale = ContentScale.Fit,
+                    alpha = 0.3f
                 )
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(140.dp))
+                    Text(
+                        text = "이 취미의 활동기록이 없어요.",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HobbyPhotoColors.Neutral900,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "활동을 기록한 후 대표사진을 설정해주세요.",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = HobbyPhotoColors.Neutral600,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Photo Grid
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(photos) { photo ->
+                    PhotoGridItem(
+                        photo = photo,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedPhoto == photo.id,
+                        onClick = { onPhotoClick(photo) }
+                    )
+                }
             }
         }
     }
@@ -716,7 +832,11 @@ fun PhotoGridItem(
     Box(
         modifier = Modifier
             .aspectRatio(106f / 128f)
-            .clickable(onClick = rememberThrottledClick { onClick() })
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = rememberThrottledClick { onClick() }
+            )
     ) {
         // Photo Image or Gradient
         if (photo.hasGradient && photo.gradientColors.isNotEmpty()) {
@@ -759,6 +879,15 @@ fun PhotoGridItem(
             )
         }
 
+        // White dim overlay (선택 모드에서는 적용 안 함)
+        if (!isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.4f))
+            )
+        }
+
         // ✅ Selection Mode Checkbox (수정)
         if (isSelectionMode) {
             Box(
@@ -787,91 +916,40 @@ fun PhotoGridItem(
 fun PhotoSourceSelectionBottomSheet(
     hobbyName: String,
     onAlbumClick: () -> Unit,
-    onActivityClick: () -> Unit,
-    onConfirmClick: () -> Unit
+    onActivityClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 20.dp)
+            .padding(top = 40.dp, bottom = 40.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        // Title
+        Text(
+            text = "$hobbyName 대표사진 설정",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = HobbyPhotoColors.Neutral900,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Options
         Column(
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Title
-            Text(
-                text = "$hobbyName 대표사진 설정",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = HobbyPhotoColors.Neutral900,
-                textAlign = TextAlign.Start,  // ✅ Center → Start
-                modifier = Modifier.fillMaxWidth()
+            // Album Option
+            PhotoSourceOptionCard(
+                text = "앨범에서 사진 선택",
+                onClick = onAlbumClick
             )
 
-            // Options
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Album Option
-                PhotoSourceOptionCard(
-                    text = "앨범에서 사진 선택",
-                    onClick = onAlbumClick
-                )
-
-                // Activity Option
-                PhotoSourceOptionCard(
-                    text = "내 활동 중에서 사진 선택",
-                    onClick = onActivityClick
-                )
-            }
-        }
-
-        // Bottom Button Area
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(88.dp)
-        ) {
-            // Gradient Background
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                HobbyPhotoColors.White
-                            ),
-                            startY = 0f,
-                            endY = 88f * 0.61648f
-                        )
-                    )
+            // Activity Option
+            PhotoSourceOptionCard(
+                text = "내 활동 중에서 사진 선택",
+                onClick = onActivityClick
             )
-
-            // Confirm Button
-            Button(
-                onClick = onConfirmClick,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFF9447)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(vertical = 18.dp)
-            ) {
-                Text(
-                    text = "설정완료",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = HobbyPhotoColors.White
-                )
-            }
         }
     }
 }
@@ -884,7 +962,11 @@ fun PhotoSourceOptionCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = rememberThrottledClick { onClick() }),
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = rememberThrottledClick { onClick() }
+            ),
         shape = RoundedCornerShape(12.dp),
         color = HobbyPhotoColors.White,
         border = BorderStroke(1.dp, HobbyPhotoColors.Stroke001)

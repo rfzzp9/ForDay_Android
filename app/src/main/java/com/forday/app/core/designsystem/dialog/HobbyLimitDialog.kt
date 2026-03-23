@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 
 @Composable
@@ -113,6 +114,7 @@ fun HobbyLimitDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp),
+                        interactionSource = remember { NoRippleInteractionSource() },
                         shape = RoundedCornerShape(40.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFE5E5E5)
@@ -137,6 +139,7 @@ fun HobbyLimitDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp),
+                        interactionSource = remember { NoRippleInteractionSource() },
                         shape = RoundedCornerShape(40.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFF9447)

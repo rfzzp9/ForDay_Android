@@ -22,7 +22,8 @@ data class HomeHobbyData(
     @SerializedName("greetingMessage") val greetingMessage: String? = "",
     @SerializedName("userSummaryText") val userSummaryText: String? = "",
     @SerializedName("recommendMessage") val recommendMessage: String? = "",
-    @SerializedName("aiCallRemaining") val aiCallRemaining: Boolean? = false
+    @SerializedName("aiCallRemaining") val aiCallRemaining: Boolean? = false,
+    @SerializedName("aiCallRemainingCount") val aiCallRemainingCount: Int? = null
 ) : RemoteMapper<HomeHobbyDataEntity> {
     override fun toData(): HomeHobbyDataEntity = HomeHobbyDataEntity(
         inProgressHobbies = inProgressHobbies?.map { it.toData() } ?: emptyList(),
@@ -30,7 +31,8 @@ data class HomeHobbyData(
         greetingMessage = greetingMessage ?: "",
         userSummaryText = userSummaryText ?: "",
         recommendMessage = recommendMessage ?: "",
-        aiCallRemaining = aiCallRemaining ?: false
+        aiCallRemaining = aiCallRemaining ?: false,
+        aiCallRemainingCount = aiCallRemainingCount
     )
 }
 

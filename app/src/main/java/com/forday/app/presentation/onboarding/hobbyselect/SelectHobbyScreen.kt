@@ -1,10 +1,17 @@
 package com.forday.app.presentation.onboarding.hobbyselect
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +36,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -51,8 +61,12 @@ import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.dialog.HobbyInputDialog
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
+import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import kotlin.math.PI
+import kotlin.math.tan
 
 @Composable
 fun SelectHobbyScreenRoot(
@@ -61,7 +75,7 @@ fun SelectHobbyScreenRoot(
     viewModel: OnboardingViewModel,
     fromModifyHobbyOrHome: Boolean = false,
 ) {
-    viewModel.logEvent("select_hobby_screen") // 취미카드 선택화면 진입
+    viewModel.logEvent(AnalyticsEvents.SELECT_HOBBY_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(fromModifyHobbyOrHome) {
@@ -69,6 +83,9 @@ fun SelectHobbyScreenRoot(
             viewModel.resetOnboardingState()
             viewModel.getHobbyCardDataAgain()
         } else {
+            if (state.selectedHobbyId == null) {
+                viewModel.resetOnboardingState()
+            }
             viewModel.fetchHobbyData()
         }
     }
@@ -79,18 +96,18 @@ fun SelectHobbyScreenRoot(
         customHobbyText = state.customHobbyText,
         showCustomHobbyDialog = state.showDialog,
         onHobbySelected = { hobbyId, hobbyName ->
-            viewModel.logEvent("selected_hobby_card_${hobbyName}")  // 선택한 취미 카드
+            viewModel.logEvent(AnalyticsEvents.selectedHobbyCard(hobbyName))
             viewModel.saveHobbyInfo(hobbyId, hobbyName)
         },
         onShowCustomDialog = {
-            viewModel.logEvent("click_direct_input_hobby_btn")  // 직접 입력하기 버튼 클릭
+            viewModel.logEvent(AnalyticsEvents.CLICK_DIRECT_INPUT_HOBBY)
             viewModel.showDialog()
         },
         onDismissCustomDialog = {
             viewModel.dismissDialog()
         },
         onCustomHobbyConfirm = { text ->
-            viewModel.logEvent("hobby_user_custom_$text")  // 사용자가 입력한 취미 :
+            viewModel.logEvent(AnalyticsEvents.hobbyUserCustom(text))
             viewModel.confirmCustomHobby(text)
             onNext()
         },
@@ -99,7 +116,8 @@ fun SelectHobbyScreenRoot(
         },
         onBack = {
             onBack()
-        }
+        },
+        isLoading = state.isLoading
     )
 }
 
@@ -115,7 +133,9 @@ fun SelectHobbyScreen(
     onCustomHobbyConfirm: (String) -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit,
+    isLoading: Boolean?
 ) {
+    val shimmerBrush = rememberShimmerBrush()
     OnboardingLayout(
         title = "취미 선택",
         currentStep = 1,
@@ -149,12 +169,18 @@ fun SelectHobbyScreen(
                         HobbySelectTitle()
                     }
 
-                    items(hobbies) { hobby ->
-                        HobbyCard(
-                            hobby = hobby,
-                            isSelected = hobby.id == selectedHobbyId,
-                            onClick = { onHobbySelected(hobby.id, hobby.name) },
-                        )
+                    if (isLoading == true) {
+                        items(10) {
+                            HobbyCardSkeleton(shimmerBrush)
+                        }
+                    } else {
+                        items(hobbies) { hobby ->
+                            HobbyCard(
+                                hobby = hobby,
+                                isSelected = hobby.id == selectedHobbyId,
+                                onClick = { onHobbySelected(hobby.id, hobby.name) },
+                            )
+                        }
                     }
 
                     item(span = { GridItemSpan(2) }) {
@@ -175,7 +201,8 @@ fun SelectHobbyScreen(
                     BottomButtonState.DISABLED
                 },
                 onClick = onNext,
-                modifier = Modifier.align(Alignment.BottomCenter).background(ForDayTheme.color.Neutral50)
+                modifier = Modifier.align(Alignment.BottomCenter),
+                backgroundColor = ForDayTheme.color.Neutral50
             )
 
             if (showCustomHobbyDialog) {
@@ -188,6 +215,37 @@ fun SelectHobbyScreen(
             }
         }
     }
+}
+
+@Composable
+fun rememberShimmerBrush(): Brush {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_progress"
+    )
+
+    val angleRad = (15.0 * PI / 180.0).toFloat()
+    val tanAngle = tan(angleRad)
+    val translateX = (shimmerProgress * 3f - 1f) * 1000f
+    val translateY = translateX * tanAngle
+
+    return Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFE8E8E8),
+            Color(0xFFF5F5F5),
+            Color(0xFFFFFFFF),
+            Color(0xFFF5F5F5),
+            Color(0xFFE8E8E8),
+        ),
+        start = Offset(translateX - 300f, translateY - 300f * tanAngle),
+        end = Offset(translateX + 300f, translateY + 300f * tanAngle)
+    )
 }
 
 @Composable
@@ -240,7 +298,11 @@ fun HobbyCard(
                 shape = RoundedCornerShape(16.dp)
             )
             .background(Color.White)
-            .clickable(onClick = rememberThrottledClick { onClick() })
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = rememberThrottledClick { onClick() }
+            )
     ) {
         // Image section
         Box(
@@ -296,6 +358,16 @@ fun HobbyCard(
             )
         }
     }
+}
+
+@Composable
+private fun HobbyCardSkeleton(shimmerBrush: Brush) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(shimmerBrush)
+    )
 }
 
 @Composable
@@ -409,7 +481,8 @@ fun SelectHobbyScreenPreview() {
             onDismissCustomDialog = {},
             onCustomHobbyConfirm = {},
             onNext = {},
-            onBack = {}
+            onBack = {},
+            isLoading = TODO()
         )
     }
 }
