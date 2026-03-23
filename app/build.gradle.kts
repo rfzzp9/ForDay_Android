@@ -1,4 +1,5 @@
-import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,18 +10,19 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.roborazzi.plugin)
+    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.app.forday"
-    compileSdk = 35
+    namespace = "com.dayn.forday"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.app.forday"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        applicationId = "com.dayn.forday"
+        minSdk = 28
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -28,18 +30,34 @@ android {
         resValue("string", "KAKAO_REDIRECT_URI", getProperty("KAKAO_REDIRECT_URI"))
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file(getProperty("KEYSTORE"))
+            storePassword = "wony2401"
+//            storePassword = getProperty("KEYSTORE_PASSWORD")
+            keyAlias = getProperty("KEY_ALIAS")
+//            keyPassword = getProperty("KEY_PASSWORD")
+            keyPassword = "wony2401"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL_PROD"))
         }
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "BASE_URL", getProperty("BASE_URL_DEV"))
         }
     }
 
@@ -65,24 +83,20 @@ android {
     }
 }
 
-android {
-    buildTypes {
-        debug {
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
-        }
-        release {
-            buildConfigField("String", "BASE_URL", getProperty("BASE_URL"))  //추후수정
-        }
-    }
-}
-
 fun getProperty(key: String): String {
-    return gradleLocalProperties(rootDir, providers).getProperty(key)
+    val properties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        FileInputStream(localPropertiesFile).use(properties::load)
+    }
+    return properties.getProperty(key)
+        ?: throw IllegalStateException("'$key' not found in local.properties")
 }
 
 dependencies {
     // Android Core
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.appcompat)
 
     // Lifecycle
@@ -92,11 +106,18 @@ dependencies {
 
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
+    implementation("androidx.compose.material:material")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.navigation)
+
+    // Navigation3
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.compose.material3.adaptive.navigation3)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -117,11 +138,9 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 
-    // Image Loading (Landscapist)
-    implementation(libs.landscapist.glide)
-//    implementation(libs.landscapist.coil)
-//    implementation(libs.landscapist.placeholder)
-//    implementation(libs.landscapist.animation)
+    // Image Loading
+    implementation(libs.coil.compose)
+    implementation(libs.coil.okhttp)
 
     // UI Effects
     implementation(libs.compose.shimmer)
@@ -130,6 +149,7 @@ dependencies {
     implementation(platform(libs.firebaseBom))
     implementation(libs.firebaseCrashlytics)
     implementation(libs.firebaseConfig)
+    implementation(libs.firebase.analytics)
 
     // DataStore
     implementation(libs.androidx.datastore)
@@ -189,4 +209,9 @@ dependencies {
     // Kakao
     implementation(libs.kakao.user)
     implementation(libs.kakao.share)
+
+    // Timber
+    implementation(libs.timber)
+
+    implementation(libs.lottie.compose)
 }
