@@ -25,3 +25,4 @@
 - `bugfix.md`: 크래시, 상태 오류, API 오류, 네비게이션 오류
 - `code-review.md`: 전체 리뷰, PR 리뷰, 감사
 - `pre-pr-check.md`: 커밋 또는 PR 전 최종 점검
+- `change-management.md`: 기존 변경, 삭제 파일, generated/local 파일 처리

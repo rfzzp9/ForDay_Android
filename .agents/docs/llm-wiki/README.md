@@ -27,3 +27,4 @@
 - `feature-map.md`
 - `navigation-map.md`
 - `add-feature-file-locations.md`
+- `data-flow-map.md`
