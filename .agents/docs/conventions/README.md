@@ -24,3 +24,5 @@
 - `compose-style.md`
 - `architecture-conventions.md`
 - `testing-conventions.md`
+- `commit-conventions.md`
+- `github-workflow-conventions.md`

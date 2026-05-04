@@ -15,6 +15,7 @@
 - 버그 수정: `.agents/docs/workflows/bugfix.md`
 - 전체 리뷰/PR 리뷰/감사: `.agents/docs/workflows/code-review.md`
 - 커밋/PR 전 점검: `.agents/docs/workflows/pre-pr-check.md`
+- 이슈/브랜치/PR 작성 규칙: `.agents/docs/conventions/github-workflow-conventions.md`
 
 ## 문서 역할
 
@@ -28,3 +29,5 @@
 - 이 파일에는 긴 프로젝트 설명을 넣지 않는다.
 - 공통 규칙은 `.agents/docs/` 아래 한 곳에만 둔다.
 - 문서가 충돌하면 사용자의 최신 요청을 우선하고, 그다음 workflows, conventions, llm-wiki 순으로 판단한다.
+- 사용자가 명시적으로 요청한 경우에만 커밋한다. 커밋 기준은 `.agents/docs/conventions/commit-conventions.md`를 따른다.
+- 사용자가 명시적으로 요청한 경우에만 이슈, 브랜치, PR 같은 GitHub 쓰기 작업을 수행한다. 브랜치명에는 AI 도구 이름을 넣지 않는다.
