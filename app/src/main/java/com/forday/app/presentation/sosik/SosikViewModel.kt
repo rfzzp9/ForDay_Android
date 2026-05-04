@@ -76,7 +76,8 @@ class SosikViewModel @Inject constructor(
                         recordList = recordList,
                         hasNext = data.data?.hasNext ?: false,
                         lastRecordId = data.data?.lastRecordId
-                    )
+                    ),
+                    unReadNotificationExists = data.data?.unReadNotificationExists ?: false
                 )
             }
         }

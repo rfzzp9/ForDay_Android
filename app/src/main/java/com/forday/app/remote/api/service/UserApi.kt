@@ -5,6 +5,7 @@ import com.forday.app.remote.model.request.ReportUserRequest
 import com.forday.app.remote.model.request.ProfileImageRequest
 import com.forday.app.remote.model.request.RegisterNicknameRequest
 import com.forday.app.remote.model.request.SwitchAccountRequest
+import com.forday.app.remote.model.request.TermsConsentRequest
 import com.forday.app.remote.model.response.BlockUserResponse
 import com.forday.app.remote.model.response.ReportUserResponse
 import com.forday.app.remote.model.response.CancelAccountResponse
@@ -14,6 +15,7 @@ import com.forday.app.remote.model.response.ProfileImageResponse
 import com.forday.app.remote.model.response.ProfileResponse
 import com.forday.app.remote.model.response.RegisterNicknameResponse
 import com.forday.app.remote.model.response.SwitchAccountResponse
+import com.forday.app.remote.model.response.TermsConsentResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -65,5 +67,9 @@ interface UserApi {
         @Body body: ReportUserRequest
     ): ReportUserResponse
 
+    @POST("/terms/consent")
+    suspend fun consentTerms(
+        @Body request: TermsConsentRequest
+    ): TermsConsentResponse
 
 }

@@ -23,7 +23,7 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.domain.model.AppUpdateType
 
 @Composable
-fun SplashScreenRoot(
+fun SplashRoute(
     splashViewModel: SplashViewModel
 ) {
     val splashState by splashViewModel.uiState.collectAsStateWithLifecycle()

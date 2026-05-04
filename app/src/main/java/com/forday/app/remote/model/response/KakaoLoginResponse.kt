@@ -54,7 +54,10 @@ data class LoginData(
     val guestUserId: String? = null,
 
     @SerializedName("onboardingData")
-    val onboardingData: KakaoOnboardingData? = null
+    val onboardingData: KakaoOnboardingData? = null,
+
+    @SerializedName("fcmToken")
+    val fcmToken: String? = null
 ) : RemoteMapper<KakaoLoginDataEntity> {
     override fun toData(): KakaoLoginDataEntity {
         return KakaoLoginDataEntity(
@@ -64,9 +67,10 @@ data class LoginData(
             socialType = socialType,
             isOnboardingCompleted = onboardingCompleted,
             isNicknameSet = nicknameSet,
-            nickname = nickname, // Entity에도 추가가 필요합니다.
+            nickname = nickname,
             guestUserId = guestUserId,
-            onboardingData = onboardingData?.toData()
+            onboardingData = onboardingData?.toData(),
+            fcmToken = fcmToken
         )
     }
 }

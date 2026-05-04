@@ -21,6 +21,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomNextButton
@@ -51,7 +53,7 @@ import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import timber.log.Timber
 
@@ -73,16 +75,18 @@ fun getHobbyIconResource(hobbyInfoId: Int?): Int {
 }
 
 @Composable
-fun SelectFrequencyScreenRoot(
+fun SelectFrequencyRoute(
     params: HobbyModifyParams?,
     mode: ScreenMode,
     onNext: () -> Unit,
     onBack: () -> Unit,
-    viewModel: OnboardingViewModel,
+    viewModel: OnboardingFlowViewModel = hiltViewModel(),
 ) {
-
-    viewModel.logEvent(AnalyticsEvents.HOBBY_FREQUENCY_ENTRY)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.HOBBY_FREQUENCY_ENTRY)
+    }
 
     SelectFrequencyScreen(
         hobbyName = if (mode == ScreenMode.DEFAULT) params?.hobbyName else state.selectedHobbyName,
@@ -100,12 +104,14 @@ fun SelectFrequencyScreenRoot(
         onBack = {
             viewModel.logEvent(AnalyticsEvents.HOBBY_FREQUENCY_BACK)
             onBack()
+            Unit
         },
         onNext = { executionCount ->
             if (mode == ScreenMode.DEFAULT) {
                 viewModel.modifyHobbyExecutionCount(params!!.hobbyId.toLong(), executionCount)
             }
             onNext()
+            Unit
         },
         onFrequencySelect = { frequency ->
             viewModel.logEvent(AnalyticsEvents.hobbyWeeklyCount(frequency))
@@ -309,7 +315,7 @@ fun HobbySummaryCard(
                         lineHeight = 14.sp
                     )
 
-                    if (selectedFrequency != null) {
+                    if (selectedFrequency != null && selectedFrequency != 0) {
                         Box(
                             modifier = Modifier
                                 .size(2.dp)

@@ -91,6 +91,7 @@ class HomeViewModel @Inject constructor(
                         greetingMessage = uiModel.greetingMessage,
                         userSummaryText = uiModel.userSummaryText,
                         recommendMessage = uiModel.recommendMessage,
+                        unReadNotificationExists = uiModel.unReadNotificationExists,
                         // [참고] 아래 필드들은 현재 API 응답(data)에 없으므로 기존 상태를 유지하거나
                         // 다른 API를 통해 업데이트해야 합니다. 주석 처리하거나 제거하세요.
                         // stickerCnt = ...,

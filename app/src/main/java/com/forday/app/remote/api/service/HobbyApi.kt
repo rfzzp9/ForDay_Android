@@ -71,7 +71,7 @@ interface HobbyApi {
     ): AiRecommendedResponse
 
     @GET("/hobbies/home")
-    suspend fun getHomeHobby(  // TODO 홈 진입했을 때 취미정보 조회 (수정필요 - viewModel단까지 전체적으로)
+    suspend fun getHomeHobby(
         @Query("hobbyId") hobbyId: Long?
     ): HomeHobbyResponse
 

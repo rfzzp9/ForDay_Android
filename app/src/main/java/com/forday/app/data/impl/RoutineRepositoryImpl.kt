@@ -9,6 +9,9 @@ import com.forday.app.domain.model.ModifyPostingDomain
 import com.forday.app.domain.model.ReactionCancelDomain
 import com.forday.app.domain.model.ReactionDetailDomain
 import com.forday.app.domain.model.ReactionDomain
+import com.forday.app.domain.model.HobbyChipsDomain
+import com.forday.app.domain.model.ReactionSummaryFirstDomain
+import com.forday.app.domain.model.ReactionSummaryMoreDomain
 import com.forday.app.domain.model.RoutineRecordDetailDomain
 import com.forday.app.domain.model.ScrapDomain
 import com.forday.app.domain.model.ScrapListDomain
@@ -24,6 +27,16 @@ class RoutineRepositoryImpl @Inject constructor(
 ): RoutineRepository {
     override suspend fun getMyRoutineRecordDetail(recordId: Int): RoutineRecordDetailDomain? =
         routineDataSource.getMyRoutineRecordDetail(recordId)?.toDomain()
+
+    override suspend fun getMyRoutineRecordDetailWithSwipe(
+        recordId: Int,
+        context: String,
+        userId: String?,
+        keyword: String?,
+        hobbyIds: List<Long>,
+        notificationId: Long?
+    ): RoutineRecordDetailDomain? =
+        routineDataSource.getMyRoutineRecordDetailWithSwipe(recordId, context, userId, keyword, hobbyIds, notificationId)?.toDomain()
 
     override suspend fun reactionToRoutinePosting(
         recordId: Int,
@@ -85,4 +98,13 @@ class RoutineRepositoryImpl @Inject constructor(
 
     override suspend fun reportPosting(recordId: Int, reason: String): ReportPostingDomain =
         routineDataSource.reportPosting(recordId, reason).toDomain()
+
+    override suspend fun getReactionUsersFirst(recordId: Int, size: Int): ReactionSummaryFirstDomain? =
+        routineDataSource.getReactionUsersFirst(recordId, size)?.toDomain()
+
+    override suspend fun getReactionUsersMore(recordId: Int, type: String?, lastReactionId: Long, size: Int): ReactionSummaryMoreDomain? =
+        routineDataSource.getReactionUsersMore(recordId, type, lastReactionId, size)?.toDomain()
+
+    override suspend fun getHobbyChips(status: String): HobbyChipsDomain =
+        routineDataSource.getHobbyChips(status).toDomain()
 }

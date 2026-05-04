@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 
 package com.forday.app.presentation.home
 
@@ -45,6 +45,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -122,7 +123,7 @@ fun getStickerDrawable(stickerUrl: String?): Int {
 }
 
 @Composable
-fun HomeScreenRoot(
+fun HomeRoute(
     onRoutineCreate: (Long?, Boolean?, String?) -> Unit,
     onModifyRoutine: (Long?, String?) -> Unit,
     onRecordRoutine: (Long?, String, String?, String?) -> Unit,
@@ -130,6 +131,7 @@ fun HomeScreenRoot(
     onModifyHobby: () -> Unit,
     onSelectHobby: () -> Unit,
     onAllSettingsClick: () -> Unit,
+    onNotificationClick: () -> Unit,
     onAddHobbyClick: () -> Unit,
     modifier: Modifier = Modifier,
     onCurrentHobbyIdChanged: (Long?) -> Unit = {},
@@ -228,6 +230,7 @@ fun HomeScreenRoot(
                     SettingsMenuItem.ALL_SETTINGS -> onAllSettingsClick()
                 }
             },
+            onNotificationClick = onNotificationClick,
             onStickerPageNext = viewModel::nextStickerPage,
             onStickerPagePrevious = viewModel::previousStickerPage,
             onAddHobbyClick = onAddHobbyClick,
@@ -246,12 +249,42 @@ fun HomeScreenRoot(
             errorToastMessage = errorToastMessage,
             onDismissErrorToast = { errorToastMessage = null },
             state = state,
-            currentHobbyId = currentHobbyId,
             onCreateRoutine = {
                 viewModel.logEvent(AnalyticsEvents.activityAddEntryClicked("home_fab", currentHobbyName))
                 onRoutineCreate(currentHobbyId, state.aiCallRemaining, currentHobbyName)
             },
-            viewModel = viewModel
+            onRefresh = {
+                viewModel.fetchHomeHobbyData(currentHobbyId)
+                viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+            },
+            onFloatingAddActivity = {
+                viewModel.logEvent(
+                    AnalyticsEvents.activityAddEntryClicked("home_fab", currentHobbyName)
+                )
+                onRoutineCreate(currentHobbyId, state.aiCallRemaining, currentHobbyName)
+            },
+            onAiBottomSheetDismiss = {
+                viewModel.fetchHomeHobbyData(currentHobbyId)
+            },
+            onAiRecommendButtonClick = {
+                viewModel.getAiRecommendedRoutines(currentHobbyId)
+            },
+            onPreviousRecommendClick = {
+                viewModel.getAiRecommendedRoutinesAgain(currentHobbyId)
+            },
+            onRecommendationsSelected = { routinesList ->
+                viewModel.createRoutines(currentHobbyId, routinesList, currentHobbyName)
+            },
+            onAiRecommendationShown = {
+                viewModel.logEvent(
+                    AnalyticsEvents.aiRecommendationShown(currentHobbyName, state.aiCallCount)
+                )
+            },
+            onAiRecommendationClicked = { activityName, position ->
+                viewModel.logEvent(
+                    AnalyticsEvents.aiRecommendationClicked(currentHobbyName, activityName, position)
+                )
+            },
         )
         if (showAlreadyRecordedDialog) {
             RoutineOnlyOneHaveDialog(
@@ -277,6 +310,7 @@ fun HomeScreen(
     onRecordRoutine: (String) -> Unit,
     onMoveRecordedRoutine: (Int) -> Unit,
     onSettingsItemClick: (SettingsMenuItem) -> Unit,
+    onNotificationClick: () -> Unit,
     onStickerPageNext: () -> Unit,
     onStickerPagePrevious: () -> Unit,
     onAddHobbyClick: () -> Unit,
@@ -290,8 +324,14 @@ fun HomeScreen(
     onDismissErrorToast: () -> Unit = {},
     modifier: Modifier = Modifier,
     state: HomeState,
-    currentHobbyId: Long?,
-    viewModel: HomeViewModel,
+    onRefresh: () -> Unit,
+    onFloatingAddActivity: () -> Unit,
+    onAiBottomSheetDismiss: () -> Unit,
+    onAiRecommendButtonClick: () -> Unit,
+    onPreviousRecommendClick: () -> Unit,
+    onRecommendationsSelected: (List<Pair<Boolean, String>>) -> Unit,
+    onAiRecommendationShown: () -> Unit,
+    onAiRecommendationClicked: (String, Int) -> Unit,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTriggered by remember { mutableStateOf(false) }
@@ -327,8 +367,7 @@ fun HomeScreen(
             refreshTriggered = true
             refreshStartStickerSize = state.stickers.size
             refreshStartMillis = System.currentTimeMillis()
-            viewModel.fetchHomeHobbyData(currentHobbyId)
-            viewModel.fetchStickerHistory(currentHobbyId, 28, null)
+            onRefresh()
 
             // Safety: ensure the indicator never spins forever
             delay(4_000L)
@@ -407,6 +446,7 @@ fun HomeScreen(
                                 showSettingsDropdown = !showSettingsDropdown
                                 if (showSettingsDropdown) showDropdown = false
                             },
+                            onNotificationClick = onNotificationClick,
                             onAddHobbyClick = onAddHobbyClick,
                             onCurrentHobbyClick = onCurrentHobbyClick,
                             onOtherHobbyClick = onOtherHobbyClick,
@@ -422,10 +462,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 20.dp),
-                            onRoutineCreate = {
-                                viewModel.logEvent(AnalyticsEvents.activityAddEntryClicked("home_fab", state.inProgressHobbies.find { it.isCurrent }?.name))
-                                onRoutineCreate(state.aiCallRemaining)
-                            },
+                            onRoutineCreate = onCreateRoutine,
                             onRoutineSelected = onRoutineSelected,
                             onRecordRoutine = onRecordRoutine,
                             showDropdown = showDropdown,
@@ -583,8 +620,7 @@ fun HomeScreen(
                 FloatingMenuPopup(
                     onAddActivity = {
                         showFloatingMenu = false
-                        viewModel.logEvent(AnalyticsEvents.activityAddEntryClicked("home_fab", state.inProgressHobbies.find { it.isCurrent }?.name))
-                        onRoutineCreate(state.aiCallRemaining)
+                        onFloatingAddActivity()
                     },
                     onShowActivityList = {
                         showFloatingMenu = false
@@ -605,9 +641,9 @@ fun HomeScreen(
                 hobbyName = currentHobbyName,
                 onDismiss = {
                     showAiBottomSheet = false
-                    viewModel.fetchHomeHobbyData(currentHobbyId)
+                    onAiBottomSheetDismiss()
                 },
-                onAiRecommendButtonClick = { viewModel.getAiRecommendedRoutines(currentHobbyId) },
+                onAiRecommendButtonClick = onAiRecommendButtonClick,
                 aiRecommendData = state.aiRoutineList,
                 aiRoutineLoaded = state.aiRoutineLoaded,
                 aiCallCount = state.aiCallCount,
@@ -619,18 +655,14 @@ fun HomeScreen(
                 onToastAction = onToastAction,
                 errorToastMessage = errorToastMessage,
                 onDismissErrorToast = onDismissErrorToast,
-                onPreviousRecommendClick = { viewModel.getAiRecommendedRoutinesAgain(currentHobbyId) },
+                onPreviousRecommendClick = onPreviousRecommendClick,
                 onRecommendationsSelected = { routines ->
                     val routinesList = routines.filter { it.title.isNotBlank() }
                         .map { Pair(true, it.title) }
-                    viewModel.createRoutines(currentHobbyId, routinesList, currentHobbyName)
+                    onRecommendationsSelected(routinesList)
                 },
-                onAiRecommendationShown = {
-                    viewModel.logEvent(AnalyticsEvents.aiRecommendationShown(currentHobbyName, state.aiCallCount))
-                },
-                onAiRecommendationClicked = { activityName, position ->
-                    viewModel.logEvent(AnalyticsEvents.aiRecommendationClicked(currentHobbyName, activityName, position))
-                }
+                onAiRecommendationShown = onAiRecommendationShown,
+                onAiRecommendationClicked = onAiRecommendationClicked
             )
         }
     }
@@ -641,6 +673,7 @@ fun HomeHeader(
     modifier: Modifier = Modifier,
     state: HomeState,
     onSettingsClick: () -> Unit,
+    onNotificationClick: () -> Unit,
     onAddHobbyClick: () -> Unit,
     onCurrentHobbyClick: (Long) -> Unit,
     onOtherHobbyClick: (Long?) -> Unit,
@@ -722,20 +755,30 @@ fun HomeHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-//            Box {
-//                Icon(
-//                    painter = painterResource(id = R.drawable.ic_notification),
-//                    contentDescription = "알림",
-//                    modifier = Modifier.size(24.dp),
-//                    tint = Color(0xFF1E1E1E)
-//                )
-//                Box(
-//                    modifier = Modifier
-//                        .size(4.dp)
-//                        .align(Alignment.TopEnd)
-//                        .background(Color(0xFFEE5D50), CircleShape)
-//                )
-//            }
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(
+                        onClick = rememberThrottledClick { onNotificationClick() },
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_notification),
+                    contentDescription = "알림",
+                    modifier = Modifier.fillMaxSize(),
+                    tint = Color(0xFF1E1E1E)
+                )
+                if (state.unReadNotificationExists) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .align(Alignment.TopEnd)
+                            .background(Color(0xFFEE5D50), CircleShape)
+                    )
+                }
+            }
 
             Icon(
                 painter = painterResource(id = R.drawable.ic_settings),
@@ -1317,7 +1360,7 @@ fun FloatingSettingsButton(
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    HomeScreenRoot(
+    HomeRoute(
         onRoutineCreate = { _, _, _ -> },
         onModifyRoutine = {} as (Long?, String?) -> Unit,
         onRecordRoutine = { _, _, _, _ -> },
@@ -1327,6 +1370,10 @@ fun HomeScreenPreview() {
         onAddHobbyClick = {},
         onSelectHobby = TODO(),
         viewModel = TODO(),
-        modifier = TODO()
+        modifier = TODO(),
+        onNotificationClick = TODO(),
+        onCurrentHobbyIdChanged = TODO(),
+        onCurrentHobbyInfoChanged = TODO(),
+        onRecordStateChanged = TODO()
     )
 }

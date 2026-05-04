@@ -5,6 +5,7 @@ import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.toUserMessage
+import com.forday.app.domain.usecase.GetHobbyChipsUseCase
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
 import com.forday.app.domain.usecase.GetMyRoutineRecordDetailUseCase
 import com.forday.app.domain.usecase.GetPresignedUrlUseCase
@@ -39,6 +40,7 @@ class RecordRoutineViewModel @Inject constructor(
     private val modifyPostingUseCase: ModifyPostingUseCase,
     private val deleteS3ImageUseCase: DeleteS3ImageUseCase,   // S3에 등록된 이미지 삭제
     private val getMyRoutineRecordDetailUseCase: GetMyRoutineRecordDetailUseCase,
+    private val getHobbyChipsUseCase: GetHobbyChipsUseCase,
     private val snackbarManager: SnackbarManager,
 ) : BaseViewModel<Unit>() {
 
@@ -235,6 +237,18 @@ class RecordRoutineViewModel @Inject constructor(
                     }
                 )
             )
+        }
+    }
+
+    fun getHobbyChips(status: String) = viewModelScope.launch {
+        flow {
+            emit(getHobbyChipsUseCase(status))
+        }.httpCatch(tag = "getHobbyChips") { errorData ->
+            snackbarManager.show(errorData.message)
+        }.collect { data ->
+            _uiState.update { state ->
+                state.copy(hobbyChips = data.hobbyInfoList.map { it.toUiModel() })
+            }
         }
     }
 

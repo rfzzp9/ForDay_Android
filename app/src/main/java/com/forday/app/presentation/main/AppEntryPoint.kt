@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.splash.SplashViewModel
 import timber.log.Timber
@@ -13,7 +14,9 @@ import timber.log.Timber
 @Composable
 fun AppEntryPoint(
     onboardingViewModel: OnboardingViewModel,
-    splashViewModel: SplashViewModel
+    onboardingFlowViewModel: OnboardingFlowViewModel,
+    splashViewModel: SplashViewModel,
+    deepLinkViewModel: DeepLinkViewModel
 ) {
     val uiState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
     val splashState by splashViewModel.uiState.collectAsStateWithLifecycle()
@@ -34,7 +37,9 @@ fun AppEntryPoint(
                 MainFlow(
                     initialRoute = route,
                     onboardingViewModel = onboardingViewModel,
-                    splashViewModel = splashViewModel
+                    onboardingFlowViewModel = onboardingFlowViewModel,
+                    splashViewModel = splashViewModel,
+                    deepLinkViewModel = deepLinkViewModel
                 )
             }
         }

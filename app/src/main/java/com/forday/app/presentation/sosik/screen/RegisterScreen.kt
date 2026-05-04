@@ -65,10 +65,10 @@ val REPORT_REASONS = listOf(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * 신고하기 ScreenRoot — ViewModel 연결
+ * 신고하기 Route — ViewModel 연결
  */
 @Composable
-fun ReportScreenRoot(
+fun ReportRoute(
     recordId: Int,
     nickname: String,
     onBack: () -> Unit,

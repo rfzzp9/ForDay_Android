@@ -5,12 +5,14 @@ import com.forday.app.data.model.CancelAccountEntity
 import com.forday.app.data.model.KakaoLoginEntity
 import com.forday.app.data.model.LogoutEntity
 import com.forday.app.data.model.SwitchAccountEntity
+import com.forday.app.data.model.TermsConsentEntity
 import com.forday.app.data.remote.AuthDataSource
 import com.forday.app.remote.api.service.AuthApi
 import com.forday.app.remote.api.service.UserApi
 import com.forday.app.remote.model.request.GuestLoginRequest
 import com.forday.app.remote.model.request.KakaoLoginRequest
 import com.forday.app.remote.model.request.SwitchAccountRequest
+import com.forday.app.remote.model.request.TermsConsentRequest
 import com.forday.app.remote.model.response.GuestLoginResponse
 import com.forday.app.remote.model.response.KakaoLoginResponse
 import com.forday.app.remote.model.response.LogoutResponse
@@ -104,5 +106,20 @@ class AuthDataSourceImpl @Inject constructor(
 
     override suspend fun cancelAccount(): CancelAccountEntity =
         userApi.cancelAccount().toData()
+
+    override suspend fun consentTerms(
+        serviceConsent: Boolean,
+        ageOver14Consent: Boolean,
+        privateConsent: Boolean,
+        recordPushConsent: Boolean
+    ): TermsConsentEntity =
+        userApi.consentTerms(
+            TermsConsentRequest(
+                serviceConsent = serviceConsent,
+                ageOver14Consent = ageOver14Consent,
+                privateConsent = privateConsent,
+                recordPushConsent = recordPushConsent
+            )
+        ).toData()
 
 }

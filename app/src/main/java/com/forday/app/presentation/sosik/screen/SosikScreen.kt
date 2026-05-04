@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
@@ -189,11 +190,12 @@ private fun SosikSkeletonCard(imageHeight: Dp, shimmer: Brush) {
 }
 
 @Composable
-fun SosikScreenRoot(
+fun SosikRoute(
     modifier: Modifier = Modifier,
     tabVisitCount: Int = 0,
     onAddHobbyClick: () -> Unit = {},
-    onCardClick: (Long) -> Unit = {},
+    onNotificationClick: () -> Unit = {},
+    onCardClick: (recordId: Long, isAllTab: Boolean, hobbyId: Long?) -> Unit = { _, _, _ -> },
     onProfileClick: (String, Boolean) -> Unit = { _, _ -> },
     viewModel: SosikViewModel = hiltViewModel()
 ) {
@@ -248,6 +250,8 @@ fun SosikScreenRoot(
         recordList = if (state.isLoading) emptyList() else state.content.recordList,
         tabList = state.content.tabList,
         selectedHobbyTab = state.selectedTabIndex,
+        unReadNotificationExists = state.unReadNotificationExists,
+        onNotificationClick = onNotificationClick,
         onHobbyTabSelected = { index ->
             if (state.socialType == "KAKAO") viewModel.selectTab(index)
             else showGuestBottomSheet = true
@@ -264,8 +268,12 @@ fun SosikScreenRoot(
             } else showGuestBottomSheet = true
         },
         onCardClick = { recordId ->
-            if (state.socialType == "KAKAO") onCardClick(recordId)
-            else showGuestBottomSheet = true
+            if (state.socialType == "KAKAO") {
+                val isAllTab = state.selectedTabIndex == 0
+                val hobbyId = if (isAllTab) null
+                    else state.content.tabList.getOrNull(state.selectedTabIndex - 1)?.hobbyId
+                onCardClick(recordId, isAllTab, hobbyId)
+            } else showGuestBottomSheet = true
         },
         onProfileClick = { userId, recordAuthor ->
             if (state.socialType == "KAKAO") {
@@ -297,6 +305,8 @@ fun SosikScreen(
     recordList: List<SosikRecordUiModel> = emptyList(),
     tabList: List<SosikTabUiModel> = emptyList(),
     selectedHobbyTab: Int = 0,
+    unReadNotificationExists: Boolean = false,
+    onNotificationClick: () -> Unit = {},
     onHobbyTabSelected: (Int) -> Unit = {},
     onLikeClick: (Long, Boolean) -> Unit = { _, _ -> },
     onCardClick: (Long) -> Unit = {},
@@ -311,7 +321,9 @@ fun SosikScreen(
         SosikTopBar(
             tabs = listOf("전체") + tabList.map { it.hobbyName },
             selectedTab = selectedHobbyTab,
-            onTabSelected = onHobbyTabSelected
+            onTabSelected = onHobbyTabSelected,
+            unReadNotificationExists = unReadNotificationExists,
+            onNotificationClick = onNotificationClick
         )
 
         if (isLoading) {
@@ -363,7 +375,9 @@ fun SosikScreen(
 private fun SosikTopBar(
     tabs: List<String>,
     selectedTab: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    unReadNotificationExists: Boolean = false,
+    onNotificationClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -384,6 +398,31 @@ private fun SosikTopBar(
                 fontWeight = FontWeight.Bold,
                 color = ColorTextPrimary
             )
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .align(Alignment.CenterEnd)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onNotificationClick
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_notification),
+                    contentDescription = "알림",
+                    tint = Color(0xFF3A3A3A),
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (unReadNotificationExists) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .align(Alignment.TopEnd)
+                            .background(Color(0xFFEE5D50), CircleShape)
+                    )
+                }
+            }
         }
 
         // FIX 2: 탭 구분선 — Row 전체에 회색 1dp 선을 깔고,

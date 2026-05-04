@@ -218,6 +218,7 @@ firebaseBom = { group = "com.google.firebase", name = "firebase-bom", version.re
 firebaseCrashlytics = { group = "com.google.firebase", name = "firebase-crashlytics", version.ref = "firebaseCrashlytics" }
 firebaseConfig = { group = "com.google.firebase", name = "firebase-config", version.ref = "firebaseConfig" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 ## Kakao
 kakao-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakao" }

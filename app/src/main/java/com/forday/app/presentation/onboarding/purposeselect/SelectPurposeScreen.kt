@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +56,7 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -84,13 +85,15 @@ fun getHobbyIconResource(hobbyInfoId: Int?): Int {
 }
 
 @Composable
-fun SelectPurposeScreenRoot(
+fun SelectPurposeRoute(
     onNext: () -> Unit,
     onBack: () -> Unit,
-    viewModel: OnboardingViewModel,
+    viewModel: OnboardingFlowViewModel = hiltViewModel(),
 ) {
-    viewModel.logEvent(AnalyticsEvents.HOBBY_PURPOSE_SELECTION_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.HOBBY_PURPOSE_SELECTION_SCREEN)
+    }
     Timber.e("@#@##@#@#@# "+state.selectedPurpose+", "+state.selectedHobbyId+", "+state.selectedFrequency)
     val scope = rememberCoroutineScope()
     SelectPurposeScreen(
@@ -106,12 +109,14 @@ fun SelectPurposeScreenRoot(
             scope.launch {
                 delay(400L)
                 onBack()
+                Unit
             }
         },
         onNext = {
             scope.launch {
                 delay(400L)
                 onNext()
+                Unit
             }
         },
         onShowCustomDialog = {
@@ -125,6 +130,7 @@ fun SelectPurposeScreenRoot(
             viewModel.logEvent(AnalyticsEvents.userCustomPurpose(text))
             viewModel.confirmCustomPurpose(text)
             onNext()
+            Unit
         },
         onPurposeSelect = { purposes ->
             viewModel.logEvent(AnalyticsEvents.selectedPurpose(purposes.joinToString(", ")))
@@ -351,7 +357,7 @@ fun HobbyCard(
                         lineHeight = 14.sp
                     )
 
-                    if (selectedFrequency != null) {
+                    if (selectedFrequency != null && selectedFrequency != 0) {
                         // Dot separator
                         Box(
                             modifier = Modifier

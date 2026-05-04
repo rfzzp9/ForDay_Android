@@ -33,7 +33,9 @@ data class ProfileDataResponse(
     @SerializedName("message")
     val message: String?,
     @SerializedName("errorClassName")
-    val errorClassName: String?
+    val errorClassName: String?,
+    @SerializedName("unReadNotificationExists")
+    val unReadNotificationExists: Boolean? = false
 ) : RemoteMapper<ProfileDataEntity> {
     override fun toData(): ProfileDataEntity {
         return ProfileDataEntity(
@@ -41,7 +43,8 @@ data class ProfileDataResponse(
             nickname = nickname ?: "사용자",
             totalCollectedStickerCount = totalCollectedStickerCount ?: 0,
             message = message ?: "",
-            errorClassName = errorClassName ?: ""
+            errorClassName = errorClassName ?: "",
+            unReadNotificationExists = unReadNotificationExists ?: false
         )
     }
 }

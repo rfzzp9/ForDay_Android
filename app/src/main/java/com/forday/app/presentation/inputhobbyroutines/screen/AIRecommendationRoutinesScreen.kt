@@ -35,14 +35,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.state.ErrorContent
 import com.forday.app.core.designsystem.component.state.ErrorDataUiState
+import com.forday.app.presentation.inputhobbyroutines.AiRecommendViewModel
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
-import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import timber.log.Timber
 
 data class RecommendationData(
@@ -51,14 +50,15 @@ data class RecommendationData(
 )
 
 @Composable
-fun AIRecommendationRoutinesScreenRoot(
+fun AIRecommendationRoutinesRoute(
     hobbyId: Long?,
+    hobbyName: String?,
     onBackClick: () -> Unit,
-    onNextClick: () -> Unit,
-    viewModel: InputRoutinesAndAiRecommendViewModel
+    onNextClick: (AiRoutineItemState) -> Unit,
+    viewModel: AiRecommendViewModel
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    state.aiCallCount
+
     viewModel.logEvent(AnalyticsEvents.AI_RECOMMEND_SCREEN)
 
     LaunchedEffect(Unit) {
@@ -68,10 +68,8 @@ fun AIRecommendationRoutinesScreenRoot(
     LaunchedEffect(state.aiRoutineList.size) {
         if (state.aiRoutineList.size == 3) {
             viewModel.saveAiRoutines(state.aiRoutineList)
-            viewModel.logEvent(AnalyticsEvents.aiRecommendationShown(state.selectedHobbyName, state.aiCallCount))
+            viewModel.logEvent(AnalyticsEvents.aiRecommendationShown(hobbyName, state.aiCallCount))
         }
-        Timber.d("@@@ Root에서 감지된 루틴 변경: ${state.aiRoutineList.size}개")
-        Timber.d("@@@ 루틴 내용: ${state.aiRoutineList.map { it.content }}")
     }
 
     val errorData = state.errorData
@@ -92,35 +90,42 @@ fun AIRecommendationRoutinesScreenRoot(
             routineTitle = state.recommendedText,
             routines = state.aiRoutineList,
             isLoading = state.isLoading,
+            apiCallCount = state.aiCallCount,
             onBackClick = {
                 viewModel.logEvent(AnalyticsEvents.AI_RECOMMEND_BACK)
                 onBackClick()
             },
             onNextClick = { selectedRoutine ->
+                viewModel.logEvent(AnalyticsEvents.CLICK_AI_RECOMMENDATION_NEXT)
                 viewModel.logEvent(AnalyticsEvents.aiRecommendSelectedRoutine(selectedRoutine.content))
-                viewModel.setSelectedAiRoutine(selectedRoutine)
-                onNextClick()
+                onNextClick(selectedRoutine)
+            },
+            onRegenerateClick = {
+                viewModel.logEvent(AnalyticsEvents.aiRetryClick(state.aiCallCount))
+                viewModel.getAiRecommendedRoutines(hobbyId)
+            },
+            onRoutineSelected = { index, content ->
+                viewModel.logEvent(AnalyticsEvents.aiRecommendationClicked(hobbyName, content, index))
             },
             hobbyId = hobbyId,
-            viewModel = viewModel
+            hobbyName = hobbyName,
         )
     }
-
 }
 
 @Composable
 fun AIRecommendationRoutinesScreen(
-    viewModel: InputRoutinesAndAiRecommendViewModel,
     routineTitle: String?,
     routines: List<AiRoutineItemState>,
     isLoading: Boolean,
+    apiCallCount: Int,
     onBackClick: () -> Unit,
     hobbyId: Long?,
+    hobbyName: String?,
     onNextClick: (AiRoutineItemState) -> Unit,
+    onRegenerateClick: () -> Unit = {},
+    onRoutineSelected: (index: Int, content: String) -> Unit = { _, _ -> },
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val apiCallCount = state.aiCallCount
-
     val maxApiCalls = 3
 
     var selectedRoutineIndex by remember { mutableStateOf<Int?>(null) }
@@ -171,7 +176,7 @@ fun AIRecommendationRoutinesScreen(
                                 isSelected = selectedRoutineIndex == index,
                                 onSelect = {
                                     selectedRoutineIndex = index
-                                    viewModel.logEvent(AnalyticsEvents.aiRecommendationClicked(state.selectedHobbyName, routine.content, index))
+                                    onRoutineSelected(index, routine.content)
                                 }
                             )
                         }
@@ -210,23 +215,12 @@ fun AIRecommendationRoutinesScreen(
                     selectedCount = apiCallCount,
                     totalCount = maxApiCalls,
                     isMaxReached = maxReached,
-                    onClick = {
-                        Timber.d("🔘 CounterButton 클릭: 현재 count=$apiCallCount")
-                        viewModel.logEvent(AnalyticsEvents.aiRetryClick(apiCallCount))
-
-                        if (apiCallCount < maxApiCalls) {
-                            Timber.d("🔘 API 호출 요청")
-                            viewModel.getAiRecommendedRoutines(hobbyId)
-                        } else {
-                            Timber.d("🔘 최대 호출 횟수 도달")
-                        }
-                    }
+                    onClick = { onRegenerateClick() }
                 )
 
                 NextButton(
                     enabled = hasSelection && !isLoading,
                     onClick = {
-                        viewModel.logEvent(AnalyticsEvents.CLICK_AI_RECOMMENDATION_NEXT)
                         selectedRoutineIndex?.let { index ->
                             val selectedRoutine = routines[index]
                             onNextClick(selectedRoutine)

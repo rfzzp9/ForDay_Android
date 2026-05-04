@@ -42,6 +42,9 @@ data class OnboardingUiState(
     val errorData: ErrorDataUiState? = null,
     val hasSeenIntro: Boolean? = null,
     val socialType: String? = null,
+    val pendingServiceConsent: Boolean? = null,
+    val pendingAgeOver14Consent: Boolean? = null,
+    val pendingPrivateConsent: Boolean? = null,
 )
 
 fun HobbyCardDomain.toPresentation() =

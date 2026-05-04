@@ -1,5 +1,6 @@
 package com.forday.app.presentation.main
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Base64
@@ -10,7 +11,10 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.forday.app.core.firebase.FordayFirebaseMessagingService.Companion.EXTRA_NOTIFICATION_ID
+import com.forday.app.core.firebase.FordayFirebaseMessagingService.Companion.EXTRA_RECORD_ID
 import dagger.hilt.android.AndroidEntryPoint
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.splash.SplashViewModel
 import java.security.MessageDigest
@@ -19,7 +23,9 @@ import java.security.MessageDigest
 class MainActivity : ComponentActivity() {
 
     private val onboardingViewModel: OnboardingViewModel by viewModels()
+    private val onboardingFlowViewModel: OnboardingFlowViewModel by viewModels()
     private val splashViewModel: SplashViewModel by viewModels()
+    private val deepLinkViewModel: DeepLinkViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen().setKeepOnScreenCondition {
@@ -41,13 +47,29 @@ class MainActivity : ComponentActivity() {
         )
         Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
         getReleaseKeyHash()
+        handlePushIntent(intent)
+
         setContent {
             Log.e("@@@@@@@@@@@@KeyHash", "getReleaseKeyHash")
             AppEntryPoint(
                 onboardingViewModel = onboardingViewModel,
-                splashViewModel = splashViewModel
+                onboardingFlowViewModel = onboardingFlowViewModel,
+                splashViewModel = splashViewModel,
+                deepLinkViewModel = deepLinkViewModel
             )
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePushIntent(intent)
+    }
+
+    private fun handlePushIntent(intent: Intent?) {
+        val recordId = intent?.getLongExtra(EXTRA_RECORD_ID, -1L)?.takeIf { it != -1L } ?: return
+        val notificationId = intent.getLongExtra(EXTRA_NOTIFICATION_ID, -1L).takeIf { it != -1L }
+        deepLinkViewModel.setPendingDeepLink(recordId, notificationId)
     }
 
     fun getReleaseKeyHash() {

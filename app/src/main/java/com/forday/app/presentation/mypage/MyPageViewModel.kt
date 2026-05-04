@@ -14,7 +14,10 @@ import com.forday.app.domain.usecase.CancelScrapPostingUseCase
 import com.forday.app.domain.usecase.DeletePostingUseCase
 import com.forday.app.domain.usecase.DeleteS3ImageUseCase
 import com.forday.app.domain.usecase.GetMyRoutineRecordDetailUseCase
+import com.forday.app.domain.usecase.GetMyRoutineRecordDetailWithSwipeUseCase
 import com.forday.app.domain.usecase.GetPresignedUrlUseCase
+import com.forday.app.domain.usecase.GetReactionUsersFirstUseCase
+import com.forday.app.domain.usecase.GetReactionUsersMoreUseCase
 import com.forday.app.domain.usecase.GetReactionUsersUseCase
 import com.forday.app.domain.usecase.GetUserFeedListUseCase
 import com.forday.app.domain.usecase.GetUserInfoUseCase
@@ -59,10 +62,13 @@ import com.kakao.sdk.user.UserApiClient
 @HiltViewModel
 class MyPageViewModel @Inject constructor(  //TODO 새로 반응한 사용자리스트에 빨간점 제대로 표시 안되고 있음
     private val getMyRoutineRecordDetailUseCase: GetMyRoutineRecordDetailUseCase,
+    private val getMyRoutineRecordDetailWithSwipeUseCase: GetMyRoutineRecordDetailWithSwipeUseCase,
     private val reactionToRoutinePostingUseCase: ReactionToRoutinePostingUseCase,  // 활동 기록에 반응 남기기
     private val cancelMyReactionUseCase: CancelMyReactionUseCase,
     private val modifyPostingVisibilityUseCase: ModifyPostingVisibilityUseCase,
     private val getReactionUsersUseCase: GetReactionUsersUseCase,  // 활동 기록에 새로 반응한 사용자 목록 조회
+    private val getReactionUsersFirstUseCase: GetReactionUsersFirstUseCase,  // v2 리액션 최초 조회
+    private val getReactionUsersMoreUseCase: GetReactionUsersMoreUseCase,  // v2 리액션 추가 조회
     private val getUserInfoUseCase: GetUserInfoUseCase,
     private val setProfileImageUseCase: SetProfileImageUseCase,
     private val getUsersProgressHobbyTabsUseCase: GetUsersProgressHobbyTabsUseCase,  // 사용자 취미 진행 상단탭 조회
@@ -139,6 +145,32 @@ class MyPageViewModel @Inject constructor(  //TODO 새로 반응한 사용자리
             _uiState.update { state ->
                 state.copy(
                     myRoutineDetails = data?.toPresentation()
+                )
+            }
+        }
+    }
+
+    fun getMyRoutineRecordDetailWithSwipe(
+        recordId: Int,
+        context: String,
+        userId: String?,
+        keyword: String?,
+        hobbyIds: List<Long>,
+        notificationId: Long? = null
+    ) = viewModelScope.launch {
+        flow {
+            emit(getMyRoutineRecordDetailWithSwipeUseCase(recordId, context, userId, keyword, hobbyIds, notificationId))
+        }.httpCatch(tag = "getMyRoutineRecordDetailWithSwipe") { errorData ->
+            _uiState.update {
+                it.copy(
+                    errorData = errorData
+                )
+            }
+        }.collect { data ->
+            _uiState.update { state ->
+                state.copy(
+                    myRoutineDetails = data?.toPresentation(),
+                    errorData = null
                 )
             }
         }
@@ -230,6 +262,51 @@ class MyPageViewModel @Inject constructor(  //TODO 새로 반응한 사용자리
         }
     }
 
+    fun getReactionUsersFirst(recordId: Int, size: Int) = viewModelScope.launch {
+        flow {
+            emit(getReactionUsersFirstUseCase(recordId, size))
+        }.catch { throwable ->
+            Timber.e("getReactionUsersFirst error: $throwable")
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect { data ->
+            _uiState.update { state ->
+                state.copy(reactionSummaryFirst = data)
+            }
+            Timber.e("@@#@#@##@#@#@ "+data)
+        }
+    }
+
+    fun getReactionUsersMore(recordId: Int, type: String?, lastReactionId: Long, size: Int) = viewModelScope.launch {
+        flow {
+            emit(getReactionUsersMoreUseCase(recordId, type, lastReactionId, size))
+        }.catch { throwable ->
+            Timber.e("getReactionUsersMore error: $throwable")
+            snackbarManager.show(throwable.toUserMessage())
+        }.collect { data ->
+            if (data == null) return@collect
+            val currentFirst = _uiState.value.reactionSummaryFirst ?: return@collect
+            // 기존 tabs에 새 유저 append
+            val updatedTabs = currentFirst.tabs.toMutableMap()
+            data.tabs.forEach { (tabKey, moreTab) ->
+                val existing = updatedTabs[tabKey]
+                updatedTabs[tabKey] = if (existing != null) {
+                    existing.copy(
+                        users = (existing.users + moreTab.users).distinctBy { it.reactionId },
+                        lastReactionId = moreTab.lastReactionId,
+                        hasNext = moreTab.hasNext,
+                    )
+                } else {
+                    moreTab
+                }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    reactionSummaryFirst = currentFirst.copy(tabs = updatedTabs)
+                )
+            }
+        }
+    }
+
     fun getUserInfo(userId: String? = null) = viewModelScope.launch {  // 사용자 정보 조회
         flow {
             emit(getUserInfoUseCase(userId))
@@ -243,7 +320,8 @@ class MyPageViewModel @Inject constructor(  //TODO 새로 반응한 사용자리
                         profileImageUrl = data.imageUrl,
                         nickName = data.nickname,
                         totalCollectedStickerCount = data.stickerCount
-                    )
+                    ),
+                    unReadNotificationExists = data.unReadNotificationExists ?: false
                 )
             }
         }

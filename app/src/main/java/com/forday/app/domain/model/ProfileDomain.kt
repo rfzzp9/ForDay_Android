@@ -7,5 +7,6 @@ data class ProfileDomain(
     val nickname: String?,
     val stickerCount: Int?,
     val message: String?,
-    val errorClassName: String?
+    val errorClassName: String?,
+    val unReadNotificationExists: Boolean?
 )

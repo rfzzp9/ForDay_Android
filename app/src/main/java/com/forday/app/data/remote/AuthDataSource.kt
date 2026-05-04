@@ -4,6 +4,7 @@ import com.forday.app.data.model.CancelAccountEntity
 import com.forday.app.data.model.KakaoLoginEntity
 import com.forday.app.data.model.LogoutEntity
 import com.forday.app.data.model.SwitchAccountEntity
+import com.forday.app.data.model.TermsConsentEntity
 import com.forday.app.remote.model.request.GuestLoginRequest
 import com.forday.app.remote.model.request.KakaoLoginRequest
 import com.forday.app.remote.model.request.SwitchAccountRequest
@@ -16,4 +17,10 @@ interface AuthDataSource {
     suspend fun switchAccount(switchAccountRequest: SwitchAccountRequest): SwitchAccountEntity
     suspend fun logout(): LogoutEntity
     suspend fun cancelAccount(): CancelAccountEntity
+    suspend fun consentTerms(
+        serviceConsent: Boolean,
+        ageOver14Consent: Boolean,
+        privateConsent: Boolean,
+        recordPushConsent: Boolean
+    ): TermsConsentEntity
 }

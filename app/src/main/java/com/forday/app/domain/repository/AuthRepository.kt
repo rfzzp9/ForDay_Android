@@ -5,6 +5,7 @@ import com.forday.app.domain.model.GuestLoginDataDomain
 import com.forday.app.domain.model.KakaoLoginDomain
 import com.forday.app.domain.model.LogoutDomain
 import com.forday.app.domain.model.SwitchAccountDomain
+import com.forday.app.domain.model.TermsConsentDomain
 import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
@@ -25,4 +26,10 @@ interface AuthRepository {
     suspend fun switchAccount(socialType: String, kakaoAccessToken: String): Result<SwitchAccountDomain>
     suspend fun logout(): Result<LogoutDomain>
     suspend fun cancelAccount(): Result<CancelAccountDomain>
+    suspend fun consentTerms(
+        serviceConsent: Boolean,
+        ageOver14Consent: Boolean,
+        privateConsent: Boolean,
+        recordPushConsent: Boolean
+    ): Result<TermsConsentDomain>
 }

@@ -1,11 +1,13 @@
 package com.forday.app.presentation.mypage
 
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import com.forday.app.presentation.model.ModifyPostingUiModel
 import com.forday.app.presentation.mypage.main.FeedContainerUiModel
 import com.forday.app.presentation.mypage.main.ScrapListUiModel
 import com.forday.app.presentation.mypage.main.UserHobbyTabUiModel
 import com.forday.app.presentation.mypage.main.UserInfoUiModel
 import com.forday.app.presentation.mypage.routinedetail.HobbyMainImageUiModel
+import com.forday.app.domain.model.ReactionSummaryFirstDomain
 import com.forday.app.presentation.mypage.routinedetail.screen.ReactionDetailUiModel
 import com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel
 
@@ -18,6 +20,7 @@ data class MyPageUiState(
     val imageUploadState: PresignedUrlUiModel = PresignedUrlUiModel(),
     val hobbyMainImageUiModel: HobbyMainImageUiModel = HobbyMainImageUiModel(),
     val reactionUsers: ReactionDetailUiModel = ReactionDetailUiModel(),
+    val reactionSummaryFirst: ReactionSummaryFirstDomain? = null,
     val socialType: String? = null,
     val isKakaoLoginSuccess: Boolean? = null,
     val modifyPostingUiModel: ModifyPostingUiModel = ModifyPostingUiModel(),
@@ -35,5 +38,7 @@ data class MyPageUiState(
     val nicknameCheckMessage: String = "",  // 닉네임 중복 확인 메시지
     val isNicknameChecked: Boolean? = null,  // 닉네임 중복 확인 결과 (true: 사용 가능, false: 중복)
     val nicknameRegisterSuccess: Boolean = false,  // 닉네임 등록 성공 여부
-    val isNicknameCheckLoading: Boolean = false  // 닉네임 중복 확인 로딩 상태
+    val isNicknameCheckLoading: Boolean = false,  // 닉네임 중복 확인 로딩 상태
+    val errorData: ErrorDataUiState? = null,
+    val unReadNotificationExists: Boolean = false,
 )

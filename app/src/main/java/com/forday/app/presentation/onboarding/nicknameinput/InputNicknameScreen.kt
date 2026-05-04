@@ -31,7 +31,7 @@ import com.forday.app.core.designsystem.component.clickable.rememberThrottledCli
 import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingUiState
 import timber.log.Timber
 
@@ -85,12 +85,15 @@ data class NicknameScreenDimensions(
 )
 
 @Composable
-fun InputNicknameScreenRoot(
+fun InputNicknameRoute(
     onNext: () -> Unit,
-    viewModel: OnboardingViewModel
+    viewModel: OnboardingFlowViewModel = hiltViewModel()
 ) {
-    viewModel.logEvent(AnalyticsEvents.NICKNAME_INPUT_SCREEN)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.NICKNAME_INPUT_SCREEN)
+    }
 
     // ✅ 닉네임 등록 성공 시 자동으로 다음 화면으로
     LaunchedEffect(uiState.nicknameRegisterSuccess) {
@@ -106,13 +109,16 @@ fun InputNicknameScreenRoot(
             viewModel.logEvent(AnalyticsEvents.NICKNAME_REGISTER_CLICK)
             viewModel.registerNickname(uiState.selectedHobbyName)
             // ✅ 여기서는 API 호출만! navigation은 LaunchedEffect에서 처리
+            Unit
         },
         onCheckDuplicate = { nickname ->
             viewModel.logEvent(AnalyticsEvents.currentInputNickname(nickname))
             viewModel.getIsNicknameDuplicate(nickname)
+            Unit
         },
         onNicknameChange = {
             viewModel.resetNicknameCheck()
+            Unit
         }
     )
 }

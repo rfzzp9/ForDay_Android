@@ -1,7 +1,14 @@
 package com.forday.app.presentation.mypage.routinedetail.screen
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -91,6 +98,11 @@ import com.forday.app.core.designsystem.component.button.BottomButtonState
 import com.forday.app.core.designsystem.component.button.BottomNextButton
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.core.designsystem.component.bottomsheet.EmotionFriend
+import com.forday.app.core.designsystem.component.bottomsheet.EmotionFriendListBottomSheet
+import com.forday.app.core.designsystem.component.bottomsheet.EmotionSummary
+import com.forday.app.core.designsystem.component.bottomsheet.EmotionTab
+import com.forday.app.core.designsystem.component.bottomsheet.EmotionType
 import com.forday.app.domain.model.ReactionDetailDomain
 import com.forday.app.domain.model.ReactionUserInfo
 import com.forday.app.presentation.mypage.MyPageUiState
@@ -108,6 +120,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.geometry.Offset
+import com.forday.app.core.designsystem.component.state.ErrorContent
+import com.forday.app.core.designsystem.component.state.ErrorDataUiState
 import kotlin.math.PI
 import kotlin.math.tan
 
@@ -185,6 +199,10 @@ fun RoutineDetailScreen(
     onNavigateToUserPage: (userId: String, recordOwner: Boolean) -> Unit = { _, _ -> },
     isNewRecord: Boolean = false,
     isUserPageEntry: Boolean = false,
+    swipeContext: String? = null,
+    swipeUserId: String? = null,
+    swipeHobbyIds: String? = null,
+    notificationId: Long? = null,
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel,
     onNavigateToRecordRoutine: (RoutineRecordDetailUiModel?, Boolean) -> Unit,
@@ -193,21 +211,51 @@ fun RoutineDetailScreen(
     BackHandler(enabled = isNewRecord) {
         onNavigateToHome()
     }
+
+    // 스와이프용 hobbyIds 파싱
+    val parsedHobbyIds = remember(swipeHobbyIds) {
+        swipeHobbyIds?.split(",")?.mapNotNull { it.trim().toLongOrNull() } ?: emptyList()
+    }
+
+    // 현재 보고 있는 recordId (스와이프 시 변경됨)
+    var currentRecordId by remember { mutableStateOf(routineId.toInt()) }
+
+    // v1/v2 API 분기 호출 함수
+    fun loadRecordDetail(recordId: Int) {
+        if (swipeContext != null) {
+            viewModel.getMyRoutineRecordDetailWithSwipe(
+                recordId = recordId,
+                context = swipeContext,
+                userId = swipeUserId,
+                keyword = null,
+                hobbyIds = parsedHobbyIds,
+                notificationId = notificationId
+            )
+        } else {
+            viewModel.getMyRoutineRecordDetail(recordId)
+        }
+    }
+
     Timber.e("routineId2@@@@@@@@@@@@@ : " + routineId)
     LaunchedEffect(Unit) {
-        viewModel.getMyRoutineRecordDetail(routineId.toInt())
+        loadRecordDetail(currentRecordId)
         viewModel.getNickname()
     }
+
     val state = viewModel.uiState.collectAsStateWithLifecycle()
     val routine = state.value.myRoutineDetails
     val isBookmarked = state.value.isScraped ?: routine?.isScraped ?: false
 
+    val errorData = state.value.errorData
+
+    // 스와이프 애니메이션 방향 추적 (true = 위로 스와이프/다음, false = 아래로 스와이프/이전)
+    var swipeDirectionUp by remember { mutableStateOf(true) }
+
     // Optimistic Update용 임시 상태
     var selectedReactions by remember { mutableStateOf<Set<ReactionType>>(emptySet()) }
     var canceledReactions by remember { mutableStateOf<Set<ReactionType>>(emptySet()) }
-    var pendingReaction by remember { mutableStateOf<ReactionType?>(null) }
-    var showReactionUsers by remember { mutableStateOf(false) }
-    var displayedReaction by remember { mutableStateOf<ReactionType?>(null) }
+    var showReactionBottomSheet by remember { mutableStateOf(false) }
+    var reactionBottomSheetTab by remember { mutableStateOf<EmotionTab>(EmotionTab.All) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var moreIconBottomPx by remember { mutableFloatStateOf(0f) }
@@ -233,6 +281,90 @@ fun RoutineDetailScreen(
 
     val shimmerBrush = rememberShimmerBrush()
     val density = LocalDensity.current
+
+    // 스와이프 제스처로 이전/다음 기록 이동
+    val swipeEnabled = swipeContext != null
+    val swipeThreshold = 80f  // 스와이프 인식 임계값 (px)
+    val animDuration = 350
+
+    // nestedScroll로 스크롤 경계에서 잔여 스크롤을 누적하여 스와이프 감지
+    var overscrollAccumulator by remember { mutableFloatStateOf(0f) }
+
+    // 콜백에서 최신 state를 참조하기 위한 ref
+    val routineRef = remember { mutableStateOf(routine) }
+    routineRef.value = routine
+
+    val swipeNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // 스크롤 방향이 바뀌면 누적값 초기화
+                if (overscrollAccumulator != 0f && available.y != 0f) {
+                    val directionChanged = (overscrollAccumulator > 0f && available.y < 0f)
+                            || (overscrollAccumulator < 0f && available.y > 0f)
+                    if (directionChanged) {
+                        overscrollAccumulator = 0f
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (!swipeEnabled) return Offset.Zero
+                // available.y: 자식이 소비하지 못한 잔여 스크롤
+                if (available.y != 0f) {
+                    overscrollAccumulator += available.y
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (!swipeEnabled) {
+                    overscrollAccumulator = 0f
+                    return Velocity.Zero
+                }
+
+                val currentRoutine = routineRef.value
+
+                if (overscrollAccumulator < -swipeThreshold) {
+                    // 위로 스와이프 → 다음 기록
+                    currentRoutine?.nextRecordId?.let { nextId ->
+                        swipeDirectionUp = true
+                        currentRecordId = nextId
+                        selectedReactions = emptySet()
+                        canceledReactions = emptySet()
+                        loadRecordDetail(nextId)
+                    }
+                } else if (overscrollAccumulator > swipeThreshold) {
+                    // 아래로 스와이프 → 이전 기록
+                    currentRoutine?.prevRecordId?.let { prevId ->
+                        swipeDirectionUp = false
+                        currentRecordId = prevId
+                        selectedReactions = emptySet()
+                        canceledReactions = emptySet()
+                        loadRecordDetail(prevId)
+                    }
+                }
+                overscrollAccumulator = 0f
+                return Velocity.Zero
+            }
+        }
+    }
+
+    if (errorData != null) {
+        ErrorContent(
+            errorData = errorData,
+            onAction = {
+                when (errorData.errorType) {
+                    ErrorDataUiState.ErrorType.TYPE_BACK -> onBackClick()
+                    ErrorDataUiState.ErrorType.TYPE_RETRY -> {}
+                }
+            }
+        )
+    } else {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -240,137 +372,127 @@ fun RoutineDetailScreen(
             .onGloballyPositioned { coords ->
                 containerTopPx = coords.positionInRoot().y
             }
+            .nestedScroll(swipeNestedScrollConnection)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            RoutineDetailHeader(
-                title = "내 활동 보기",
-                showTitle = !isUserPageEntry,
-                onBackClick = onBackClick,
-                onDownloadClick = onSaveCardClick,
-                onMoreMenuClick = { showMoreMenu = !showMoreMenu },
-                isNewRecord = isNewRecord,
-                showDownloadButton = !routine?.imageUrl.isNullOrEmpty() && routine?.isMine == true,
-                onMoreIconPositioned = { bottomPx -> moreIconBottomPx = bottomPx }
-            )
-
-            // Content
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (routine == null) {
-                    RoutineDetailSkeletonContent(shimmerBrush = shimmerBrush)
+        // 화면 전체를 AnimatedContent로 감싸서 스와이프 시 전체 슬라이드
+        AnimatedContent(
+            targetState = currentRecordId,
+            transitionSpec = {
+                if (swipeDirectionUp) {
+                    slideInVertically(
+                        initialOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(animDuration)
+                    ) togetherWith slideOutVertically(
+                        targetOffsetY = { fullHeight -> -fullHeight },
+                        animationSpec = tween(animDuration)
+                    )
                 } else {
-                    ActivityContent(
-                        routine = routine,
-                        isMine = routine.isMine ?: true,
-                        writerNickname = routine.writerNickname ?: "",
-                        writerProfileImageUrl = routine.writerProfileImageUrl ?: "",
-                        onWriterClick = { onNavigateToUserPage(routine.writerId ?: "", routine.isMine ?: false) },
-                        isUserPageEntry = isUserPageEntry,
-                        hobbyName = state.value.myRoutineDetails?.hobbyName ?: ""
+                    slideInVertically(
+                        initialOffsetY = { fullHeight -> -fullHeight },
+                        animationSpec = tween(animDuration)
+                    ) togetherWith slideOutVertically(
+                        targetOffsetY = { fullHeight -> fullHeight },
+                        animationSpec = tween(animDuration)
                     )
                 }
-            }
+            },
+            label = "swipe_content"
+        ) { targetRecordId ->
+            val pageScrollState = rememberScrollState()
 
-            //
-            if (isNewRecord) {
-                BottomNextButton(
-                    text = "홈으로 가기",
-                    state = BottomButtonState.ENABLED,
-                    onClick = onNavigateToHome
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                RoutineDetailHeader(
+                    title = "내 활동 보기",
+                    showTitle = !isUserPageEntry,
+                    onBackClick = onBackClick,
+                    onDownloadClick = onSaveCardClick,
+                    onMoreMenuClick = { showMoreMenu = !showMoreMenu },
+                    isNewRecord = isNewRecord,
+                    showDownloadButton = !routine?.imageUrl.isNullOrEmpty() && routine?.isMine == true,
+                    onMoreIconPositioned = { bottomPx -> moreIconBottomPx = bottomPx }
                 )
-            } else {
-                //
-                AnimatedVisibility(
-                    visible = showReactionUsers && state.value.reactionUsers.users.isNotEmpty(),
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+
+                // 게시글 영역
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(pageScrollState)
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    ReactionUsersList(
-                        reactionType = displayedReaction ?: ReactionType.AWESOME,
-                        users = state.value.reactionUsers.users
-                    )
+                    if (routine == null || routine.recordId != targetRecordId) {
+                        RoutineDetailSkeletonContent(shimmerBrush = shimmerBrush)
+                    } else {
+                        ActivityContent(
+                            routine = routine,
+                            isMine = routine.isMine ?: true,
+                            writerNickname = routine.writerNickname ?: "",
+                            writerProfileImageUrl = routine.writerProfileImageUrl ?: "",
+                            onWriterClick = { onNavigateToUserPage(routine.writerId ?: "", routine.isMine ?: false) },
+                            isUserPageEntry = isUserPageEntry,
+                            hobbyName = state.value.myRoutineDetails?.hobbyName ?: ""
+                        )
+                    }
                 }
 
-                // Bottom Reaction Bar
-                BottomReactionBar(
-                    selectedReactions = selectedReactions,
-                    canceledReactions = canceledReactions,
-                    myReactions = routine?.myReactions,
-                    reactions = routine?.reactions,
-                    isBookmarked = isBookmarked,
-                    onBookmarkClick = {
-                        if (isBookmarked) {
-                            viewModel.cancelScrapPosting(routineId.toInt())
-                        } else {
-                            viewModel.scrapPosting(routineId.toInt())
-                        }
-                    },
-                    onReactionTap = { reaction ->
-                        if (showReactionUsers) {
-                            if (pendingReaction == reaction) {
-                                pendingReaction = null
-                                showReactionUsers = false
+                // 리액션 바 영역
+                if (isNewRecord) {
+                    BottomNextButton(
+                        text = "홈으로 가기",
+                        state = BottomButtonState.ENABLED,
+                        onClick = onNavigateToHome
+                    )
+                } else {
+                    BottomReactionBar(
+                        selectedReactions = selectedReactions,
+                        canceledReactions = canceledReactions,
+                        myReactions = routine?.myReactions,
+                        reactions = routine?.reactions,
+                        isBookmarked = isBookmarked,
+                        onBookmarkClick = {
+                            if (isBookmarked) {
+                                viewModel.cancelScrapPosting(currentRecordId)
                             } else {
-                                pendingReaction = reaction
-                                displayedReaction = reaction
-                                val reactionString = when (reaction) {
-                                    ReactionType.AWESOME -> "AWESOME"
-                                    ReactionType.GREAT -> "GREAT"
-                                    ReactionType.AMAZING -> "AMAZING"
-                                    ReactionType.FIGHTING -> "FIGHTING"
-                                }
-                                viewModel.getReactionUsers(routineId.toInt(), reactionString, "", 10)
+                                viewModel.scrapPosting(currentRecordId)
                             }
-                        } else {
-                            pendingReaction = reaction
-                            displayedReaction = reaction
+                        },
+                        onReactionTap = { reaction ->
+                            val isPressed = when (reaction) {
+                                ReactionType.AWESOME -> routine?.myReactions?.pressedAwesome
+                                ReactionType.GREAT -> routine?.myReactions?.pressedGreat
+                                ReactionType.AMAZING -> routine?.myReactions?.pressedAmazing
+                                ReactionType.FIGHTING -> routine?.myReactions?.pressedFighting
+                            }
+                            val isCurrentlySelected = (isPressed == true && !canceledReactions.contains(reaction))
+                                    || selectedReactions.contains(reaction)
                             val reactionString = when (reaction) {
                                 ReactionType.AWESOME -> "AWESOME"
                                 ReactionType.GREAT -> "GREAT"
                                 ReactionType.AMAZING -> "AMAZING"
                                 ReactionType.FIGHTING -> "FIGHTING"
                             }
-                            viewModel.getReactionUsers(routineId.toInt(), reactionString, "", 10)
-                            showReactionUsers = true
-                        }
-                    },
-                    onReactionDoubleTap = { reaction ->
-                        val isPressed = when (reaction) {
-                            ReactionType.AWESOME -> routine?.myReactions?.pressedAwesome
-                            ReactionType.GREAT -> routine?.myReactions?.pressedGreat
-                            ReactionType.AMAZING -> routine?.myReactions?.pressedAmazing
-                            ReactionType.FIGHTING -> routine?.myReactions?.pressedFighting
-                        }
-                        val isCurrentlySelected = (isPressed == true && !canceledReactions.contains(reaction))
-                                || selectedReactions.contains(reaction)
-                        val reactionString = when (reaction) {
-                            ReactionType.AWESOME -> "AWESOME"
-                            ReactionType.GREAT -> "GREAT"
-                            ReactionType.AMAZING -> "AMAZING"
-                            ReactionType.FIGHTING -> "FIGHTING"
-                        }
-                        val shouldRefreshUsers = showReactionUsers && displayedReaction == reaction
-                        if (isCurrentlySelected) {
-                            if (isPressed == true) {
-                                viewModel.cancelMyReaction(routineId.toInt(), reactionString, shouldRefreshUsers)
-                                canceledReactions = canceledReactions + reaction
+                            if (isCurrentlySelected) {
+                                if (isPressed == true) {
+                                    viewModel.cancelMyReaction(currentRecordId, reactionString)
+                                    canceledReactions = canceledReactions + reaction
+                                }
+                                selectedReactions = selectedReactions - reaction
+                            } else {
+                                viewModel.reactionToRoutinePosting(currentRecordId, reactionString)
+                                selectedReactions = selectedReactions + reaction
+                                canceledReactions = canceledReactions - reaction
                             }
-                            selectedReactions = selectedReactions - reaction
-                        } else {
-                            viewModel.reactionToRoutinePosting(routineId.toInt(), reactionString, shouldRefreshUsers)
-                            selectedReactions = selectedReactions + reaction
-                            canceledReactions = canceledReactions - reaction
-                        }
-                    }
-                )
+                        },
+                        onReactionLongPress = {
+                            viewModel.getReactionUsersFirst(currentRecordId, 5)
+                            reactionBottomSheetTab = EmotionTab.All
+                            showReactionBottomSheet = true
+                        },
+                    )
+                }
             }
         }
 
@@ -420,7 +542,6 @@ fun RoutineDetailScreen(
                 state = state.value,
             )
         }
-        state.value.reactionUsers.users
         // Toast Message
         AnimatedVisibility(
             visible = showToast,
@@ -484,86 +605,66 @@ fun RoutineDetailScreen(
             )
         }
     }
-}
 
-@Composable
-fun ReactionUserItem(user: ReactionUserUiModel) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.width(48.dp)
-    ) {
-        // 프로필 이미지
-        Box(modifier = Modifier.size(40.dp)) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(ActivityDetailColors.Stroke001),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!user.profileImageUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = user.profileImageUrl,
-                        contentDescription = user.nickname,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_profile_empty),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        tint = Color.Unspecified
-                    )
-                }
-            }
-            if (user.newReactionUser) {
-                Image(
-                    painter = painterResource(R.drawable.icon_new),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-4).dp, y = 3.dp)
+    // Reaction Friends Bottom Sheet (Long Press)
+    if (showReactionBottomSheet) {
+        val summaryFirst = state.value.reactionSummaryFirst
+        val summary = EmotionSummary(
+            totalCount = summaryFirst?.reactionSummary?.totalCount ?: 0,
+            awesome = summaryFirst?.reactionSummary?.awesome ?: 0,
+            great = summaryFirst?.reactionSummary?.great ?: 0,
+            amazing = summaryFirst?.reactionSummary?.amazing ?: 0,
+            fighting = summaryFirst?.reactionSummary?.fighting ?: 0,
+        )
+
+        // 탭별 데이터를 map으로 구성
+        val allTabs = summaryFirst?.tabs ?: emptyMap()
+        val friendsByTab = allTabs.mapValues { (_, tab) ->
+            tab.users.map { user ->
+                EmotionFriend(
+                    id = user.reactionId.toString(),
+                    nickname = user.nickname,
+                    profileImageUrl = user.profileImageUrl.ifEmpty { null },
+                    emotionType = EmotionType.fromApiKey(user.reactionType) ?: EmotionType.SUN,
                 )
             }
         }
+        val hasNextByTab = allTabs.mapValues { (_, tab) -> tab.hasNext }
+        val lastReactionIdByTab = allTabs.mapValues { (_, tab) -> tab.lastReactionId }
 
-        // 닉네임
-        Text(
-            text = user.nickname,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Normal,
-            color = ActivityDetailColors.Neutral600,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+        EmotionFriendListBottomSheet(
+            summary = summary,
+            friendsByTab = friendsByTab,
+            hasNextByTab = hasNextByTab,
+            lastReactionIdByTab = lastReactionIdByTab,
+            selectedTab = reactionBottomSheetTab,
+            onTabSelected = { newTab ->
+                reactionBottomSheetTab = newTab
+                val apiType = newTab.toApiKey()  // null = 전체
+                val dataKey = apiType ?: "ALL"
+                val currentTab = allTabs[dataKey]
+                if (currentTab == null || currentTab.users.isEmpty()) {
+                    viewModel.getReactionUsersMore(
+                        recordId = currentRecordId,
+                        type = apiType,
+                        lastReactionId = 0L,
+                        size = 5,
+                    )
+                }
+            },
+            onLoadMore = { tabKey, lastReactionId ->
+                val apiType = if (tabKey == "ALL") null else tabKey
+                viewModel.getReactionUsersMore(
+                    recordId = currentRecordId,
+                    type = apiType,
+                    lastReactionId = lastReactionId,
+                    size = 5,
+                )
+            },
+            onDismiss = { showReactionBottomSheet = false },
         )
     }
-}
-
-@Composable
-fun ReactionUsersList(
-    reactionType: ReactionType,
-    users: List<ReactionUserUiModel>
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = ActivityDetailColors.Background001,
-        shadowElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            users.forEach { user ->
-                ReactionUserItem(user = user)
-            }
-        }
-    }
+    } // else
 }
 
 @Composable
@@ -1072,7 +1173,7 @@ fun BottomReactionBar(
     myReactions: RoutineUserReactionUiModel?,
     reactions: RoutineReactionUiModel?,
     onReactionTap: (ReactionType) -> Unit,
-    onReactionDoubleTap: (ReactionType) -> Unit,
+    onReactionLongPress: () -> Unit,
     isBookmarked: Boolean,
     onBookmarkClick: () -> Unit
 ) {
@@ -1110,7 +1211,7 @@ fun BottomReactionBar(
                     isCanceled = canceledReactions.contains(ReactionType.AWESOME),
                     hasNewReaction = reactions?.awesome,
                     onTap = { onReactionTap(ReactionType.AWESOME) },
-                    onDoubleTap = { onReactionDoubleTap(ReactionType.AWESOME) },
+                    onLongPress = onReactionLongPress,
                 )
 
                 // Great Reaction (최고예요)
@@ -1121,7 +1222,7 @@ fun BottomReactionBar(
                     isCanceled = canceledReactions.contains(ReactionType.GREAT),
                     hasNewReaction = reactions?.great,
                     onTap = { onReactionTap(ReactionType.GREAT) },
-                    onDoubleTap = { onReactionDoubleTap(ReactionType.GREAT) },
+                    onLongPress = onReactionLongPress,
                 )
 
                 // Amazing Reaction (놀라워요)
@@ -1132,7 +1233,7 @@ fun BottomReactionBar(
                     isCanceled = canceledReactions.contains(ReactionType.AMAZING),
                     hasNewReaction = reactions?.amazing,
                     onTap = { onReactionTap(ReactionType.AMAZING) },
-                    onDoubleTap = { onReactionDoubleTap(ReactionType.AMAZING) },
+                    onLongPress = onReactionLongPress,
                 )
 
                 // Fighting Reaction (응원해요)
@@ -1143,7 +1244,7 @@ fun BottomReactionBar(
                     isCanceled = canceledReactions.contains(ReactionType.FIGHTING),
                     hasNewReaction = reactions?.fighting,
                     onTap = { onReactionTap(ReactionType.FIGHTING) },
-                    onDoubleTap = { onReactionDoubleTap(ReactionType.FIGHTING) },
+                    onLongPress = onReactionLongPress,
                 )
             }
 
@@ -1177,7 +1278,7 @@ fun ReactionButton(
     isCanceled: Boolean,
     hasNewReaction: Boolean?,
     onTap: () -> Unit,
-    onDoubleTap: () -> Unit
+    onLongPress: () -> Unit = {}
 ) {
     Timber.e("@@@@@@########@@@@@@@@@@ hasNewReaction : "+hasNewReaction)
     val isActive = (isPressed == true && !isCanceled) || isSelected
@@ -1222,7 +1323,7 @@ fun ReactionButton(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { onTap() },
-                        onDoubleTap = { onDoubleTap() }
+                        onLongPress = { onLongPress() }
                     )
                 },
             contentAlignment = Alignment.Center

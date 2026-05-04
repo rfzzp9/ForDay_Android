@@ -63,7 +63,7 @@ object ProfileSettingColors {
 }
 
 @Composable
-fun ProfileSettingScreenRoot(
+fun ProfileSettingRoute(
     goBack: () -> Unit,
     viewModel: MyPageViewModel
 ) {

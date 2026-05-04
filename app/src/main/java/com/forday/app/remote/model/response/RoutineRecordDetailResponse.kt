@@ -29,7 +29,9 @@ data class RoutineRecordDetailDataResponse(
     @SerializedName("userInfo") val userInfo: UserInfoResponse?, // ✅ 추가
     @SerializedName("visibility") val visibility: String?,
     @SerializedName("newReaction") val newReaction: RoutineNewReactionResponse?,
-    @SerializedName("userReaction") val userReaction: RoutineUserReactionResponse?
+    @SerializedName("userReaction") val userReaction: RoutineUserReactionResponse?,
+    @SerializedName("prevRecordId") val prevRecordId: Int? = null,
+    @SerializedName("nextRecordId") val nextRecordId: Int? = null
 ) : RemoteMapper<RoutineRecordDetailEntity> {
     override fun toData(): RoutineRecordDetailEntity {
         return RoutineRecordDetailEntity(
@@ -47,7 +49,9 @@ data class RoutineRecordDetailDataResponse(
             userInfo = userInfo?.toData(), // ✅ 매핑
             visibility = visibility ?: "PRIVATE",
             newReaction = newReaction?.toData() ?: RoutineReactionEntity.EMPTY,
-            userReaction = userReaction?.toData() ?: RoutineUserReactionEntity.EMPTY
+            userReaction = userReaction?.toData() ?: RoutineUserReactionEntity.EMPTY,
+            prevRecordId = prevRecordId,
+            nextRecordId = nextRecordId
         )
     }
 }

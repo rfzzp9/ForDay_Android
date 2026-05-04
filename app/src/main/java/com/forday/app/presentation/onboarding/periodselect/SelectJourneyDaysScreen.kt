@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomNextButton
@@ -42,7 +44,7 @@ import com.forday.app.core.designsystem.component.layout.OnboardingLayout
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -79,16 +81,18 @@ fun getHobbyIconResource(hobbyInfoId: Int?): Int {
 }
 
 @Composable
-fun SelectJourneyDaysScreenRoot(
+fun SelectJourneyDaysRoute(
     params: HobbyModifyParams?,
     mode: ScreenMode,
     onNext: () -> Unit,
     onBack: () -> Unit,
     goHome: () -> Unit,
-    viewModel: OnboardingViewModel,
+    viewModel: OnboardingFlowViewModel = hiltViewModel(),
 ) {
-    viewModel.logEvent(AnalyticsEvents.HOBBY_JOURNEY_DATE_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.HOBBY_JOURNEY_DATE_SCREEN)
+    }
     Timber.e("@@@@@@@@@@@111"+state.isNicknameSet+", "+mode)
 
     val scope = rememberCoroutineScope()
@@ -110,6 +114,7 @@ fun SelectJourneyDaysScreenRoot(
             scope.launch {
                 delay(400L)
                 onBack()
+                Unit
             }
         },
         onNext = { journeyMode ->
@@ -171,9 +176,10 @@ fun SelectJourneyDaysScreen(
 ) {
     // DEFAULT 모드일 때는 로컬 상태로 관리, ONBOARDING일 때는 ViewModel 상태 사용
     val localSelectedJourneyMode = remember(params?.goalDays, selectedJourneyMode) {
-        mutableStateOf(
+        mutableStateOf(  //TODO 여정일 화면에서 모드가 자동으로 '기간 미지정' 선택되어 있는 오류 수정해야 함
             if (mode == ScreenMode.DEFAULT) {
                 // DEFAULT: params.goalDays를 JourneyMode로 변환
+                Timber.e("!@!!@@@@!@!@ goalDays : "+params?.goalDays)
                 when (params?.goalDays) {
                     66 -> JourneyMode.FORDAY_66
                     0 -> JourneyMode.FREE
@@ -364,7 +370,7 @@ fun HobbySummaryCard(
                         lineHeight = 14.sp
                     )
 
-                    if (selectedFrequency != null) {
+                    if (selectedFrequency != null && selectedFrequency != 0) {
                         // Dot separator
                         Box(
                             modifier = Modifier

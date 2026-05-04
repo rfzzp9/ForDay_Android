@@ -13,7 +13,8 @@ data class SosikUiState(
     val content: SosikContentUiState = SosikContentUiState(),
     val socialType: String? = null,
     val hasShownGuestBottomSheet: Boolean = false,
-    val routineDetail: RoutineRecordDetailDomain? = null
+    val routineDetail: RoutineRecordDetailDomain? = null,
+    val unReadNotificationExists: Boolean = false
 )
 
 data class SosikContentUiState(

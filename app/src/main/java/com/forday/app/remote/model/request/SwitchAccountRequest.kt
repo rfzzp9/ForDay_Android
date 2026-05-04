@@ -6,4 +6,7 @@ import kotlinx.serialization.Serializable
 data class SwitchAccountRequest(
     val socialType: String,
     val socialCode: String,
+    val fcmToken: String,
+    val deviceId: String,
+    val deviceType: String
 )

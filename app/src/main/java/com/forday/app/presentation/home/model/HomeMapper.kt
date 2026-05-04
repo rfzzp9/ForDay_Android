@@ -32,7 +32,8 @@ fun HomeHobbyDataDomain.toPresentation(): HomeHobbyUiModel {
         recommendMessage = recommendMessage,
         // 4. AI 호출 남은 횟수 상태
         aiCallRemaining = aiCallRemaining,
-        aiCallRemainingCount = aiCallRemainingCount
+        aiCallRemainingCount = aiCallRemainingCount,
+        unReadNotificationExists = unReadNotificationExists
     )
 }
 

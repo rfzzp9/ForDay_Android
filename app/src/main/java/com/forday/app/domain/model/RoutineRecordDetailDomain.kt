@@ -17,7 +17,9 @@ data class RoutineRecordDetailDomain(
     val isMine: Boolean,
     val isVisible: Boolean,
     val newReaction: RoutineReactionDomain,
-    val userReaction: RoutineUserReactionDomain
+    val userReaction: RoutineUserReactionDomain,
+    val prevRecordId: Int? = null,
+    val nextRecordId: Int? = null
 )
 
 data class RoutineReactionDomain(

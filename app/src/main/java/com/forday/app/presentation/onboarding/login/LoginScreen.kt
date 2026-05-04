@@ -57,32 +57,32 @@ import com.forday.app.presentation.onboarding.OnboardingViewModel
 import timber.log.Timber
 
 @Composable
-fun LoginScreenRoot(
+fun LoginRoute(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
     onNavigateToNickname: () -> Unit,
-    viewModel: OnboardingViewModel
+    onNavigateToTerms: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
-    viewModel.logEvent(AnalyticsEvents.LOGIN_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showInstallDialog by remember { mutableStateOf(false) }
 
-    // 로그인 시도 플래그
     var loginAttempted by remember { mutableStateOf(false) }
 
-    // 로그인 완료 후에만 navigation
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.LOGIN_SCREEN)
+    }
+
     LaunchedEffect(state.isLoginSuccess, state.isNewUser, state.isOnboardingCompleted, state.isNicknameSet, loginAttempted) {
         Timber.e(
-            "LoginScreenRoot LaunchedEffect - attempted=$loginAttempted, success=${state.isLoginSuccess}, newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet}"
+            "LoginRoute LaunchedEffect - attempted=$loginAttempted, success=${state.isLoginSuccess}, newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet}"
         )
-        // 로그인 버튼을 눌렀더라도, 앱 로그인(서버 로그인) 성공 전에는 화면 이동하지 않음
         if (!loginAttempted || !state.isLoginSuccess) return@LaunchedEffect
 
         when {
             state.isNewUser == true -> {
-                Timber.e("@@@@@@@ Navigate to Onboarding")
-                onNavigateToOnboarding()
+                Timber.e("@@@@@@@ Navigate to TermsAgreement")
+                onNavigateToTerms()
                 loginAttempted = false
             }
 
@@ -106,25 +106,31 @@ fun LoginScreenRoot(
 
             else -> {
                 Timber.e(
-                    "LoginScreenRoot navigation skipped - no branch matched (newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet})"
+                    "LoginRoute navigation skipped - no branch matched (newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet})"
                 )
             }
         }
     }
 
+    val onKakaoLogin = {
+        viewModel.logEvent(AnalyticsEvents.KAKAO_LOGIN_CLICK)
+        loginAttempted = true
+        viewModel.loginWithKakao(context)
+        Unit
+    }
+
+    val onGuestMode = {
+        Timber.e("@@@@@@@@@@@@@@@@@@@@@@@guest_mode_click")
+        viewModel.logEvent(AnalyticsEvents.GUEST_MODE_CLICK)
+        loginAttempted = true
+        viewModel.loginWithGuest()
+        Unit
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LoginScreen(
-            onKakaoLogin = {
-                viewModel.logEvent(AnalyticsEvents.KAKAO_LOGIN_CLICK)
-                loginAttempted = true  // 플래그 설정
-                viewModel.loginWithKakao(context)
-            },
-            onGuestMode = {
-                Timber.e("@@@@@@@@@@@@@@@@@@@@@@@guest_mode_click")
-                viewModel.logEvent(AnalyticsEvents.GUEST_MODE_CLICK)
-                loginAttempted = true  // ✅ 플래그 설정
-                viewModel.loginWithGuest()
-            }
+            onKakaoLogin = onKakaoLogin,
+            onGuestMode = onGuestMode,
         )
     }
 }

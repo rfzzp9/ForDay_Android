@@ -47,7 +47,7 @@ import com.forday.app.presentation.modifyroutine.RoutineUiModel
 import kotlinx.coroutines.delay
 
 @Composable
-fun ModifyRoutineScreenRoot(
+fun ModifyRoutineRoute(
     hobbyId: Long?,
     onBack: () -> Unit,
     onAddRoutine: () -> Unit,
@@ -843,7 +843,7 @@ private fun DeleteSuccessToast() {
 @Preview(showBackground = true)
 @Composable
 fun ModifyRoutineScreenPreview() {
-    ModifyRoutineScreenRoot(
+    ModifyRoutineRoute(
         hobbyId = 1L,
         onBack = {},
         onAddRoutine = {},

@@ -51,6 +51,7 @@ class UserLocalDataSource @Inject constructor(
         private val HAS_SEEN_INTRO = booleanPreferencesKey("has_seen_intro")
 
         private val CREATED_HOBBY_ID = longPreferencesKey("created_hobby_id")
+        private val FCM_TOKEN = stringPreferencesKey("fcm_token")
 
         private val AI_ROUTINE_LIST = stringPreferencesKey("ai_routine_list")
 
@@ -191,6 +192,13 @@ class UserLocalDataSource @Inject constructor(
     suspend fun saveRefreshToken(refreshToken: String) {
         dataStore.edit { it[REFRESH_TOKEN] = refreshToken }
     }
+
+    suspend fun saveFcmToken(fcmToken: String) {
+        dataStore.edit { it[FCM_TOKEN] = fcmToken }
+    }
+
+    fun getFcmToken(): Flow<String?> =
+        dataStore.data.map { it[FCM_TOKEN] }
 
     suspend fun saveCreatedHobbyId(hobbyId: Long) {
         dataStore.edit { it[HOBBY_ID_1] = hobbyId }  //서버로부터 받은 취미 id

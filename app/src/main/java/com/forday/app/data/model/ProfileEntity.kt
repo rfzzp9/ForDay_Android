@@ -15,7 +15,8 @@ data class ProfileEntity(
             nickname = data.nickname,
             stickerCount = data.totalCollectedStickerCount,
             message = data.message,
-            errorClassName = data.errorClassName
+            errorClassName = data.errorClassName,
+            unReadNotificationExists = data.unReadNotificationExists
         )
     }
 }
@@ -25,5 +26,6 @@ data class ProfileDataEntity(
     val nickname: String?,
     val totalCollectedStickerCount: Int?,
     val message: String?,
-    val errorClassName: String?
+    val errorClassName: String?,
+    val unReadNotificationExists: Boolean?
 )

@@ -17,7 +17,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.rememberAsyncImagePainter
@@ -57,6 +60,7 @@ import com.forday.app.core.designsystem.component.dropdown.VisibilitySelector
 import com.forday.app.presentation.mypage.routinedetail.RoutineRecordDetailUiModel
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
+import com.forday.app.presentation.record.HobbyChipUiModel
 import com.forday.app.presentation.record.RecordRoutineViewModel
 import com.forday.app.presentation.record.RoutineUiModel
 import timber.log.Timber
@@ -70,12 +74,12 @@ data class StickerItem(
 )
 
 @Composable
-fun RecordRoutineScreenRoot(
+fun RecordRoutineRoute(
     hobbyId: Long?,
     onComplete: (Long) -> Unit,
     modifyData: RoutineRecordDetailUiModel?,
     modifyMode: Boolean,
-    viewModel: RecordRoutineViewModel,
+    viewModel: RecordRoutineViewModel = hiltViewModel(),
     onClose: () -> Unit,
     onRoutineCreate: () -> Unit = {},
     onAddHobbyClick: () -> Unit = {},
@@ -83,9 +87,12 @@ fun RecordRoutineScreenRoot(
     hobbyName: String? = null,
     activityName: String? = null
 ) {
-    viewModel.logEvent(AnalyticsEvents.RECORD_ROUTINE_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.RECORD_ROUTINE_SCREEN)
+    }
 
     LaunchedEffect(entryPoint) {
         if (entryPoint.isNotEmpty()) {
@@ -99,27 +106,46 @@ fun RecordRoutineScreenRoot(
 
     fun getStickerFileName(iconRes: Int): String {
         return when (iconRes) {
-            R.drawable.ic_sticker_smile -> "smile.jpg"
-            R.drawable.ic_sticker_sad -> "sad.jpg"
             R.drawable.ic_sticker_laugh -> "laugh.jpg"
+            R.drawable.ic_sticker_smile -> "smile.jpg"
             R.drawable.ic_sticker_angry -> "angry.jpg"
+            R.drawable.ic_sticker_sad -> "sad.jpg"
             else -> ""
         }
     }
 
-    LaunchedEffect(Unit) {
-        val effectiveHobbyId = hobbyId ?: modifyData?.hobbyId?.toLong()
-        Timber.d("fetchSpecificRoutineList - hobbyId: $hobbyId, modifyData.hobbyId: ${modifyData?.hobbyId}, effectiveHobbyId: $effectiveHobbyId")
-        viewModel.fetchSpecificRoutineList(hobbyId = effectiveHobbyId)
+    var selectedChipId by remember { mutableStateOf<Int?>(null) }
+
+    if (modifyMode && modifyData != null) {
+        // 수정모드: modifyData로부터 칩 1개 직접 생성
+        LaunchedEffect(Unit) {
+            selectedChipId = modifyData.hobbyId
+            viewModel.fetchSpecificRoutineList(hobbyId = modifyData.hobbyId.toLong())
+        }
+    } else {
+        // 신규모드: 서버에서 칩 목록 조회
+        LaunchedEffect(Unit) {
+            viewModel.getHobbyChips("IN_PROGRESS")
+        }
+
+        LaunchedEffect(state.hobbyChips) {
+            if (state.hobbyChips.isNotEmpty() && selectedChipId == null) {
+                val initialChip = if (hobbyId != null) {
+                    state.hobbyChips.find { it.hobbyId.toLong() == hobbyId }
+                } else null
+                selectedChipId = initialChip?.hobbyId ?: state.hobbyChips.first().hobbyId
+                viewModel.fetchSpecificRoutineList(hobbyId = selectedChipId?.toLong())
+            }
+        }
     }
 
     var stickers by remember {
         mutableStateOf(
             listOf(
-                StickerItem(1, R.drawable.ic_sticker_smile, isSelected = false),
-                StickerItem(2, R.drawable.ic_sticker_sad, isSelected = false),
                 StickerItem(3, R.drawable.ic_sticker_laugh, isSelected = false),
-                StickerItem(4, R.drawable.ic_sticker_angry, isSelected = false)
+                StickerItem(1, R.drawable.ic_sticker_smile, isSelected = false),
+                StickerItem(4, R.drawable.ic_sticker_angry, isSelected = false),
+                StickerItem(2, R.drawable.ic_sticker_sad, isSelected = false)
             )
         )
     }
@@ -316,6 +342,19 @@ fun RecordRoutineScreenRoot(
     }
 
     RecordRoutineScreen(
+        hobbyChips = if (modifyMode && modifyData != null) {
+            listOf(HobbyChipUiModel(hobbyId = modifyData.hobbyId, hobbyName = modifyData.hobbyName, todayRecorded = false))
+        } else {
+            state.hobbyChips
+        },
+        selectedChipId = selectedChipId,
+        onChipSelected = { chip ->
+            if (!chip.todayRecorded) {
+                selectedChipId = chip.hobbyId
+                selectedRoutineIndex = null
+                viewModel.fetchSpecificRoutineList(hobbyId = chip.hobbyId.toLong())
+            }
+        },
         routineList = state.recordDetail.routineList,
         selectedRoutineIndex = selectedRoutineIndex,
         showDropdown = showDropdown,
@@ -467,10 +506,14 @@ fun RecordRoutineScreenRoot(
             }
         )
     }
+
 }
 
 @Composable
 fun RecordRoutineScreen(
+    hobbyChips: List<HobbyChipUiModel> = emptyList(),
+    selectedChipId: Int? = null,
+    onChipSelected: (HobbyChipUiModel) -> Unit = {},
     routineList: List<RoutineUiModel> = emptyList(),
     selectedRoutineIndex: Int? = null,
     showDropdown: Boolean = false,
@@ -566,6 +609,15 @@ fun RecordRoutineScreen(
                     .padding(top = 7.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                // 취미 칩 row
+                if (hobbyChips.isNotEmpty()) {
+                    CategoryChipRow(
+                        chips = hobbyChips,
+                        selectedChipId = selectedChipId,
+                        onChipSelected = onChipSelected,
+                    )
+                }
+
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -712,6 +764,68 @@ fun RecordRoutineScreen(
                     .padding(top = 16.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun CategoryChipRow(
+    chips: List<HobbyChipUiModel>,
+    selectedChipId: Int?,
+    onChipSelected: (HobbyChipUiModel) -> Unit,
+) {
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        chips.forEach { chip ->
+            CategoryChip(
+                label = chip.hobbyName,
+                isSelected = selectedChipId == chip.hobbyId,
+                enabled = !chip.todayRecorded,
+                onClick = { onChipSelected(chip) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryChip(
+    label: String,
+    isSelected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val backgroundColor = when {
+        !enabled -> Color(0xFFF2F2F2)
+        isSelected -> Color(0xFFFF9447)
+        else -> Color.White
+    }
+    val textColor = when {
+        !enabled -> Color(0xFF9E9E9E)
+        isSelected -> Color.White
+        else -> Color(0xFF3A3A3A)
+    }
+    val border = when {
+        !enabled -> BorderStroke(1.dp, Color(0xFFF2F2F2))
+        isSelected -> BorderStroke(1.dp, Color(0xFFFF9447))
+        else -> BorderStroke(1.dp, Color(0xFFE5E5E5))
+    }
+
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(18.dp),
+        color = backgroundColor,
+        border = border,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 19.6.sp,
+            color = textColor,
+        )
     }
 }
 

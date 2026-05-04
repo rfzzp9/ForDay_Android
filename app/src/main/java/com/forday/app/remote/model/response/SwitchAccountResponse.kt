@@ -18,7 +18,8 @@ data class SwitchAccountResponse(
             accessToken = data.accessToken,
             refreshToken = data.refreshToken,
             errorClassName = data.errorClassName,
-            message = data.message
+            message = data.message,
+            fcmToken = data.fcmToken
         )
     }
 
@@ -37,6 +38,9 @@ data class SwitchAccessTokenData(
     @SerializedName("errorClassName")
     val errorClassName: String?,
     @SerializedName("message")
-    val message: String?
+    val message: String?,
+
+    @SerializedName("fcmToken")
+    val fcmToken: String? = null
 )
 

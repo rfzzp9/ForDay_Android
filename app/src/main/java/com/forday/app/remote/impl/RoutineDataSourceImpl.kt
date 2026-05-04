@@ -6,6 +6,9 @@ import com.forday.app.data.model.DeletePostingEntity
 import com.forday.app.data.model.ModifyPostingEntity
 import com.forday.app.data.model.ReactionCancelEntity
 import com.forday.app.data.model.ReactionEntity
+import com.forday.app.data.model.HobbyChipsEntity
+import com.forday.app.data.model.ReactionSummaryFirstEntity
+import com.forday.app.data.model.ReactionSummaryMoreEntity
 import com.forday.app.data.model.ReactionUsersEntity
 import com.forday.app.data.model.RoutineRecordDetailEntity
 import com.forday.app.data.model.ScrapEntity
@@ -27,6 +30,23 @@ class RoutineDataSourceImpl @Inject constructor(
 ) : RoutineDataSource {
     override suspend fun getMyRoutineRecordDetail(recordId: Int): RoutineRecordDetailEntity? =
         routineApi.getMyRoutineRecordDetail(recordId).toData()
+
+    override suspend fun getMyRoutineRecordDetailWithSwipe(
+        recordId: Int,
+        context: String,
+        userId: String?,
+        keyword: String?,
+        hobbyIds: List<Long>,
+        notificationId: Long?
+    ): RoutineRecordDetailEntity? =
+        routineApi.getMyRoutineRecordDetailWithSwipe(
+            recordId = recordId,
+            context = context,
+            userId = userId,
+            keyword = keyword,
+            hobbyIds = hobbyIds,
+            notificationId = notificationId
+        ).toData()
 
     override suspend fun reactionToRoutinePosting(
         recordId: Int,
@@ -86,4 +106,13 @@ class RoutineDataSourceImpl @Inject constructor(
 
     override suspend fun reportPosting(recordId: Int, reason: String): ReportPostingEntity =
         routineApi.reportPosting(recordId, ReportPostingRequest(reason)).toData()
+
+    override suspend fun getReactionUsersFirst(recordId: Int, size: Int): ReactionSummaryFirstEntity? =
+        routineApi.getReactionUsersFirst(recordId, size).toData()
+
+    override suspend fun getReactionUsersMore(recordId: Int, type: String?, lastReactionId: Long, size: Int): ReactionSummaryMoreEntity? =
+        routineApi.getReactionUsersMore(recordId, type, lastReactionId, size).toData()
+
+    override suspend fun getHobbyChips(status: String): HobbyChipsEntity =
+        routineApi.getHobbyChips(status).toData()
 }

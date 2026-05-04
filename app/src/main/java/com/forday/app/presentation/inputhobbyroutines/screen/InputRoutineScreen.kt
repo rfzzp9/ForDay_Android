@@ -96,10 +96,12 @@ data class RoutineInput(
 )
 
 @Composable
-fun InputRoutineScreenRoot(
+fun InputRoutineRoute(
     hobbyId: Long?,
     hobbyName: String?,
     aiCallRemaining: Boolean?,
+    selectedAiRoutine: AiRoutineItemState? = null,
+    onAiRoutineConsumed: () -> Unit = {},
     onAIRecommendationRoutines: (Long?) -> Unit,
     onExit: () -> Unit,
     onNavigateToModifyRoutine: () -> Unit,
@@ -111,9 +113,7 @@ fun InputRoutineScreenRoot(
     var aiRecommendationButtonTopY by remember { mutableStateOf<Float?>(null) }
     var toastHeightPx by remember { mutableStateOf(0) }
     val density = LocalDensity.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-//    var resetTrigger by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         viewModel.initHobbyName(hobbyName)
         viewModel.searchHobbyMatesRoutines(selectedHobbyId = hobbyId)
@@ -150,17 +150,16 @@ fun InputRoutineScreenRoot(
             },
             hobbymateRoutines = state.hobbymateRoutines,
             hobbyId = hobbyId,
-            selectedAiRoutine = state.selectedAiRoutine,
-            onClearSelectedAiRoutine = { viewModel.clearSelectedAiRoutine() },
+            selectedAiRoutine = selectedAiRoutine,
+            onClearSelectedAiRoutine = onAiRoutineConsumed,
             state = state,
             getHobbyMatesRoutines = { viewModel.searchHobbyMatesRoutines(selectedHobbyId = hobbyId) },
             onExit = { onExit() },
-            aiCallRemaining = aiCallRemaining,  // 추가
+            aiCallRemaining = aiCallRemaining,
             viewModel = viewModel,
             onAiRecommendationButtonTopYChanged = { topY ->
                 aiRecommendationButtonTopY = topY
             },
-//            resetTrigger = resetTrigger
         )
 
         val toastYOffsetPx = aiRecommendationButtonTopY?.let { topY ->
@@ -237,8 +236,7 @@ fun InputRoutineScreen(
         }
     )
     LaunchedEffect(hobbyId) {  // Unit 대신 hobbyId를 key로
-        Timber.e("@@@@@@@@@@@@############# " + hobbyId)
-        viewModel.resetInputState()  // selectedAiRoutine 초기화
+        onClearSelectedAiRoutine()
     }
     var activities by rememberSaveable(
         key = "activities_$hobbyId",  // hobbyId가 바뀌면 새로 초기화

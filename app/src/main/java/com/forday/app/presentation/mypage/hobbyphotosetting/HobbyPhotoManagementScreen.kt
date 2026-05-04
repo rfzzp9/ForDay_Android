@@ -127,7 +127,7 @@ enum class PhotoSourceType {
 }
 
 @Composable
-fun HobbyPhotoManagementScreenRoot(
+fun HobbyPhotoManagementRoute(
     onBackClick: () -> Unit,
     onCompleteClick: () -> Unit,
     viewModel: MyPageViewModel

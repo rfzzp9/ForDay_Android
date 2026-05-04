@@ -23,13 +23,15 @@ data class SosikDataEntity(
     val tabInfo: List<SosikTabInfoEntity>,
     val lastRecordId: Long?,
     val recordList: List<SosikRecordEntity>,
-    val hasNext: Boolean
+    val hasNext: Boolean,
+    val unReadNotificationExists: Boolean
 ) : DataMapper<SosikDataDomain> {
     override fun toDomain(): SosikDataDomain = SosikDataDomain(
         tabInfo = tabInfo.map { it.toDomain() },
         lastRecordId = lastRecordId,
         recordList = recordList.map { it.toDomain() },
-        hasNext = hasNext
+        hasNext = hasNext,
+        unReadNotificationExists = unReadNotificationExists
     )
 }
 

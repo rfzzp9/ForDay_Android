@@ -20,22 +20,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airbnb.lottie.compose.*
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.inputhobbyroutines.InputRoutinesAndAiRecommendViewModel
 import timber.log.Timber
 
 @Composable
 fun LoadingRoutinesScreen(
     hobbyId: Long?,
+    hobbyName: String?,
+    nickname: String?,
     onNext: (Long?) -> Unit,
-    viewModel: InputRoutinesAndAiRecommendViewModel
+    onGetNickname: () -> Unit = {},
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-
     val loadingMessages = listOf(
         "당신의 취향과 패턴을 분석했어요",
         "AI가 꼭 맞는 활동을 찾아줄게요",
@@ -45,7 +42,7 @@ fun LoadingRoutinesScreen(
     var currentMessageIndex by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
-        viewModel.getUserNickname()
+        onGetNickname()
         for (index in loadingMessages.indices) {
             currentMessageIndex = index
             delay(2500)
@@ -76,7 +73,7 @@ fun LoadingRoutinesScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "${state.nickname}의 취미를 분석 중",
+                    text = "${nickname}의 취미를 분석 중",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = ForDayTheme.color.Neutral900,
@@ -84,7 +81,7 @@ fun LoadingRoutinesScreen(
                 )
 
                 Text(
-                    text = "${state.selectedHobbyName} AI 활동을 생성 중이에요.",
+                    text = "${hobbyName} AI 활동을 생성 중이에요.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     color = ForDayTheme.color.Gray800,
@@ -198,7 +195,8 @@ private fun Preview_LoadingRoutinesScreen() {
         LoadingRoutinesScreen(
             onNext = {},
             hobbyId = 3,
-            viewModel = hiltViewModel()
+            hobbyName = "독서",
+            nickname = "포비",
         )
     }
 }

@@ -19,7 +19,6 @@ data class RoutinesState(
     val error: String? = null,
     val routineId: Int? = null,
     val nickname: String? = null,
-    val selectedAiRoutine: AiRoutineItemState? = null,
     val errorData: ErrorDataUiState? = null,
 )
 

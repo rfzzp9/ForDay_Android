@@ -5,12 +5,16 @@ import com.forday.app.remote.model.request.ModifyPostingRequest
 import com.forday.app.remote.model.request.PostingVisibilityRequest
 import com.forday.app.remote.model.request.ReactionRequest
 import com.forday.app.remote.model.request.ReportPostingRequest
+
+import com.forday.app.remote.model.response.HobbyChipsResponse
 import com.forday.app.remote.model.response.CancelScrapResponse
 import com.forday.app.remote.model.response.DeletePostingResponse
 import com.forday.app.remote.model.response.SosikResponse
 import com.forday.app.remote.model.response.ModifyPostingResponse
 import com.forday.app.remote.model.response.ReactionCancelResponse
 import com.forday.app.remote.model.response.ReactionResponse
+import com.forday.app.remote.model.response.ReactionSummaryFirstResponse
+import com.forday.app.remote.model.response.ReactionSummaryMoreResponse
 import com.forday.app.remote.model.response.ReactionUsersResponse
 import com.forday.app.remote.model.response.ReportPostingResponse
 import com.forday.app.remote.model.response.RoutineRecordDetailResponse
@@ -33,6 +37,21 @@ interface RoutineApi {
     suspend fun getMyRoutineRecordDetail(  // 활동 기록 상세 조회
         @Path("recordId") recordId: Int,
     ): RoutineRecordDetailResponse
+
+    @GET("/api/v2/records/{recordId}")
+    suspend fun getMyRoutineRecordDetailWithSwipe(  // 활동 기록 상세 조회 (스와이프 적용 버전)
+        @Path("recordId") recordId: Int,
+        @Query("context") context: String,
+        @Query("userId") userId: String?,
+        @Query("keyword") keyword: String?,
+        @Query("hobbyIds") hobbyIds: List<Long>,
+        @Query("notificationId") notificationId: Long?,
+    ): RoutineRecordDetailResponse
+
+    @GET("/hobbies/chips")  // 활동 기록 - 취미 칩 목록 조회
+    suspend fun getHobbyChips(
+        @Query("status") status: String,
+    ): HobbyChipsResponse
 
     @POST("/records/{recordId}/reaction")  //활동 기록에 반응 남기기
     suspend fun reactionToRoutinePosting(
@@ -59,6 +78,20 @@ interface RoutineApi {
         @Query("lastUserId") lastUserId: String,  // 필수 x
         @Query("size") size: Int                  // 필수 x, Default value : 10
     ): ReactionUsersResponse
+
+    @GET("/api/v2/records/{recordId}/reactions/summary")  // 활동 기록에 새로 반응한 사용자 목록 조회 V2 (최초 조회)
+    suspend fun getReactionUsersFirst(
+        @Path("recordId") recordId: Int,
+        @Query("size") size: Int,
+    ): ReactionSummaryFirstResponse
+
+    @GET("/api/v2/records/{recordId}/reactions")  // 활동 기록에 새로 반응한 사용자 목록 조회 V2 (추가 조회)
+    suspend fun getReactionUsersMore(
+        @Path("recordId") recordId: Int,
+        @Query("type") type: String?,
+        @Query("lastReactionId") lastReactionId: Long,
+        @Query("size") size: Int,
+    ): ReactionSummaryMoreResponse
 
     @GET("/users/feeds")  // 나의 활동 피드 목록 조회
     suspend fun getMyRoutineFeedList(

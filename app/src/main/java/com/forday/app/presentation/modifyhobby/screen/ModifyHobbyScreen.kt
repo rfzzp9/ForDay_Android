@@ -98,7 +98,7 @@ data class ResponsiveDimensions(
 )
 
 @Composable
-fun ModifyHobbyScreenRoot(
+fun ModifyHobbyRoute(
     viewModel: ModifyHobbyViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onStorage: (Int) -> Unit = {},
@@ -993,7 +993,7 @@ private fun AddHobbyButton(
 @Composable
 fun ModifyHobbyScreenPreview() {
     ForDayTheme {
-        ModifyHobbyScreenRoot(
+        ModifyHobbyRoute(
             onBack = {},
             onStorage = {},
             onChangeFrequency = {},

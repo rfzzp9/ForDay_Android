@@ -13,6 +13,14 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+composeCompiler {
+    val isReleaseBuild = providers.gradleProperty("composeCompilerReports").orNull == "true"
+    if (isReleaseBuild) {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler")
+    }
+}
+
 android {
     namespace = "com.dayn.forday"
     compileSdk = 36
@@ -21,8 +29,8 @@ android {
         applicationId = "com.dayn.forday"
         minSdk = 28
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.1.1"
+        versionCode = 6
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -150,6 +158,7 @@ dependencies {
     implementation(libs.firebaseCrashlytics)
     implementation(libs.firebaseConfig)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.messaging)
 
     // DataStore
     implementation(libs.androidx.datastore)

@@ -1,34 +1,36 @@
+---
+
+## keyflow_id: sys_d94bdea52a0d status: draft type: ai-generated
+
 # ForDay Android — 프로젝트 구조 문서
 
-> **최종 업데이트**: 2026-02-22
-> **현재 브랜치**: refactor/second_develop
-> **패키지명**: `com.forday.app` / App ID: `com.dayn.forday`
+> **최종 업데이트**: 2026-02-22 **현재 브랜치**: refactor/second_develop **패키지명**: `com.forday.app` / App ID: `com.dayn.forday`
 
 ---
 
 ## 목차
 
-1. [프로젝트 개요](#1-프로젝트-개요)
-2. [아키텍처 개요](#2-아키텍처-개요)
-3. [전체 디렉토리 구조](#3-전체-디렉토리-구조)
-4. [레이어별 상세 설명](#4-레이어별-상세-설명)
+1. [프로젝트 개요](#1-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EA%B0%9C%EC%9A%94)
+2. [아키텍처 개요](#2-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-%EA%B0%9C%EC%9A%94)
+3. [전체 디렉토리 구조](#3-%EC%A0%84%EC%B2%B4-%EB%94%94%EB%A0%89%ED%86%A0%EB%A6%AC-%EA%B5%AC%EC%A1%B0)
+4. [레이어별 상세 설명](#4-%EB%A0%88%EC%9D%B4%EC%96%B4%EB%B3%84-%EC%83%81%EC%84%B8-%EC%84%A4%EB%AA%85)
    - [Remote Layer](#41-remote-layer)
    - [Data Layer](#42-data-layer)
    - [Domain Layer](#43-domain-layer)
    - [Presentation Layer](#44-presentation-layer)
    - [Core Module](#45-core-module)
-5. [네비게이션 구조](#5-네비게이션-구조)
-6. [핵심 패턴 및 규칙](#6-핵심-패턴-및-규칙)
-7. [리소스 구조](#7-리소스-구조)
-8. [빌드 설정](#8-빌드-설정)
-9. [통계 요약](#9-통계-요약)
+5. [네비게이션 구조](#5-%EB%84%A4%EB%B9%84%EA%B2%8C%EC%9D%B4%EC%85%98-%EA%B5%AC%EC%A1%B0)
+6. [핵심 패턴 및 규칙](#6-%ED%95%B5%EC%8B%AC-%ED%8C%A8%ED%84%B4-%EB%B0%8F-%EA%B7%9C%EC%B9%99)
+7. [리소스 구조](#7-%EB%A6%AC%EC%86%8C%EC%8A%A4-%EA%B5%AC%EC%A1%B0)
+8. [빌드 설정](#8-%EB%B9%8C%EB%93%9C-%EC%84%A4%EC%A0%95)
+9. [통계 요약](#9-%ED%86%B5%EA%B3%84-%EC%9A%94%EC%95%BD)
 
 ---
 
 ## 1. 프로젝트 개요
 
 | 항목 | 내용 |
-|------|------|
+| --- | --- |
 | 앱 이름 | ForDay |
 | 설명 | 취미 활동 기록 및 관리 앱 |
 | 언어 | Kotlin |
@@ -530,7 +532,7 @@ API 통신 및 응답 DTO 처리를 담당합니다.
 **Retrofit API 서비스 목록:**
 
 | 파일 | 담당 API 그룹 |
-|------|--------------|
+| --- | --- |
 | `AuthApi.kt` | 카카오 로그인, 게스트 로그인, 토큰 갱신 |
 | `FileApi.kt` | Presigned URL 발급 |
 | `HobbyApi.kt` | 취미 생성/수정/삭제/상태 변경 |
@@ -566,7 +568,7 @@ Repository 구현체와 Entity 모델을 포함합니다.
 **Repository 구현체 목록:**
 
 | 파일 | 담당 기능 |
-|------|---------|
+| --- | --- |
 | `AuthRepositoryImpl.kt` | 인증 (로그인/로그아웃/토큰) |
 | `FileRepositoryImpl.kt` | Presigned URL 발급 |
 | `HobbyRepositoryImpl.kt` | 취미 전반 관리 |
@@ -604,7 +606,7 @@ class CreateHobbyUseCase @Inject constructor(
 **주요 UseCase 그룹 (총 71개):**
 
 | 그룹 | 개수 | 예시 |
-|------|------|------|
+| --- | --- | --- |
 | 인증 | 4 | KakaoLoginUseCase, GetAccessTokenUseCase |
 | 취미 | 15+ | CreateHobbyUseCase, RecreateHobbyUseCase |
 | 루틴 | 12+ | WriteRoutineUseCase, GetAiRecommendedRoutinesUseCase |
@@ -685,7 +687,7 @@ enum class ScreenMode {
 **UserLocalDataSource — DataStore 저장 항목:**
 
 | 키 | 타입 | 설명 |
-|----|------|------|
+| --- | --- | --- |
 | `accessToken` | String? | 액세스 토큰 |
 | `refreshToken` | String? | 리프레시 토큰 |
 | `isOnboardingCompleted` | Boolean | 온보딩 완료 여부 |
@@ -731,8 +733,7 @@ class Navigator(val state: MainNavigationState) {
 
 ### 5.2.1 `resetTo` 상세 설명
 
-`resetTo`는 **뒤로가기로 이전 화면에 절대 돌아갈 수 없어야 하는 상황**에서 사용합니다.
-일반 `navigate`는 기존 스택에 화면을 쌓지만, `resetTo`는 모든 스택을 완전히 비우고 새 출발점으로 만듭니다.
+`resetTo`는 **뒤로가기로 이전 화면에 절대 돌아갈 수 없어야 하는 상황**에서 사용합니다. 일반 `navigate`는 기존 스택에 화면을 쌓지만, `resetTo`는 모든 스택을 완전히 비우고 새 출발점으로 만듭니다.
 
 **내부 동작 순서:**
 
@@ -757,10 +758,10 @@ class Navigator(val state: MainNavigationState) {
 5. notifyNavChanged() 호출 → UI 갱신
 ```
 
-**`navigate` vs `resetTo` 비교:**
+`navigate` **vs** `resetTo` **비교:**
 
 | 항목 | `navigate(Home)` | `resetTo(Home)` |
-|------|-----------------|-----------------|
+| --- | --- | --- |
 | 기존 스택 | 유지 (스택에 추가) | 모두 초기화 |
 | 뒤로가기 | 이전 화면으로 돌아감 | 이전 화면 없음 |
 | `startRoute` 변경 | 변경 안 됨 | 변경됨 |
@@ -769,9 +770,9 @@ class Navigator(val state: MainNavigationState) {
 **실제 사용 사례:**
 
 | 호출 위치 | 코드 | 이유 |
-|-----------|------|------|
+| --- | --- | --- |
 | 온보딩 완료 후 | `navigator.resetTo(Home)` | 온보딩 플로우 전체를 백스택에서 제거 |
-| 닉네임 입력 완료 후 | `navigator.resetTo(Home)` | 로그인~닉네임 전 과정 제거 |
+| 닉네임 입력 완료 후 | `navigator.resetTo(Home)` | 로그인\~닉네임 전 과정 제거 |
 | 활동 기록 완료 후 | `navigator.resetTo(MyPage)` | 기록 플로우를 제거하고 MyPage로 이동 |
 | 로그아웃/계정탈퇴 후 | `navigator.resetTo(Login)` | 앱 전체 상태 초기화 후 로그인 화면으로 |
 | 토큰 만료(강제 로그아웃) | `navigator.resetTo(Login)` | `AuthEventBus`에서 수신 후 강제 이동 |
@@ -801,7 +802,7 @@ isNicknameSet == false        → SelectPeriod (온보딩 재개)
 ### 5.4 전체 NavKey 목록
 
 | 그룹 | NavKey |
-|------|--------|
+| --- | --- |
 | **Bottom Bar** | `Home`, `Discovery`, `Sosik`, `MyPage` |
 | **온보딩** | `Splash`, `Login`, `SelectHobby`, `SelectHobbyFromModify`, `SelectPerTime`, `SelectPurpose`, `SelectPerWeek`, `SelectPeriod`, `OnboardingSuccess`, `ShowPobbies`, `InputNickname` |
 | **메인 앱** | `RecordRoutine`, `InputRoutine`, `LoadingRoutines`, `RoutineAiRecommend`, `ModifyRoutine`, `ModifyHobby`, `RoutineDetail`, `SaveCard`, `ProfileSetting`, `HobbyPhotoSetting`, `Register` |
@@ -960,7 +961,7 @@ BASE_URL=https://api.example.com/
 ## 9. 통계 요약
 
 | 항목 | 수량 |
-|------|------|
+| --- | --- |
 | Kotlin 소스 파일 | 472개 |
 | Data Entity 클래스 | 56개 |
 | Domain Model 클래스 | 57개 |

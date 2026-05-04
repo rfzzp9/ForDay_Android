@@ -22,7 +22,8 @@ data class HomeHobbyDataEntity(
     val userSummaryText: String, // 추가
     val recommendMessage: String, // 추가
     val aiCallRemaining: Boolean,
-    val aiCallRemainingCount: Int?
+    val aiCallRemainingCount: Int?,
+    val unReadNotificationExists: Boolean
 ) : DataMapper<HomeHobbyDataDomain> {
     override fun toDomain(): HomeHobbyDataDomain = HomeHobbyDataDomain(
         inProgressHobbies = inProgressHobbies.map { it.toDomain() },
@@ -31,7 +32,8 @@ data class HomeHobbyDataEntity(
         userSummaryText = userSummaryText,
         recommendMessage = recommendMessage,
         aiCallRemaining = aiCallRemaining,
-        aiCallRemainingCount = aiCallRemainingCount
+        aiCallRemainingCount = aiCallRemainingCount,
+        unReadNotificationExists = unReadNotificationExists
     )
 }
 

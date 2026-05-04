@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.button.BottomButtonState
@@ -64,19 +65,22 @@ import com.forday.app.core.designsystem.component.clickable.rememberThrottledCli
 import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import kotlin.math.PI
 import kotlin.math.tan
 
 @Composable
-fun SelectHobbyScreenRoot(
+fun SelectHobbyRoute(
     onNext: () -> Unit,
     onBack: () -> Unit,
-    viewModel: OnboardingViewModel,
+    viewModel: OnboardingFlowViewModel = hiltViewModel(),
     fromModifyHobbyOrHome: Boolean = false,
 ) {
-    viewModel.logEvent(AnalyticsEvents.SELECT_HOBBY_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.SELECT_HOBBY_SCREEN)
+    }
 
     LaunchedEffect(fromModifyHobbyOrHome) {
         if (fromModifyHobbyOrHome) {
@@ -110,12 +114,15 @@ fun SelectHobbyScreenRoot(
             viewModel.logEvent(AnalyticsEvents.hobbyUserCustom(text))
             viewModel.confirmCustomHobby(text)
             onNext()
+            Unit
         },
         onNext = {
             onNext()
+            Unit
         },
         onBack = {
             onBack()
+            Unit
         },
         isLoading = state.isLoading
     )

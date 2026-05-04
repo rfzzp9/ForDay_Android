@@ -4,6 +4,7 @@ import com.forday.app.data.remote.AppVersionPolicyDataSource
 import com.forday.app.data.remote.AuthDataSource
 import com.forday.app.data.remote.HobbyDataSource
 import com.forday.app.data.remote.FileDataSource
+import com.forday.app.data.remote.NotificationDataSource
 import com.forday.app.data.remote.RoutineDataSource
 import com.forday.app.data.remote.SosikDataSource
 import com.forday.app.data.remote.UserDataSource
@@ -11,6 +12,7 @@ import com.forday.app.remote.impl.AppVersionPolicyDataSourceImpl
 import com.forday.app.remote.impl.AuthDataSourceImpl
 import com.forday.app.remote.impl.HobbyDataSourceImpl
 import com.forday.app.remote.impl.FileDataSourceImpl
+import com.forday.app.remote.impl.NotificationDataSourceImpl
 import com.forday.app.remote.impl.RoutineDataSourceImpl
 import com.forday.app.remote.impl.SosikDataSourceImpl
 import com.forday.app.remote.impl.UserDataSourceImpl
@@ -51,4 +53,8 @@ internal abstract class RemoteDataSourceModule {
     @Binds
     @Singleton
     abstract fun bindSosikRemoteDataSource(source: SosikDataSourceImpl): SosikDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationRemoteDataSource(source: NotificationDataSourceImpl): NotificationDataSource
 }

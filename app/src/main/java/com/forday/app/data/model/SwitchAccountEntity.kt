@@ -7,13 +7,15 @@ data class SwitchAccountEntity(
     val accessToken: String,
     val refreshToken: String,
     val errorClassName: String?,
-    val message: String?
+    val message: String?,
+    val fcmToken: String?
 )
 
 fun SwitchAccountEntity.toDomain(): SwitchAccountDomain {
     return SwitchAccountDomain(
         socialType = this.socialType,
         accessToken = this.accessToken,
-        refreshToken = this.refreshToken
+        refreshToken = this.refreshToken,
+        fcmToken = this.fcmToken
     )
 }

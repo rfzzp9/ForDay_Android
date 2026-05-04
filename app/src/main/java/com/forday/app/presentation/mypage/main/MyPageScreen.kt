@@ -48,10 +48,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.presentation.mypage.MyPageUiState
 import com.forday.app.presentation.mypage.MyPageViewModel
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.component.bottomsheet.HintBubble
@@ -101,18 +103,19 @@ data class HobbyCard(
     val rotation: Float = 0f
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyPageScreen(
+fun MyPageRoute(
     modifier: Modifier = Modifier,
-    viewModel: MyPageViewModel,
+    viewModel: MyPageViewModel = hiltViewModel(),
     onProfileSetting: () -> Unit,
     onHobbyPhotoManagement: () -> Unit,
     onAllSettingsClick: () -> Unit,
-    onRoutineFeedClick: (Int) -> Unit,
+    onNotificationClick: () -> Unit = {},
+    onRoutineFeedClick: (recordId: Int, selectedHobbyIds: Set<Int?>) -> Unit,
+    onScrapItemClick: (recordId: Int) -> Unit = {},
     onAddHobbyClick: () -> Unit,
     onNavigateToRecordRoutine: (Int?) -> Unit,
-    onDismiss: () -> Unit,  //바텀시트(로그인) x버튼 눌렀을 때
+    onDismiss: () -> Unit,
     onBackClick: () -> Unit = {},
     onNavigateToSosik: () -> Unit = {},
     onReportUserClick: () -> Unit = {},
@@ -120,8 +123,72 @@ fun MyPageScreen(
     recordAuthor: Boolean = true,
     isUserPageEntry: Boolean = false,
 ) {
-    val context = LocalContext.current.applicationContext
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current.applicationContext
+
+    MyPageScreen(
+        modifier = modifier,
+        state = state,
+        onProfileSetting = onProfileSetting,
+        onHobbyPhotoManagement = onHobbyPhotoManagement,
+        onAllSettingsClick = onAllSettingsClick,
+        onNotificationClick = onNotificationClick,
+        onRoutineFeedClick = onRoutineFeedClick,
+        onScrapItemClick = onScrapItemClick,
+        onAddHobbyClick = onAddHobbyClick,
+        onNavigateToRecordRoutine = onNavigateToRecordRoutine,
+        onDismiss = onDismiss,
+        onBackClick = onBackClick,
+        onNavigateToSosik = onNavigateToSosik,
+        onReportUserClick = onReportUserClick,
+        userId = userId,
+        recordAuthor = recordAuthor,
+        isUserPageEntry = isUserPageEntry,
+        onInit = { uid ->
+            viewModel.getUserInfo(uid)
+            viewModel.getUserLoginInfo()
+            viewModel.getUsersProgressHobbyTabs(uid)
+            viewModel.getUserFeedList(emptyList(), null, 24, uid)
+        },
+        onLoadScrap = { uid -> viewModel.getUserScrapList(null, 24, uid) },
+        onMarkGuestShown = { viewModel.markGuestBottomSheetShown() },
+        onResetBlockSuccess = { viewModel.resetBlockUserSuccess() },
+        onRefresh = { tab, hobbyIds, uid -> viewModel.refresh(tab, hobbyIds, uid) },
+        onLoadFeed = { hobbyIds, uid -> viewModel.getUserFeedList(hobbyIds, null, 24, uid) },
+        onKakaoLogin = { viewModel.loginWithKakao(context, "KAKAO") },
+        onBlockUser = { uid, nickName -> viewModel.blockUser(uid, nickName) },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyPageScreen(
+    modifier: Modifier = Modifier,
+    state: MyPageUiState,
+    onProfileSetting: () -> Unit,
+    onHobbyPhotoManagement: () -> Unit,
+    onAllSettingsClick: () -> Unit,
+    onNotificationClick: () -> Unit = {},
+    onRoutineFeedClick: (recordId: Int, selectedHobbyIds: Set<Int?>) -> Unit,
+    onScrapItemClick: (recordId: Int) -> Unit = {},
+    onAddHobbyClick: () -> Unit,
+    onNavigateToRecordRoutine: (Int?) -> Unit,
+    onDismiss: () -> Unit,
+    onBackClick: () -> Unit = {},
+    onNavigateToSosik: () -> Unit = {},
+    onReportUserClick: () -> Unit = {},
+    userId: String? = null,
+    recordAuthor: Boolean = true,
+    isUserPageEntry: Boolean = false,
+    onInit: (userId: String?) -> Unit = {},
+    onLoadScrap: (userId: String?) -> Unit = {},
+    onMarkGuestShown: () -> Unit = {},
+    onResetBlockSuccess: () -> Unit = {},
+    onRefresh: (tab: Int, hobbyIds: List<Int?>, userId: String?) -> Unit = { _, _, _ -> },
+    onLoadFeed: (hobbyIds: List<Int?>, userId: String?) -> Unit = { _, _ -> },
+    onKakaoLogin: () -> Unit = {},
+    onBlockUser: (userId: String, nickName: String) -> Unit = { _, _ -> },
+) {
     var showSettingsMenu by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     var settingsButtonBottomPx by remember { mutableFloatStateOf(0f) }
@@ -150,7 +217,7 @@ fun MyPageScreen(
         if (!state.hasShownGuestBottomSheet && state.socialType != null) {
             if (state.socialType == "GUEST" && !dismissedByUser) {
                 showGuestBottomSheet = true
-                viewModel.markGuestBottomSheetShown()  // ViewModel에 표시했음을 기록
+                onMarkGuestShown()
             }
         }
 
@@ -162,7 +229,7 @@ fun MyPageScreen(
 
     LaunchedEffect(state.blockUserSuccess) {
         if (state.blockUserSuccess) {
-            viewModel.resetBlockUserSuccess()
+            onResetBlockSuccess()
         }
     }
 
@@ -172,30 +239,18 @@ fun MyPageScreen(
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == 2) {
-            viewModel.getUserScrapList(
-                lastScrapId = null,
-                size = 24,
-                userId = userId
-            )
+            onLoadScrap(userId)
         }
     }
 
     LaunchedEffect(Unit) {
-        viewModel.getUserInfo(userId)
-        viewModel.getUserLoginInfo()  // 로그인 정보 (소셜 or 게스트)
-        viewModel.getUsersProgressHobbyTabs(userId)
-        viewModel.getUserFeedList(
-            hobbyIds = emptyList(),
-            lastRecordId = null,
-            feedSize = 24,
-            userId = userId
-        )
+        onInit(userId)
     }
 
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = {
-            viewModel.refresh(selectedTab, selectedHobbyIds.toList(), userId)
+            onRefresh(selectedTab, selectedHobbyIds.toList(), userId)
         },
         modifier = modifier
             .fillMaxSize()
@@ -214,6 +269,8 @@ fun MyPageScreen(
                 isBlockedUser = state.isBlockedUser,
                 isUserPageEntry = isUserPageEntry,
                 onBackClick = onBackClick,
+                onNotificationClick = onNotificationClick,
+                unReadNotificationExists = state.unReadNotificationExists,
                 onSettingsClick = { showSettingsMenu = !showSettingsMenu },
                 onSettingsButtonPositioned = { coords ->
                     settingsButtonBottomPx = coords.boundsInRoot().bottom
@@ -249,23 +306,16 @@ fun MyPageScreen(
                         // ✅ 게스트 여부에 따라 다른 UI 표시
                         if (state.socialType == "GUEST") {
                             GuestInProgressEmptyState(
-                                onKakaoLogin = {
-                                    viewModel.loginWithKakao(context, "KAKAO")
-                                }
+                                onKakaoLogin = { onKakaoLogin() }
                             )
                         } else {
                             // ✅ 로그인 사용자: 활동 기록 여부에 따라 분기
                             if (state.userFeedUiModel?.feedList?.isEmpty() == true) {
                                 LoggedInEmptyState(
                                     selectedHobbyIds = selectedHobbyIds,
-                                    onHobbySelectionChange = { newSelection ->  // ✅ 전달
+                                    onHobbySelectionChange = { newSelection ->
                                         selectedHobbyIds = newSelection
-                                        viewModel.getUserFeedList(
-                                            hobbyIds = newSelection.toList(),
-                                            lastRecordId = null,
-                                            feedSize = 24,
-                                            userId = userId
-                                        )
+                                        onLoadFeed(newSelection.toList(), userId)
                                     },
                                     hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
                                     onAddHobbyClick = onAddHobbyClick,
@@ -279,14 +329,9 @@ fun MyPageScreen(
                                 if (state.userFeedUiModel?.totalFeedCount == 0) {
                                     LoggedInEmptyState(
                                         selectedHobbyIds = selectedHobbyIds,
-                                        onHobbySelectionChange = { newSelection ->  // ✅ 전달
+                                        onHobbySelectionChange = { newSelection ->
                                             selectedHobbyIds = newSelection
-                                            viewModel.getUserFeedList(
-                                                hobbyIds = newSelection.toList(),
-                                                lastRecordId = null,
-                                                feedSize = 24,
-                                                userId = userId
-                                            )
+                                            onLoadFeed(newSelection.toList(), userId)
                                         },
                                         hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
                                         onAddHobbyClick = onAddHobbyClick,
@@ -300,20 +345,14 @@ fun MyPageScreen(
                                     InProgressTabContent(
                                         hobbyItems = state.userHobbyTabUiModel?.hobbyItems,
                                         feedList = state.userFeedUiModel?.feedList,
-                                        viewModel = viewModel,
                                         selectedHobbyIds = selectedHobbyIds,
                                         onHobbySelectionChange = { newSelection ->
                                             selectedHobbyIds = newSelection
-                                            viewModel.getUserFeedList(
-                                                hobbyIds = newSelection.toList(),
-                                                lastRecordId = null,
-                                                feedSize = 24,
-                                                userId = userId
-                                            )
+                                            onLoadFeed(newSelection.toList(), userId)
                                         },
                                         onStickerClick = { feedUiModel ->
                                             Timber.d("Sticker clicked: ${feedUiModel.recordId}")
-                                            onRoutineFeedClick(feedUiModel.recordId)
+                                            onRoutineFeedClick(feedUiModel.recordId, selectedHobbyIds)
                                         },
                                         feedCount = state.userFeedUiModel?.totalFeedCount,
                                         onAddHobbyClick = onAddHobbyClick,
@@ -329,7 +368,7 @@ fun MyPageScreen(
                         scrapListUiModel = state.scrapListUiModel,
                         onScrapItemClick = { scrapItem ->
                             Timber.d("Scrap clicked: ${scrapItem.recordId}")
-                            onRoutineFeedClick(scrapItem.recordId)
+                            onScrapItemClick(scrapItem.recordId)
                         }
                     )
                 }
@@ -404,7 +443,7 @@ fun MyPageScreen(
                 onDismiss = { showBlockDialog = false },
                 onConfirm = {
                     showBlockDialog = false
-                    viewModel.blockUser(userId ?: "", state.userInfo?.nickName ?: "")
+                    onBlockUser(userId ?: "", state.userInfo?.nickName ?: "")
                 }
 
             )
@@ -418,9 +457,9 @@ fun MyPageScreen(
                     onDismiss()  // 그 다음 화면 전환
                 },
                 onKakaoLogin = {
-                    showGuestBottomSheet = false  // ✅ 즉시 닫기
+                    showGuestBottomSheet = false
                     dismissedByUser = true
-                    viewModel.loginWithKakao(context, "KAKAO")
+                    onKakaoLogin()
                 }
             )
         }
@@ -738,6 +777,8 @@ fun MyPageHeader(
     isBlockedUser: Boolean = false,
     isUserPageEntry: Boolean = false,
     onBackClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {},
+    unReadNotificationExists: Boolean = false,
     onSettingsClick: () -> Unit = {},
     onSettingsButtonPositioned: (LayoutCoordinates) -> Unit = {},
     userId: String?,
@@ -772,16 +813,30 @@ fun MyPageHeader(
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-//            IconButton(
-//                onClick = { /* 알림 */ },
-//                modifier = Modifier.size(24.dp)
-//            ) {
-//                Icon(
-//                    painter = painterResource(R.drawable.icon_notification),
-//                    contentDescription = "알림",
-//                    tint = MyPageColors.Neutral800
-//                )
-//            }
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onNotificationClick
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_notification),
+                    contentDescription = "알림",
+                    tint = MyPageColors.Neutral800,
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (unReadNotificationExists) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .align(Alignment.TopEnd)
+                            .background(Color(0xFFEE5D50), CircleShape)
+                    )
+                }
+            }
 
             when {
                 !isUserPageEntry -> {
@@ -1247,7 +1302,6 @@ fun InProgressTabContent(
     hobbyItems: List<HobbyUiModel>?,
     feedList: List<FeedUiModel>?,
     feedCount: Int?,
-    viewModel: MyPageViewModel,
     selectedHobbyIds: Set<Int?>,
     onHobbySelectionChange: (Set<Int?>) -> Unit,
     onStickerClick: (FeedUiModel) -> Unit,
@@ -2314,20 +2368,19 @@ private fun CalendarGridSkeletonSection() {
     }
 }
 
-@Preview
+@Preview(showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
-fun MyPageScreenPreview() {
+private fun MyPageScreenPreview() {
     ForDayTheme {
         MyPageScreen(
-            modifier = TODO(),
-            viewModel = TODO(),
-            onProfileSetting = TODO(),
-            onHobbyPhotoManagement = TODO(),
-            onAllSettingsClick = TODO(),
-            onRoutineFeedClick = TODO(),
-            onAddHobbyClick = TODO(),
-            onDismiss = TODO(),
-            onNavigateToRecordRoutine = TODO()
+            state = MyPageUiState(),
+            onProfileSetting = {},
+            onHobbyPhotoManagement = {},
+            onAllSettingsClick = {},
+            onRoutineFeedClick = { _, _ -> },
+            onAddHobbyClick = {},
+            onDismiss = {},
+            onNavigateToRecordRoutine = {},
         )
     }
 }

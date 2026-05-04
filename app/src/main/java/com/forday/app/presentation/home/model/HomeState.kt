@@ -43,6 +43,7 @@ data class HomeState(
     val error: String? = null,
     val routineId: Int? = null,  // AI 취미활동 생성한 고유 번호
     val errorData: ErrorDataUiState? = null,
+    val unReadNotificationExists: Boolean = false,
 ) {
     val totalStickerPages: Int
         get() = maxOf(1, (stickerCnt + 27) / 28)

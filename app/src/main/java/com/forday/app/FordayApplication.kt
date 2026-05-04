@@ -2,9 +2,15 @@ package com.forday.app
 
 import android.app.Application
 import com.dayn.forday.BuildConfig
+import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.core.logger.crashlytics.CrashlyticsManager
 import com.forday.app.core.logger.timber.TimberInitializer
 import com.google.firebase.FirebaseApp
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.kakao.sdk.common.KakaoSdk
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -28,11 +34,20 @@ class FordayApplication : Application() {
     @Inject
     lateinit var crashlyticsManager: CrashlyticsManager
 
+    @Inject
+    lateinit var userLocalDataSource: UserLocalDataSource
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
 
         FirebaseApp.initializeApp(this)
         KakaoSdk.init(this, BuildConfig.KAKAO_API_KEY)
+
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            appScope.launch { userLocalDataSource.saveFcmToken(token) }
+        }
 
         timberInitializer.execute()
         crashlyticsManager.setUp()

@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,10 +44,87 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.viewmodel.compose.viewModel
+import android.content.Intent
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.dayn.forday.R
+import com.forday.app.core.designsystem.dialog.NotificationPermissionDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
-import com.forday.app.presentation.allsettings.SettingsViewModel
+
+@Composable
+private fun ForDayToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val trackColor = if (checked) Color(0xFFFF9447) else Color(0xFFE5E5E5)
+    val thumbOffset = if (checked) 14.dp else 0.dp
+
+    Box(
+        modifier = modifier
+            .width(36.dp)
+            .height(22.dp)
+            .clip(RoundedCornerShape(11.5.dp))
+            .background(trackColor)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onCheckedChange(!checked) },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(start = thumbOffset + 3.dp)
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
+    }
+}
+
+@Composable
+private fun ToggleSettingRow(
+    title: String,
+    subtitle: String? = null,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                style = ForDayTheme.typography.body14,
+                color = Color(0xFF1E1E1E)
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = ForDayTheme.typography.label10,
+                    color = Color(0xFF7A7A7A)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        ForDayToggle(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
 
 @Composable
 fun SettingsScreen(
@@ -52,9 +132,35 @@ fun SettingsScreen(
     onTermsOfServiceClick: () -> Unit = {},
     onPrivacyPolicyClick: () -> Unit = {},
     onCancelAccountClick: () -> Unit = {},
-    viewModel: SettingsViewModel,
+    postLikeNotificationEnabled: Boolean = false,
+    pushNotificationEnabled: Boolean = false,
+    onPostLikeNotificationToggle: (Boolean) -> Unit = {},
+    onPushNotificationToggle: (Boolean) -> Unit = {},
+    onLogout: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showNotificationPermissionDialog by remember { mutableStateOf(false) }
+    var pendingPostLikeEnable by remember { mutableStateOf(false) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (pendingPostLikeEnable && NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                onPostLikeNotificationToggle(true)
+                pendingPostLikeEnable = false
+            }
+        }
+    }
+
+    fun handleNotificationToggle(newValue: Boolean, onToggle: (Boolean) -> Unit, onPending: (() -> Unit)? = null) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            onPending?.invoke()
+            showNotificationPermissionDialog = true
+        } else {
+            onToggle(newValue)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -73,13 +179,36 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .padding(horizontal = 20.dp)
             ) {
+                // 알림 섹션
+                SectionTitle(text = "알림")
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ToggleSettingRow(
+                    title = "게시글 좋아요 알림 설정",
+                    subtitle = "내 게시글에 감정 기록이 달리면 알려드려요.",
+                    checked = postLikeNotificationEnabled,
+                    onCheckedChange = { handleNotificationToggle(it, onPostLikeNotificationToggle, onPending = { pendingPostLikeEnable = true }) }
+                )
+
+                ToggleSettingRow(
+                    title = "앱 푸시 알림 설정",
+                    checked = pushNotificationEnabled,
+                    onCheckedChange = { handleNotificationToggle(it, onPushNotificationToggle) }
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
                 // 앱내 섹션
                 SectionTitle(text = "안내")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 앱 버전
-                AppVersionItem(version = "1.0.0")
+                val versionName = remember {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+                }
+                AppVersionItem(version = versionName)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -124,7 +253,21 @@ fun SettingsScreen(
             onDismiss = { showLogoutDialog = false },
             onConfirm = {
                 showLogoutDialog = false
-                viewModel.logout()
+                onLogout()
+            }
+        )
+    }
+
+    // 알림 권한 다이얼로그
+    if (showNotificationPermissionDialog) {
+        NotificationPermissionDialog(
+            onDismiss = { showNotificationPermissionDialog = false },
+            onConfirm = {
+                showNotificationPermissionDialog = false
+                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+                context.startActivity(intent)
             }
         )
     }
@@ -368,10 +511,9 @@ private fun DialogButton(
 private fun SettingsScreenPreview() {
     ForDayTheme {
         SettingsScreen(
-            onBackClick = TODO(),
-            onTermsOfServiceClick = TODO(),
-            onPrivacyPolicyClick = TODO(),
-            viewModel = TODO()
+            onBackClick = {},
+            onTermsOfServiceClick = {},
+            onPrivacyPolicyClick = {},
         )
     }
 }

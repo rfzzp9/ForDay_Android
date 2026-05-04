@@ -3,11 +3,12 @@ package com.forday.app.presentation.home.model
 data class HomeHobbyUiModel(
     val inProgressHobbies: List<InProgressHobbyUiModel>,
     val routinePreview: RoutinePreviewUiModel?,
-    val greetingMessage: String,   // 추가
-    val userSummaryText: String,   // 추가
-    val recommendMessage: String,  // 추가
+    val greetingMessage: String,
+    val userSummaryText: String,
+    val recommendMessage: String,
     val aiCallRemaining: Boolean,
-    val aiCallRemainingCount: Int?
+    val aiCallRemainingCount: Int?,
+    val unReadNotificationExists: Boolean = false
 )
 
 data class InProgressHobbyUiModel(

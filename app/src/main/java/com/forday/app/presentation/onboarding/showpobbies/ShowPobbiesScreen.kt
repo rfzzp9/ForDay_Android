@@ -27,7 +27,7 @@ import com.forday.app.core.designsystem.component.clickable.rememberThrottledCli
 import com.forday.app.core.designsystem.component.clickable.NoRippleInteractionSource
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import androidx.annotation.DrawableRes
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 
 data class PobyCharacter(
     val gradientColors: List<Color>,
@@ -38,7 +38,7 @@ data class PobyCharacter(
 @Composable
 fun ShowPobbiesScreen(
     onNext: () -> Unit = {},
-    viewModel: OnboardingViewModel
+    viewModel: OnboardingFlowViewModel
 ) {
 
     val characters = listOf(

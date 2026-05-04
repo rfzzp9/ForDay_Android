@@ -117,7 +117,7 @@
 //}
 //
 //@Composable
-//fun HomeScreenRoot(
+//fun HomeRoute(
 //  onRoutineCreate: (Long?, Boolean?) -> Unit,
 //  onModifyRoutine: (Long?) -> Unit,
 //  onRecordRoutine: (Long?) -> Unit,
@@ -1237,7 +1237,7 @@
 //@Preview(showBackground = true)
 //@Composable
 //fun HomeScreenPreview() {
-//    HomeScreenRoot(
+//    HomeRoute(
 //        onRoutineCreate = { _, _ -> },
 //        onModifyRoutine = {},
 //        onRecordRoutine = {},

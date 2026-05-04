@@ -1,5 +1,6 @@
 package com.forday.app.presentation.record
 
+import com.forday.app.domain.model.HobbyChipDomain
 import com.forday.app.domain.model.PresignedUrlDataDomain
 import com.forday.app.domain.model.PresignedUrlItemDomain
 import com.forday.app.domain.model.RoutineListItemDomain
@@ -39,5 +40,13 @@ fun RoutineListItemDomain.toUiModel(): RoutineUiModel {  // 드롭 다운용 특
 fun PresignedUrlDataDomain.toUiModel(): PresignedUrlUiModel {
     return PresignedUrlUiModel(
         images = this.images.map { it.toUiModel() }
+    )
+}
+
+fun HobbyChipDomain.toUiModel(): HobbyChipUiModel {
+    return HobbyChipUiModel(
+        hobbyId = hobbyId,
+        hobbyName = hobbyName,
+        todayRecorded = todayRecorded
     )
 }

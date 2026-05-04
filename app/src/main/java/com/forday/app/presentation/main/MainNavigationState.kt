@@ -39,6 +39,7 @@ import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectP
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobbyFromModify
 import com.forday.app.presentation.onboarding.login.navigation.Login
+import com.forday.app.presentation.onboarding.termsagreement.navigation.TermsAgreement
 import com.forday.app.presentation.onboarding.swipeintro.navigation.SwipeIntro
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
@@ -50,6 +51,7 @@ import com.forday.app.presentation.onboarding.splash.navigation.Splash
 import com.forday.app.presentation.onboarding.timeselect.navigation.SelectPerTime
 import com.forday.app.presentation.record.navigation.RecordRoutine
 import com.forday.app.presentation.mypage.navigation.UserPage
+import com.forday.app.presentation.notification.navigation.Notification
 import com.forday.app.presentation.sosik.navigation.Sosik
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
@@ -156,9 +158,11 @@ val serializersConfig = SavedStateConfiguration {
             subclass(TermsOfService::class, TermsOfService.serializer())
             subclass(PrivacyPolicy::class, PrivacyPolicy.serializer())
             subclass(CancelAccount::class, CancelAccount.serializer())
+            subclass(Notification::class, Notification.serializer())
 
 
             // 온보딩 화면들
+            subclass(TermsAgreement::class, TermsAgreement.serializer())
             subclass(SelectHobby::class, SelectHobby.serializer())
             subclass(SelectHobbyFromModify::class, SelectHobbyFromModify.serializer())
             subclass(SelectPerTime::class, SelectPerTime.serializer())

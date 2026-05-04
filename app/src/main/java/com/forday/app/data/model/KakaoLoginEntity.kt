@@ -31,7 +31,8 @@ data class KakaoLoginDataEntity(
     val isNicknameSet: Boolean,
     val nickname: String?,
     val guestUserId: String?, // 추가: 응답 JSON에 있던 필드
-    val onboardingData: KakaoOnboardingDataEntity? // String? 대신 객체 타입 사용
+    val onboardingData: KakaoOnboardingDataEntity?, // String? 대신 객체 타입 사용
+    val fcmToken: String?
 ) : DataMapper<KakaoLoginDataDomain> {
     override fun toDomain(): KakaoLoginDataDomain {
         return KakaoLoginDataDomain(
@@ -43,8 +44,8 @@ data class KakaoLoginDataEntity(
             isNicknameSet = isNicknameSet,
             nickname = nickname,
             guestUserId = guestUserId,
-            // 하위 객체도 도메인 모델로 변환하여 전달
-            onboardingData = onboardingData?.toDomain()
+            onboardingData = onboardingData?.toDomain(),
+            fcmToken = fcmToken
         )
     }
 }

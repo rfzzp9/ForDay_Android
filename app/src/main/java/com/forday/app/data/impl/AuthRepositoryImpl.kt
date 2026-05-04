@@ -1,7 +1,10 @@
 package com.forday.app.data.impl
 
+import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import com.forday.app.core.datastore.UserLocalDataSource
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.forday.app.data.model.toDomain
 import com.forday.app.data.remote.AuthDataSource
 import com.forday.app.domain.model.CancelAccountDomain
@@ -9,6 +12,7 @@ import com.forday.app.domain.model.GuestLoginDataDomain
 import com.forday.app.domain.model.KakaoLoginDomain
 import com.forday.app.domain.model.LogoutDomain
 import com.forday.app.domain.model.SwitchAccountDomain
+import com.forday.app.domain.model.TermsConsentDomain
 import com.forday.app.domain.repository.AuthRepository
 import com.forday.app.remote.model.request.GuestLoginRequest
 import com.forday.app.remote.model.request.KakaoLoginRequest
@@ -23,6 +27,7 @@ import kotlin.coroutines.resume
 import kotlin.runCatching
 
 internal class AuthRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val authDataSource: AuthDataSource,
     private val userLocalDataSource: UserLocalDataSource
 ) : AuthRepository {
@@ -31,7 +36,16 @@ internal class AuthRepositoryImpl @Inject constructor(
             try {
                 Log.e("AuthRepository", "kakaoLogin: start")
                 Timber.d("kakaoLogin: start")
-                val responseEntity = authDataSource.kakaoLogin(KakaoLoginRequest(kakaoAccessToken))
+                val fcmToken = userLocalDataSource.getFcmToken().first() ?: ""
+                val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+                val responseEntity = authDataSource.kakaoLogin(
+                    KakaoLoginRequest(
+                        kakaoAccessToken = kakaoAccessToken,
+                        fcmToken = fcmToken,
+                        deviceId = deviceId,
+                        deviceType = "ANDROID"
+                    )
+                )
                 Log.e("AuthRepository", "kakaoLogin: remote success")
                 Timber.d("kakaoLogin: remote success")
 
@@ -73,6 +87,10 @@ internal class AuthRepositoryImpl @Inject constructor(
 
                 loginData.data.onboardingData?.id?.let { entityId ->
                     userLocalDataSource.saveCreatedHobbyId(entityId.toLong())
+                }
+
+                loginData.data.fcmToken?.let { token ->
+                    userLocalDataSource.saveFcmToken(token)
                 }
 
                 Log.e("AuthRepository", "kakaoLogin: done")
@@ -160,13 +178,24 @@ internal class AuthRepositoryImpl @Inject constructor(
         socialType: String,
         kakaoAccessToken: String
     ): Result<SwitchAccountDomain> = runCatching {
-        val loginData = authDataSource.switchAccount(SwitchAccountRequest(socialType, kakaoAccessToken)).toDomain()
+        val fcmToken = userLocalDataSource.getFcmToken().first() ?: ""
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+        val loginData = authDataSource.switchAccount(
+            SwitchAccountRequest(
+                socialType = socialType,
+                socialCode = kakaoAccessToken,
+                fcmToken = fcmToken,
+                deviceId = deviceId,
+                deviceType = "ANDROID"
+            )
+        ).toDomain()
         Timber.d("@@@@@@@switchAccount loginResponse: ${loginData.accessToken}")
         userLocalDataSource.saveKakaoToken(
             loginData.accessToken,
             loginData.refreshToken,
             loginData.socialType
         )
+        loginData.fcmToken?.let { userLocalDataSource.saveFcmToken(it) }
         Timber.d("@@@@@@@switchAccount 토큰 저장 완료: ${loginData.accessToken}"+" ${loginData.refreshToken}")
         loginData
     }
@@ -196,6 +225,20 @@ internal class AuthRepositoryImpl @Inject constructor(
         userLocalDataSource.removeUserInfo()
         userLocalDataSource.removeGuestId()
         cancelAccountData
+    }
+
+    override suspend fun consentTerms(
+        serviceConsent: Boolean,
+        ageOver14Consent: Boolean,
+        privateConsent: Boolean,
+        recordPushConsent: Boolean
+    ): Result<TermsConsentDomain> = runCatching {
+        authDataSource.consentTerms(
+            serviceConsent = serviceConsent,
+            ageOver14Consent = ageOver14Consent,
+            privateConsent = privateConsent,
+            recordPushConsent = recordPushConsent
+        ).toDomain()
     }
 
 }

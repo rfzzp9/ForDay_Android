@@ -25,7 +25,9 @@ fun RoutineRecordDetailDomain.toPresentation(): RoutineRecordDetailUiModel {
         isMine = isMine,
         isPublic = isVisible,
         reactions = newReaction.toPresentation(),
-        myReactions = userReaction.toPresentation()
+        myReactions = userReaction.toPresentation(),
+        prevRecordId = prevRecordId,
+        nextRecordId = nextRecordId
     )
 }
 

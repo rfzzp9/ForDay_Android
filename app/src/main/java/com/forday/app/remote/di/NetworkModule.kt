@@ -6,6 +6,7 @@ import com.forday.app.remote.api.service.AppVersionPolicyApi
 import com.forday.app.remote.api.service.AuthApi
 import com.forday.app.remote.api.service.FileApi
 import com.forday.app.remote.api.service.HobbyApi
+import com.forday.app.remote.api.service.NotificationApi
 import com.forday.app.remote.api.service.RoutineApi
 import com.forday.app.remote.api.service.TokenApi
 import com.forday.app.remote.api.service.UserApi
@@ -102,6 +103,12 @@ object NetworkModule {
     ): RoutineApi {
         return retrofit.create(RoutineApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideNotificationApi(
+        @TokenRetrofit retrofit: Retrofit
+    ): NotificationApi = retrofit.create(NotificationApi::class.java)
 
     @Provides
     @Singleton

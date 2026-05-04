@@ -29,6 +29,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +63,7 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.modifyhobby.screen.HobbyModifyParams
 import com.forday.app.core.designsystem.component.clickable.rememberThrottledClick
 import com.forday.app.core.logger.analytics.AnalyticsEvents
-import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -90,15 +91,18 @@ fun getHobbyIconResource(hobbyInfoId: Int?): Int {
 }
 
 @Composable
-fun SelectTimeScreenRoot(
+fun SelectTimeRoute(
     mode: ScreenMode,
-    viewModel: OnboardingViewModel,
+    viewModel: OnboardingFlowViewModel = hiltViewModel(),
     params: HobbyModifyParams?,
     onNext: () -> Unit,
     onBack: () -> Unit
 ) {
-    viewModel.logEvent(AnalyticsEvents.VIEW_HOBBY_TIME_SELECTION_SCREEN)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.logEvent(AnalyticsEvents.VIEW_HOBBY_TIME_SELECTION_SCREEN)
+    }
 
     // ONBOARDING 모드에서 selectedMinutes가 null이면 기본값 10을 ViewModel에 저장
     if (mode == ScreenMode.ONBOARDING && state.selectedMinutes == null) {
@@ -127,6 +131,7 @@ fun SelectTimeScreenRoot(
             scope.launch {
                 delay(400L)
                 onNext()
+                Unit
             }
         },
         onBack = {
@@ -134,6 +139,7 @@ fun SelectTimeScreenRoot(
             scope.launch {
                 delay(400L)
                 onBack()
+                Unit
             }
         },
     )

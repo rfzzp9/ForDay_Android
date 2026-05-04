@@ -20,7 +20,9 @@ data class RoutineRecordDetailEntity(
     val userInfo: UserInfoEntity?, // ✅ 추가
     val visibility: String,
     val newReaction: RoutineReactionEntity,
-    val userReaction: RoutineUserReactionEntity
+    val userReaction: RoutineUserReactionEntity,
+    val prevRecordId: Int? = null,
+    val nextRecordId: Int? = null
 ) : DataMapper<RoutineRecordDetailDomain> { // 반환 타입 변경
 
     override fun toDomain(): RoutineRecordDetailDomain {
@@ -41,7 +43,9 @@ data class RoutineRecordDetailEntity(
             isMine = isOwner,
             isVisible = visibility == "PUBLIC",
             newReaction = newReaction.toDomain(),
-            userReaction = userReaction.toDomain()
+            userReaction = userReaction.toDomain(),
+            prevRecordId = prevRecordId,
+            nextRecordId = nextRecordId
         )
     }
 

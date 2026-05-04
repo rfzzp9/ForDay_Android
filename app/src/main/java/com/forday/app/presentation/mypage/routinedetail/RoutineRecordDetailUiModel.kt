@@ -23,7 +23,9 @@ data class RoutineRecordDetailUiModel(
     val isMine: Boolean = false,    // recordOwner: 현재 로그인한 사용자가 이 기록의 작성자인지 여부
     val isPublic: Boolean = false,  // visibility: 공개 여부 (JSON의 "PUBLIC"이면 true, "PRIVATE"이면 false)
     val reactions: RoutineReactionUiModel = RoutineReactionUiModel(), // newReaction: 새로운 반응 존재 여부 데이터
-    val myReactions: RoutineUserReactionUiModel = RoutineUserReactionUiModel() // userReaction: 내가 누른 반응 데이터
+    val myReactions: RoutineUserReactionUiModel = RoutineUserReactionUiModel(), // userReaction: 내가 누른 반응 데이터
+    val prevRecordId: Int? = null,
+    val nextRecordId: Int? = null
 )
 
 /**

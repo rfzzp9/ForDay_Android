@@ -10,7 +10,8 @@ data class SosikDataDomain(
     val tabInfo: List<SosikTabInfoDomain>,
     val lastRecordId: Long?,
     val recordList: List<SosikRecordDomain>,
-    val hasNext: Boolean
+    val hasNext: Boolean,
+    val unReadNotificationExists: Boolean
 )
 
 data class SosikTabInfoDomain(

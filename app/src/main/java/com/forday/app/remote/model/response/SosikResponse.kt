@@ -24,13 +24,15 @@ data class SosikDataResponse(
     @SerializedName("tabInfo") val tabInfo: List<SosikTabInfoResponse>? = emptyList(),
     @SerializedName("lastRecordId") val lastRecordId: Long? = null,
     @SerializedName("recordList") val recordList: List<SosikRecordResponse>? = emptyList(),
-    @SerializedName("hasNext") val hasNext: Boolean? = false
+    @SerializedName("hasNext") val hasNext: Boolean? = false,
+    @SerializedName("unReadNotificationExists") val unReadNotificationExists: Boolean? = false
 ) : RemoteMapper<SosikDataEntity> {
     override fun toData(): SosikDataEntity = SosikDataEntity(
         tabInfo = tabInfo?.map { it.toData() } ?: emptyList(),
         lastRecordId = lastRecordId,
         recordList = recordList?.map { it.toData() } ?: emptyList(),
-        hasNext = hasNext ?: false
+        hasNext = hasNext ?: false,
+        unReadNotificationExists = unReadNotificationExists ?: false
     )
 }
 
