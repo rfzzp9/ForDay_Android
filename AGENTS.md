@@ -1,23 +1,39 @@
-# Forday Android
+# Forday Android - Codex Entry
 
-## 하네스: Android 앱 개발
+이 파일은 Codex용 진입 라우터입니다. 공통 문서의 원본은 `.agents/docs/` 아래에 있습니다.
 
-**목표:** Clean Architecture 기반 Forday Android 앱의 기능 개발, 버그 수정, 코드 리뷰를 에이전트 팀으로 자동화
+## 문서 우선순위
 
-**트리거:** Android 개발 관련 작업 (기능 추가, 버그 수정, 코드 검토, 리팩토링, API 연동) 요청 시 `android-dev` 스킬을 사용하라. 단순 개념 질문은 직접 응답 가능.
+1. 사용자의 최신 요청
+2. 이 파일의 Codex 전용 지침
+3. `.agents/docs/workflows/`
+4. `.agents/docs/conventions/`
+5. `.agents/docs/llm-wiki/`
+6. `.agents/skills/`
+7. `_workspace/`
 
-**프로젝트 상세:** `app/AGENTS.md` 참조 (아키텍처, 코드 패턴, 컴포넌트 설명)
+## 공통 문서
 
-## 하네스: 종합 코드 리뷰
+- 코드 위치와 구조: `.agents/docs/llm-wiki/`
+- 코드 작성 규칙: `.agents/docs/conventions/`
+- 반복 작업 절차: `.agents/docs/workflows/`
+- 임시 리뷰/감사 결과: `_workspace/`
+- Codex 실행 지침: `.agents/skills/`
 
-**목표:** 아키텍처·보안·성능·스타일을 병렬 감사하여 하나의 우선순위 정렬 리포트로 통합
+## 요청별 시작점
 
-**트리거:** "종합 리뷰", "전체 코드 리뷰", "PR 리뷰", "코드 감사", "아키텍처 검사", "보안 검사", "성능 분석", "스타일 검사" 등의 요청 시 `code-review` 스킬을 사용하라.  
-개발 플로우 내 단일 변경 빠른 검토는 `android-dev` 스킬(기존).
+- 새 기능/화면/API 연동: `.agents/docs/workflows/feature-development.md`
+- 버그 수정: `.agents/docs/workflows/bugfix.md`
+- 전체 리뷰/PR 리뷰/감사: `.agents/docs/workflows/code-review.md`
+- 커밋/PR 전 점검: `.agents/docs/workflows/pre-pr-check.md`
 
-**변경 이력:**
-| 날짜 | 변경 내용 | 대상 | 사유 |
-|------|----------|------|------|
-| 2026-04-18 | 초기 구성 | 전체 | Android 앱 개발 하네스 신규 구축 |
-| 2026-04-18 | 종합 코드 리뷰 하네스 추가 | 전체 | 아키텍처·보안·성능·스타일 병렬 감사 |
-| 2026-04-19 | 트리거 충돌 수정 | android-dev/SKILL.md, code-review/SKILL.md, android-orchestrator.md | android-dev와 code-review 스킬 간 "코드 리뷰" 키워드 충돌 해소 |
+## Codex Skill 라우팅
+
+- Android 개발, 기능 추가, 버그 수정, 리팩토링, API 연동: `android-dev`
+- 종합 리뷰, 전체 코드 리뷰, PR 리뷰, 아키텍처/보안/성능/스타일 감사: `code-review`
+
+## 역할 경계
+
+- 이 파일에는 프로젝트 구조나 코드 스타일 전문을 넣지 않는다.
+- 공통 지식은 `.agents/docs/llm-wiki/`, `.agents/docs/conventions/`, `.agents/docs/workflows/`에만 유지한다.
+- `_workspace/`의 리포트는 특정 시점의 참고 자료이며 영구 규칙으로 사용하지 않는다.
