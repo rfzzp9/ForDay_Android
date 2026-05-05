@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.forday.app.core.designsystem.theme.ForDayTheme
+import com.forday.app.presentation.main.compose.MainFlow
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.splash.SplashViewModel
