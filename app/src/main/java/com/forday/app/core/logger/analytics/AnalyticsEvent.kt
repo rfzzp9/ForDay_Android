@@ -41,6 +41,9 @@ object AnalyticsEvents {
     val ONBOARDING_SUCCESS = AnalyticsEvent("onboarding_success", "온보딩 완료")
     fun selectedJourneyDate(mode: String) = AnalyticsEvent("selected_journey_date", "선택된 여정 기간 - $mode")
 
+    val MY_HOBBY_SELECT_SCREEN = AnalyticsEvent("my_hobby_select_screen", "new onboarding hobby select screen")
+    val MY_HOBBY_SELECT_COMPLETE = AnalyticsEvent("my_hobby_select_complete", "new onboarding hobby select complete")
+
     // Nickname
     val NICKNAME_INPUT_SCREEN = AnalyticsEvent("nickname_direct_input_screen", "닉네임 입력 화면 진입")
     val NICKNAME_REGISTER_CLICK = AnalyticsEvent("nickname_register_click", "닉네임 등록 클릭")

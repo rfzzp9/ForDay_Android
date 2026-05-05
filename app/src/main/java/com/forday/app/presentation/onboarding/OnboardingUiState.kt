@@ -8,6 +8,7 @@ import com.forday.app.domain.model.HobbyCardDomain
 import com.forday.app.domain.model.HobbyDomain
 import com.forday.app.domain.model.HobbyItemDomain
 import com.forday.app.domain.model.IsNicknameDuplicateDomain
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
 import com.forday.app.presentation.onboarding.hobbyselect.Hobby
 import com.forday.app.presentation.onboarding.periodselect.JourneyMode
 
@@ -45,6 +46,7 @@ data class OnboardingUiState(
     val pendingServiceConsent: Boolean? = null,
     val pendingAgeOver14Consent: Boolean? = null,
     val pendingPrivateConsent: Boolean? = null,
+    val onboardingAbVariant: OnboardingAbVariant = OnboardingAbVariant.OLD,
 )
 
 fun HobbyCardDomain.toPresentation() =

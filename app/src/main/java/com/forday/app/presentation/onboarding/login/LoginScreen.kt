@@ -54,6 +54,7 @@ import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
 import timber.log.Timber
 
 @Composable
@@ -61,6 +62,7 @@ fun LoginRoute(
     onNavigateToHome: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
     onNavigateToNickname: () -> Unit,
+    onNavigateToNewOnboardingNickname: () -> Unit,
     onNavigateToTerms: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
@@ -73,7 +75,14 @@ fun LoginRoute(
         viewModel.logEvent(AnalyticsEvents.LOGIN_SCREEN)
     }
 
-    LaunchedEffect(state.isLoginSuccess, state.isNewUser, state.isOnboardingCompleted, state.isNicknameSet, loginAttempted) {
+    LaunchedEffect(
+        state.isLoginSuccess,
+        state.isNewUser,
+        state.isOnboardingCompleted,
+        state.isNicknameSet,
+        state.onboardingAbVariant,
+        loginAttempted
+    ) {
         Timber.e(
             "LoginRoute LaunchedEffect - attempted=$loginAttempted, success=${state.isLoginSuccess}, newUser=${state.isNewUser}, onboardingCompleted=${state.isOnboardingCompleted}, nicknameSet=${state.isNicknameSet}"
         )
@@ -83,6 +92,13 @@ fun LoginRoute(
             state.isNewUser == true -> {
                 Timber.e("@@@@@@@ Navigate to TermsAgreement")
                 onNavigateToTerms()
+                loginAttempted = false
+            }
+
+            state.isOnboardingCompleted == false &&
+                state.onboardingAbVariant == OnboardingAbVariant.NEW -> {
+                Timber.e("@@@@@@@ Navigate to InputNickname for onboarding A/B test")
+                onNavigateToNewOnboardingNickname()
                 loginAttempted = false
             }
 

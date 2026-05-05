@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation3.runtime.NavKey
 import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
+import com.forday.app.core.firebase.ONBOARDING_VARIANT_KEY
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
 import com.forday.app.domain.usecase.ConsentTermsUseCase
@@ -24,9 +25,11 @@ import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
@@ -66,12 +69,14 @@ class OnboardingViewModel @Inject constructor(
     private val getGuestUserIdUseCase: GetGuestUserIdUseCase,
     private val snackbarManager: SnackbarManager,
     private val consentTermsUseCase: ConsentTermsUseCase,
+    private val firebaseRemoteConfig: FirebaseRemoteConfig,
 ) : BaseViewModel<OnboardingSideEffect>() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.toStateIn()
 
     init {
+        fetchOnboardingAbVariant()
         viewModelScope.launch {
             autoGuestLoginIfNeeded()
             getUserData()
@@ -97,6 +102,17 @@ class OnboardingViewModel @Inject constructor(
         when (action) {
             is OnboardingAction.OnClose -> Unit
         }
+    }
+
+    private fun fetchOnboardingAbVariant() {
+        firebaseRemoteConfig.fetchAndActivate()
+            .addOnCompleteListener {
+                val variant = OnboardingAbVariant.fromRemoteValue(
+                    firebaseRemoteConfig.getString(ONBOARDING_VARIANT_KEY)
+                )
+                analyticsManager.setUserProperty(ONBOARDING_VARIANT_KEY, variant.remoteValue)
+                _uiState.update { it.copy(onboardingAbVariant = variant) }
+            }
     }
 
     private fun determineInitialRoute() =
