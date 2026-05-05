@@ -42,6 +42,7 @@ import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.termsagreement.navigation.TermsAgreement
 import com.forday.app.presentation.onboarding.swipeintro.navigation.SwipeIntro
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
+import com.forday.app.presentation.onboarding.experiment.navigation.MyHobbySelect
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
@@ -116,6 +117,8 @@ fun rememberMainNavigationState(
         add(startRoute)
         add(Login)
         add(SelectHobby)
+        add(InputNickname)
+        add(MyHobbySelect)
         add(SelectPeriod(mode = ScreenMode.ONBOARDING))
     }
 
@@ -172,6 +175,7 @@ val serializersConfig = SavedStateConfiguration {
             subclass(OnboardingSuccess::class, OnboardingSuccess.serializer())
             subclass(ShowPobbies::class, ShowPobbies.serializer())
             subclass(InputNickname::class, InputNickname.serializer())
+            subclass(MyHobbySelect::class, MyHobbySelect.serializer())
 
             // 메인 앱 화면들
             subclass(LoadingRoutines::class, LoadingRoutines.serializer())

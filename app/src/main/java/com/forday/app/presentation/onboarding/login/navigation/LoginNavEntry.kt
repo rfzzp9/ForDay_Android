@@ -7,6 +7,7 @@ import com.forday.app.presentation.main.nonTabEntry
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.login.LoginRoute
+import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
@@ -42,6 +43,10 @@ fun EntryProviderScope<NavKey>.loginNavEntry(
                         SelectPeriod(mode = ScreenMode.ONBOARDING),
                     )
                 )
+            },
+            onNavigateToNewOnboardingNickname = {
+                Timber.e("MainFlow(Login) - navigate to InputNickname requested")
+                navigator.resetTo(InputNickname)
             },
             onNavigateToTerms = {
                 Timber.e("MainFlow(Login) - navigate to TermsAgreement requested")

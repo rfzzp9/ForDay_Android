@@ -29,6 +29,7 @@ import com.forday.app.presentation.mypage.routinedetail.navigation.saveCardNavEn
 import com.forday.app.presentation.notification.navigation.notificationNavEntry
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.experiment.navigation.myHobbySelectNavEntry
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.selectPerWeekNavEntry
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.selectHobbyFromModifyNavEntry
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.selectHobbyNavEntry
@@ -117,7 +118,8 @@ private fun EntryProviderScope<NavKey>.registerOnboardingEntries(
     selectPeriodNavEntry(navigator = navigator, onboardingFlowViewModel = onboardingFlowViewModel)
     onboardingSuccessNavEntry(navigator = navigator)
     showPobbiesNavEntry(navigator = navigator, onboardingFlowViewModel = onboardingFlowViewModel)
-    inputNicknameNavEntry(navigator = navigator, onboardingFlowViewModel = onboardingFlowViewModel)
+    inputNicknameNavEntry(navigator = navigator, onboardingViewModel = onboardingViewModel, onboardingFlowViewModel = onboardingFlowViewModel)
+    myHobbySelectNavEntry(navigator = navigator, onboardingFlowViewModel = onboardingFlowViewModel)
 }
 
 private fun EntryProviderScope<NavKey>.registerTabEntries(
