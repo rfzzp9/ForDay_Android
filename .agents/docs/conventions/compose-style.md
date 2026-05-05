@@ -71,6 +71,33 @@ Forday Android Compose 화면 작성 규칙을 정리한다.
 4. Private item composable
 5. Preview
 
+## Compose 패키지 분리
+
+화면 구현이 커질 때는 기능 패키지 아래에 `compose`와 `component`를 분리한다.
+
+권장 구조:
+
+```text
+presentation/{feature}/
+  navigation/
+  compose/
+    {Feature}Route.kt 또는 {Feature}ScreenRoot.kt
+    {Feature}Screen.kt
+  component/
+    {Feature}Header.kt
+    {Feature}Item.kt
+    {Feature}Dialog.kt
+  model/
+```
+
+규칙:
+- `compose`는 화면 진입점, Screen, 화면 레이아웃 조립을 담는다.
+- `component`는 반복 사용되는 section/item/dialog/bottom sheet/toolbar 등 작은 UI 조각을 담는다.
+- `component` 안의 Composable은 가능한 stateless로 유지하고 state와 callback을 파라미터로 받는다.
+- `component`에서 ViewModel, Navigator, Repository, UseCase, API를 직접 참조하지 않는다.
+- 한 화면에만 쓰이는 작은 private Composable은 같은 `compose` 파일 아래에 둘 수 있다.
+- 파일이 커지거나 다른 화면에서도 재사용되면 `component`로 옮긴다.
+
 ## Preview
 
 - 화면 단위 Screen에는 Preview를 둔다.

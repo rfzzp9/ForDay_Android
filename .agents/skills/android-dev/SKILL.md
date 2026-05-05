@@ -7,6 +7,13 @@ description: >
 
 # Android Dev
 
+## Compose/component 패키지 규칙
+
+- Compose 화면을 추가하거나 리팩토링할 때는 `presentation/{feature}/compose`와 `presentation/{feature}/component` 분리 여부를 확인한다.
+- Route 또는 ScreenRoot, Screen, 화면 레이아웃 조립은 `compose`에 둔다.
+- 재사용되거나 독립적으로 읽히는 stateless UI 조각은 `component`에 둔다.
+- 패키지 분리만 요청받은 리팩토링에서는 사용자가 명시적으로 요청하지 않는 한 ViewModel 소유권을 옮기지 않는다.
+
 ## 목적
 
 Android 앱 코드를 만들거나, 수정하거나, 연결하거나, 리팩토링할 때 사용한다.

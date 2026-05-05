@@ -1,5 +1,15 @@
 # Feature Development Workflow
 
+## Compose/component 패키지 체크
+
+새 화면을 추가하거나 큰 Compose 화면을 리팩토링할 때는 패키지 경계를 먼저 확인한다.
+
+- `presentation/{feature}/compose`에는 Route 또는 ScreenRoot, Screen, 화면 레이아웃 조립 코드를 둔다.
+- `presentation/{feature}/component`에는 section, item, dialog, bottom sheet, toolbar처럼 재사용되거나 독립적으로 읽히는 UI 조각을 둔다.
+- `component` Composable은 가능한 stateless로 유지하고, state와 callback은 `compose`에서 내려준다.
+- `component`에서 ViewModel, Navigator, Repository, UseCase, API를 직접 참조하지 않는다.
+- 큰 화면 리팩토링은 동작을 바꾸지 않고 패키지 경계부터 나눈 뒤 빌드나 집중 검증을 실행한다.
+
 ## 목적
 
 새 화면, 새 API 연동, 새 ViewModel, 새 UseCase, 새 Repository 흐름을 추가할 때 사용한다.

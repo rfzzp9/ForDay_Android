@@ -1,5 +1,21 @@
 # Add Feature File Locations
 
+## Compose/component 패키지 위치
+
+새 Compose 화면은 다음 presentation 구조를 우선 사용한다.
+
+```text
+app/src/main/java/com/forday/app/presentation/{feature}/
+  {Feature}ViewModel.kt
+  {Feature}UiState.kt
+  compose/{Feature}Route.kt 또는 compose/{Feature}ScreenRoot.kt
+  compose/{Feature}Screen.kt
+  component/{Feature}*.kt, UI 조각이 크거나 반복되거나 독립적으로 읽혀야 하는 경우
+  model/{Feature}UiModel.kt, 필요한 경우
+```
+
+`compose`는 화면 단위 조립에 사용하고, `component`는 stateless UI 조각에 사용한다.
+
 ## 목적
 
 새 기능을 추가할 때 어느 파일을 만들거나 수정할지 빠르게 정한다.
