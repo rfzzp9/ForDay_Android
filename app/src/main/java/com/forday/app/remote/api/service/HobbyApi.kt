@@ -1,6 +1,7 @@
 package com.forday.app.remote.api.service
 
 import com.forday.app.remote.model.request.CreateHobbyRequest
+import com.forday.app.remote.model.request.CreateHobbiesRequest
 import com.forday.app.remote.model.request.CreateRoutinesRequest
 import com.forday.app.remote.model.request.ExtendHobbyRequest
 import com.forday.app.remote.model.request.HobbyIdRequest
@@ -14,6 +15,7 @@ import com.forday.app.remote.model.request.RoutineRequest
 import com.forday.app.remote.model.request.WriteRoutineRequest
 import com.forday.app.remote.model.response.AiRecommendedResponse
 import com.forday.app.remote.model.response.CreateHobbyResponse
+import com.forday.app.remote.model.response.CreateHobbiesResponse
 import com.forday.app.remote.model.response.PreviousAiRecommendResponse
 import com.forday.app.remote.model.response.CreateRoutinesResponse
 import com.forday.app.remote.model.response.DeleteRoutineResponse
@@ -53,6 +55,11 @@ interface HobbyApi {
     suspend fun createHobby(
         @Body body: CreateHobbyRequest
     ): CreateHobbyResponse
+
+    @POST("/api/v2/hobbies/create")
+    suspend fun createHobbies(
+        @Body body: CreateHobbiesRequest
+    ): CreateHobbiesResponse
 
     @GET("/hobbies/activities/others/v1")  //다른 포비들의 활동 조회 (AI 기반) API  token
     suspend fun searchHobbyMateRoutines(

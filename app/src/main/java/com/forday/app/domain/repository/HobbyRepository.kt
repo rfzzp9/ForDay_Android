@@ -1,6 +1,8 @@
 package com.forday.app.domain.repository
 
 import com.forday.app.domain.model.AiRecommendedDomain
+import com.forday.app.domain.model.CreateHobbiesDomain
+import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
@@ -35,6 +37,8 @@ interface HobbyRepository {
         selectedFrequency: Int?,
         hobbyPeriod: Boolean
     ): CreateHobbyDomain
+
+    suspend fun createHobbies(hobbyList: List<CreateHobbyItemDomain>): CreateHobbiesDomain
 
     suspend fun searchHobbyMateRoutines(selectedHobbyId: Long?): SearchHobbyMateRoutinesDomain
 

@@ -1,6 +1,7 @@
 package com.forday.app.remote.impl
 
 import com.forday.app.data.model.AiRecommendedEntity
+import com.forday.app.data.model.CreateHobbiesEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
 import com.forday.app.data.model.DeleteRoutineEntity
@@ -23,7 +24,10 @@ import com.forday.app.data.model.UserHobbyTabEntity
 import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.WriteRoutineEntity
 import com.forday.app.data.remote.HobbyDataSource
+import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.remote.api.service.HobbyApi
+import com.forday.app.remote.model.request.CreateHobbiesRequest
+import com.forday.app.remote.model.request.CreateHobbyItemRequest
 import com.forday.app.remote.model.request.CreateHobbyRequest
 import com.forday.app.remote.model.request.CreateRoutinesRequest
 import com.forday.app.remote.model.request.ExtendHobbyRequest
@@ -63,6 +67,18 @@ class HobbyDataSourceImpl @Inject constructor(
                 hobbyPurpose,
                 executionCount,
                 isDurationSet
+            )
+        ).toData()
+
+    override suspend fun createHobbies(hobbyList: List<CreateHobbyItemDomain>): CreateHobbiesEntity =
+        hobbyApi.createHobbies(
+            CreateHobbiesRequest(
+                hobbyList = hobbyList.map {
+                    CreateHobbyItemRequest(
+                        hobbyInfoId = it.hobbyInfoId,
+                        hobbyName = it.hobbyName,
+                    )
+                }
             )
         ).toData()
 

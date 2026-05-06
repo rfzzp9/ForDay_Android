@@ -3,6 +3,8 @@ package com.forday.app.data.impl
 import com.forday.app.data.model.toDomain
 import com.forday.app.data.remote.HobbyDataSource
 import com.forday.app.domain.model.AiRecommendedDomain
+import com.forday.app.domain.model.CreateHobbiesDomain
+import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
@@ -55,6 +57,9 @@ class HobbyRepositoryImpl @Inject constructor(
             executionCount = selectedFrequency,
             isDurationSet = hobbyPeriod
         ).toDomain()
+
+    override suspend fun createHobbies(hobbyList: List<CreateHobbyItemDomain>): CreateHobbiesDomain =
+        hobbyDataSource.createHobbies(hobbyList).toDomain()
 
     override suspend fun createRoutines(   //취미 활동 생성
         hobbyId: Long?,
