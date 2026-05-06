@@ -6,7 +6,9 @@ import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsManager
 import com.forday.app.core.util.UserMessageCategory
 import com.forday.app.core.util.toUserMessage
+import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.domain.usecase.CreateHobbyUseCase
+import com.forday.app.domain.usecase.CreateHobbiesUseCase
 import com.forday.app.domain.usecase.GetHobbyCardDataAgainUseCase
 import com.forday.app.domain.usecase.GetHobbyDataUseCase
 import com.forday.app.domain.usecase.GetIsNicknameDuplicateUseCase
@@ -50,6 +52,7 @@ class OnboardingFlowViewModel @Inject constructor(
     private val saveNicknameUseCase: SaveNicknameUseCase,
     private val saveOnboardingDataUseCase: SaveOnboardingDataUseCase,
     private val createHobbyUseCase: CreateHobbyUseCase,
+    private val createHobbiesUseCase: CreateHobbiesUseCase,
     private val saveIsOnboardingCompletedUseCase: SaveIsOnboardingCompletedUseCase,
     private val saveIsNicknameSetUseCase: SaveIsNicknameSetUseCase,
     private val modifyHobbyTimeUseCase: ModifyHobbyTimeUseCase,
@@ -311,6 +314,23 @@ class OnboardingFlowViewModel @Inject constructor(
         }
     }
 
+    fun createMyHobbies(hobbyList: List<CreateHobbyItemDomain>) = viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true, isMyHobbySelectSaved = false) }
+        flow {
+            emit(createHobbiesUseCase(hobbyList))
+        }.httpCatch("createMyHobbies") { errorData ->
+            _uiState.update { it.copy(isLoading = false, isMyHobbySelectSaved = false) }
+            snackbarManager.show(errorData.message)
+        }.collect { result ->
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isMyHobbySelectSaved = result.isSuccess,
+                )
+            }
+        }
+    }
+
     fun resetOnboardingState() = viewModelScope.launch {
         runCatching {
             removeOnboardingDataUseCase()
@@ -330,6 +350,7 @@ class OnboardingFlowViewModel @Inject constructor(
                 selectedFrequency = null,
                 selectedJourneyMode = null,
                 isOnboardingDataSaved = false,
+                isMyHobbySelectSaved = false,
                 isHobbyRecreated = false,
                 nicknameCheckMessage = "",
                 isNicknameChecked = false,

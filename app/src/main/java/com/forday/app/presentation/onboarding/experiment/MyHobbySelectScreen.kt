@@ -52,27 +52,50 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.designsystem.theme.Pretendard
 import com.forday.app.core.logger.analytics.AnalyticsEvents
+import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
+
+data class MyHobbySelectItem(
+    val hobbyInfoId: Long?,
+    val hobbyName: String,
+)
 
 @Composable
 fun MyHobbySelectRoute(
     onNext: () -> Unit,
     viewModel: OnboardingFlowViewModel = hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         viewModel.logEvent(AnalyticsEvents.MY_HOBBY_SELECT_SCREEN)
     }
 
+    LaunchedEffect(uiState.isMyHobbySelectSaved) {
+        if (uiState.isMyHobbySelectSaved) {
+            viewModel.saveIsOnboardingCompleted(true)
+            onNext()
+        }
+    }
+
     MyHobbySelectScreen(
+        isLoading = uiState.isLoading,
         onBackClick = {},
         onNextClick = { selectedHobbies ->
             viewModel.logEvent(AnalyticsEvents.MY_HOBBY_SELECT_COMPLETE)
-            viewModel.saveIsOnboardingCompleted(true)
-            onNext()
+            viewModel.createMyHobbies(
+                selectedHobbies.map {
+                    CreateHobbyItemDomain(
+                        hobbyInfoId = it.hobbyInfoId,
+                        hobbyName = it.hobbyName,
+                    )
+                }
+            )
         },
     )
 }
@@ -82,22 +105,23 @@ fun MyHobbySelectRoute(
 fun MyHobbySelectScreen(
     userName: String = "유지",
     onBackClick: () -> Unit = {},
-    onNextClick: (List<String>) -> Unit = {},
+    isLoading: Boolean = false,
+    onNextClick: (List<MyHobbySelectItem>) -> Unit = {},
 ) {
     val defaultHobbies = listOf(
-        "그림 그리기",
-        "헬스",
-        "독서",
-        "음악 듣기",
-        "러닝",
-        "요가",
-        "카페 탐방",
-        "영화 보기",
-        "사진 촬영",
-        "글쓰기",
+        MyHobbySelectItem(hobbyInfoId = 1, hobbyName = "그림 그리기"),
+        MyHobbySelectItem(hobbyInfoId = 2, hobbyName = "헬스"),
+        MyHobbySelectItem(hobbyInfoId = 3, hobbyName = "독서"),
+        MyHobbySelectItem(hobbyInfoId = 4, hobbyName = "음악 듣기"),
+        MyHobbySelectItem(hobbyInfoId = 5, hobbyName = "러닝"),
+        MyHobbySelectItem(hobbyInfoId = 6, hobbyName = "요가"),
+        MyHobbySelectItem(hobbyInfoId = 7, hobbyName = "카페 탐방"),
+        MyHobbySelectItem(hobbyInfoId = 8, hobbyName = "영화 보기"),
+        MyHobbySelectItem(hobbyInfoId = 9, hobbyName = "사진 촬영"),
+        MyHobbySelectItem(hobbyInfoId = 10, hobbyName = "글쓰기"),
     )
     val hobbies = remember { mutableStateListOf(*defaultHobbies.toTypedArray()) }
-    val selectedHobbies = remember { mutableStateListOf<String>() }
+    val selectedHobbies = remember { mutableStateListOf<MyHobbySelectItem>() }
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -185,7 +209,7 @@ fun MyHobbySelectScreen(
                     hobbies.forEach { hobby ->
                         val isSelected = hobby in selectedHobbies
                         HobbyChip(
-                            label = hobby,
+                            label = hobby.hobbyName,
                             isSelected = isSelected,
                             onClick = {
                                 if (isSelected) selectedHobbies.remove(hobby)
@@ -215,7 +239,7 @@ fun MyHobbySelectScreen(
             ) {
                 Button(
                     onClick = { onNextClick(selectedHobbies.toList()) },
-                    enabled = selectedHobbies.isNotEmpty(),
+                    enabled = selectedHobbies.isNotEmpty() && !isLoading,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()
@@ -244,9 +268,13 @@ fun MyHobbySelectScreen(
         HobbyAddDialog(
             onDismiss = { showAddDialog = false },
             onConfirm = { newHobby ->
-                if (newHobby.isNotBlank() && newHobby !in hobbies) {
-                    hobbies.add(newHobby)
-                    selectedHobbies.add(newHobby)
+                if (newHobby.isNotBlank() && hobbies.none { it.hobbyName == newHobby }) {
+                    val customHobby = MyHobbySelectItem(
+                        hobbyInfoId = null,
+                        hobbyName = newHobby,
+                    )
+                    hobbies.add(customHobby)
+                    selectedHobbies.add(customHobby)
                 }
                 showAddDialog = false
             },

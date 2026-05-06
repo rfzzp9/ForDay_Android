@@ -1,6 +1,7 @@
 package com.forday.app.data.remote
 
 import com.forday.app.data.model.AiRecommendedEntity
+import com.forday.app.data.model.CreateHobbiesEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
 import com.forday.app.data.model.DeleteRoutineEntity
@@ -24,6 +25,7 @@ import com.forday.app.data.model.WriteRoutineEntity
 import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.RecreateHobbyEntity
 import com.forday.app.remote.model.response.UpdateHobbyDurationResponse
+import com.forday.app.domain.model.CreateHobbyItemDomain
 
 interface HobbyDataSource {
     suspend fun getHobbyCardData(): HobbyCardEntity
@@ -36,6 +38,8 @@ interface HobbyDataSource {
         executionCount: Int?,
         isDurationSet: Boolean?
     ): CreateHobbyEntity
+
+    suspend fun createHobbies(hobbyList: List<CreateHobbyItemDomain>): CreateHobbiesEntity
 
     suspend fun searchHobbymateRoutines(
         hobbyId: Long?,
