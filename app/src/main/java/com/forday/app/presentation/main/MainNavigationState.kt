@@ -119,6 +119,8 @@ fun rememberMainNavigationState(
         add(SelectHobby)
         add(InputNickname)
         add(MyHobbySelect(userName = ""))
+        add(OnboardingSuccess())
+        add(ShowPobbies())
         add(SelectPeriod(mode = ScreenMode.ONBOARDING))
     }
 
