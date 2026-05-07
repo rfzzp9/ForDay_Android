@@ -4,4 +4,6 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object MyHobbySelect : NavKey
+data class MyHobbySelect(
+    val userName: String,
+) : NavKey
