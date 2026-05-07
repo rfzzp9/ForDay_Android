@@ -10,10 +10,14 @@ import com.forday.app.presentation.onboarding.showpobbies.OnboardingSuccessScree
 fun EntryProviderScope<NavKey>.onboardingSuccessNavEntry(
     navigator: Navigator,
 ) {
-    nonTabEntry<OnboardingSuccess> {
+    nonTabEntry<OnboardingSuccess> { backStackEntry ->
         BackHandler(enabled = true) { }
         OnboardingSuccessScreen(
-            onNext = { navigator.navigate(ShowPobbies) },
+            onNext = {
+                navigator.navigate(
+                    ShowPobbies(goHomeOnNext = backStackEntry.goHomeAfterShowPobbies)
+                )
+            },
             onDirectHome = { navigator.resetTo(com.forday.app.presentation.home.navigation.Home) },
         )
     }

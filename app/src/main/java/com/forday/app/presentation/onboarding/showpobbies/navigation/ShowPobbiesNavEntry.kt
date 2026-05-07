@@ -15,13 +15,19 @@ fun EntryProviderScope<NavKey>.showPobbiesNavEntry(
     navigator: Navigator,
     onboardingFlowViewModel: OnboardingFlowViewModel,
 ) {
-    nonTabEntry<ShowPobbies> {
+    nonTabEntry<ShowPobbies> { backStackEntry ->
         val context = LocalContext.current
         BackHandler(enabled = true) {
             context.findActivity()?.finish()
         }
         ShowPobbiesScreen(
-            onNext = { navigator.navigate(com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname) },
+            onNext = {
+                if (backStackEntry.goHomeOnNext) {
+                    navigator.resetTo(com.forday.app.presentation.home.navigation.Home)
+                } else {
+                    navigator.navigate(com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname)
+                }
+            },
             viewModel = onboardingFlowViewModel
         )
     }
