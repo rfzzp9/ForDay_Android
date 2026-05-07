@@ -17,9 +17,13 @@ fun EntryProviderScope<NavKey>.inputNicknameNavEntry(
 ) {
     nonTabEntry<InputNickname> {
         InputNicknameRoute(
-            onNext = {
+            onNext = { userName ->
                 if (onboardingViewModel.uiState.value.onboardingAbVariant == OnboardingAbVariant.NEW) {
-                    navigator.navigate(MyHobbySelect)
+                    navigator.navigate(
+                        MyHobbySelect(
+                            userName = userName,
+                        )
+                    )
                 } else {
                     navigator.resetTo(com.forday.app.presentation.home.navigation.Home)
                 }

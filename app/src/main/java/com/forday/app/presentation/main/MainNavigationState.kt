@@ -118,7 +118,7 @@ fun rememberMainNavigationState(
         add(Login)
         add(SelectHobby)
         add(InputNickname)
-        add(MyHobbySelect)
+        add(MyHobbySelect(userName = ""))
         add(SelectPeriod(mode = ScreenMode.ONBOARDING))
     }
 

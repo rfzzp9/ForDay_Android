@@ -12,8 +12,9 @@ fun EntryProviderScope<NavKey>.myHobbySelectNavEntry(
     navigator: Navigator,
     onboardingFlowViewModel: OnboardingFlowViewModel,
 ) {
-    nonTabEntry<MyHobbySelect> {
+    nonTabEntry<MyHobbySelect> { backStackEntry ->
         MyHobbySelectRoute(
+            userName = backStackEntry.userName,
             onNext = { navigator.resetTo(Home) },
             viewModel = onboardingFlowViewModel,
         )
