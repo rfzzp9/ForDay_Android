@@ -2,12 +2,12 @@ package com.forday.app.presentation.onboarding.nicknameinput.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.main.nonTabEntry
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.OnboardingViewModel
-import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
-import com.forday.app.presentation.onboarding.experiment.navigation.MyHobbySelect
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbNavigationPolicy
 import com.forday.app.presentation.onboarding.nicknameinput.InputNicknameRoute
 
 fun EntryProviderScope<NavKey>.inputNicknameNavEntry(
@@ -18,14 +18,14 @@ fun EntryProviderScope<NavKey>.inputNicknameNavEntry(
     nonTabEntry<InputNickname> {
         InputNicknameRoute(
             onNext = { userName ->
-                if (onboardingViewModel.uiState.value.onboardingAbVariant == OnboardingAbVariant.NEW) {
-                    navigator.navigate(
-                        MyHobbySelect(
-                            userName = userName,
-                        )
-                    )
+                val nextRoute = OnboardingAbNavigationPolicy.routeAfterNicknameRegistration(
+                    variant = onboardingViewModel.uiState.value.onboardingAbVariant,
+                    userName = userName,
+                )
+                if (nextRoute == Home) {
+                    navigator.resetTo(Home)
                 } else {
-                    navigator.resetTo(com.forday.app.presentation.home.navigation.Home)
+                    navigator.navigate(nextRoute)
                 }
             },
             viewModel = onboardingFlowViewModel
