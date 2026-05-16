@@ -19,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
@@ -98,6 +100,7 @@ import com.forday.app.core.designsystem.dialog.RoutineOnlyOneHaveDialog
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.presentation.home.component.FloatingMenuPopup
 import com.forday.app.presentation.home.model.HomeState
+import com.forday.app.presentation.home.model.InProgressHobbyUiModel
 import kotlinx.coroutines.delay
 import timber.log.Timber
 
@@ -447,15 +450,31 @@ fun HomeScreen(
                                 if (showSettingsDropdown) showDropdown = false
                             },
                             onNotificationClick = onNotificationClick,
-                            onAddHobbyClick = onAddHobbyClick,
-                            onCurrentHobbyClick = onCurrentHobbyClick,
-                            onOtherHobbyClick = onOtherHobbyClick,
                             onSettingsIconBottomChanged = { bottomPx ->
                                 settingsIconBottomPx = bottomPx
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(68.dp))
+                        HobbyChipRow(
+                            hobbies = state.inProgressHobbies,
+                            onChipClick = { hobby ->
+                                hobby.hobbyId?.let { hobbyId ->
+                                    if (hobby.isCurrent) {
+                                        onCurrentHobbyClick(hobbyId)
+                                    } else {
+                                        onOtherHobbyClick(hobbyId)
+                                    }
+                                }
+                            },
+                            onSettingClick = {
+                                onSettingsItemClick(SettingsMenuItem.MY_HOBBY_MANAGEMENT)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         MyHobbySection(
                             state = state,
@@ -495,14 +514,14 @@ fun HomeScreen(
                         )
                     }
 
-                    FloatingSettingsButton(
-                        onShowAiRecommendBottomSheet = { showAiBottomSheet = true },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(end = 20.dp)
-                            .padding(top = 62.dp),
-                        state = state
-                    )
+//                    FloatingSettingsButton(
+//                        onShowAiRecommendBottomSheet = { showAiBottomSheet = true },
+//                        modifier = Modifier
+//                            .align(Alignment.TopEnd)
+//                            .padding(end = 20.dp)
+//                            .padding(top = 118.dp),
+//                        state = state
+//                    )
 
                     FloatingBottomButton(
                         isExpanded = showFloatingMenu,
@@ -674,80 +693,19 @@ fun HomeHeader(
     state: HomeState,
     onSettingsClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onAddHobbyClick: () -> Unit,
-    onCurrentHobbyClick: (Long) -> Unit,
-    onOtherHobbyClick: (Long?) -> Unit,
     onSettingsIconBottomChanged: (Float) -> Unit = {}
 ) {
-    val currentHobby = state.inProgressHobbies.find { it.isCurrent }
-    val otherHobby = state.inProgressHobbies.find { !it.isCurrent }
-
     Row(
         modifier = modifier.padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            if (state.inProgressHobbies.isEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(
-                        onClick = rememberThrottledClick { onAddHobbyClick() },
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    )
-                ) {
-                    Text(
-                        text = "취미 추가",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ForDayTheme.color.Gray800
-                    )
-                    Icon(
-                        painter = painterResource(id = R.drawable.icon_chevron_right),
-                        contentDescription = "취미 추가",
-                        modifier = Modifier.size(24.dp),
-                        tint = ForDayTheme.color.Gray800
-                    )
-                }
-            } else {
-                Text(
-                    text = state.inProgressHobbies.getOrNull(0)?.name ?: "",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ForDayTheme.color.Gray800,
-                    modifier = Modifier.clickable(
-                        onClick = rememberThrottledClick { currentHobby?.hobbyId?.let { onCurrentHobbyClick(it) } },
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    )
-                )
-
-                if (otherHobby != null) {
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(12.dp)
-                            .background(ForDayTheme.color.Gray500)
-                            .rotate(90f)
-                    )
-
-                    Text(
-                        text = state.inProgressHobbies.getOrNull(1)?.name ?: "",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ForDayTheme.color.Gray500,
-                        modifier = Modifier.clickable(
-                            onClick = rememberThrottledClick { onOtherHobbyClick(otherHobby.hobbyId) },
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        )
-                    )
-                }
-            }
-        }
+        Text(
+            text = "${state.nickName.orEmpty()}님의 취미",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 26.sp,
+            color = ForDayTheme.color.Gray800
+        )
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -795,6 +753,98 @@ fun HomeHeader(
                     ),
                 tint = Color(0xFF1E1E1E)
             )
+        }
+    }
+}
+
+@Composable
+fun HobbyChipRow(
+    hobbies: List<InProgressHobbyUiModel>,
+    onChipClick: (InProgressHobbyUiModel) -> Unit,
+    onSettingClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            hobbies.forEach { hobby ->
+                val isSelected = hobby.isCurrent
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (isSelected) Color(0xFFFF9447) else Color.White,
+                            shape = RoundedCornerShape(18.dp)
+                        )
+                        .then(
+                            if (isSelected) {
+                                Modifier
+                            } else {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = Color(0xFFE5E5E5),
+                                    shape = RoundedCornerShape(18.dp)
+                                )
+                            }
+                        )
+                        .clickable(
+                            onClick = rememberThrottledClick { onChipClick(hobby) },
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = hobby.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 19.6.sp,
+                        color = if (isSelected) Color.White else Color(0xFF3A3A3A),
+                        maxLines = 1
+                    )
+                }
+            }
+
+            if (hobbies.isEmpty()) {
+                Spacer(modifier = Modifier.width(1.dp))
+            }
+
+            Spacer(modifier = Modifier.width(84.dp))
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color.White, RoundedCornerShape(40.dp))
+                    .border(1.dp, Color(0xFFE5E5E5), RoundedCornerShape(40.dp))
+                    .clickable(
+                        onClick = rememberThrottledClick { onSettingClick() },
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_home_menu),
+                    contentDescription = "취미 설정",
+                    modifier = Modifier.size(20.dp),
+                    tint = Color(0xFF3A3A3A)
+                )
+            }
         }
     }
 }
@@ -925,18 +975,9 @@ fun MyHobbySection(
                             }
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp, vertical = 6.dp)
-                            .then(
-                                if (!state.inProgressHobbies.isEmpty() && state.routinePreview?.routineId != null) {
-                                    Modifier.background(
-                                        brush = ForDayTheme.gradients.gradient002,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                } else {
-                                    Modifier.background(
-                                        color = ForDayTheme.color.Primary03,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                }
+                            .background(
+                                brush = ForDayTheme.gradients.gradient002,
+                                shape = RoundedCornerShape(12.dp)
                             ),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent
@@ -953,7 +994,7 @@ fun MyHobbySection(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.W700,
                             lineHeight = 16.8.sp,
-                            color = if (state.inProgressHobbies.isEmpty() || state.routinePreview?.routineId == null) Color(0xFFFF9447) else Color(0xFFFFFFFF)
+                            color = Color.White
                         )
                     }
                 }
