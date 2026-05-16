@@ -178,7 +178,6 @@ fun HomeRoute(
             viewModel.fetchSpecificRoutineList(currentHobbyId, 5)
             viewModel.fetchStickerHistory(currentHobbyId, 28, null)
         }
-        viewModel.getUserNickname()
     }
 
     val isRecordedToday = state.stickerInfo?.activityRecordedToday == true &&

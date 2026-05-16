@@ -99,7 +99,7 @@ class HobbyDataSourceImpl @Inject constructor(
         hobbyApi.getAiRecommendedRoutines(hobbyId).toData()
 
     override suspend fun getHomeHobby(hobbyId: Long?): HomeHobbyEntity =
-        hobbyApi.getHomeHobby(hobbyId).toData()
+        hobbyApi.getHomeHobbyV2(hobbyId).toData()
 
     override suspend fun getSpecificRoutineList(hobbyId: Long?, size: Int?): RoutineListEntity =
         hobbyApi.getSpecificRoutineList(hobbyId, size).toData()

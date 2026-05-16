@@ -14,7 +14,8 @@ data class HomeHobbyDataDomain(
     val recommendMessage: String, // 추가: "포데이 AI가 알맞은 취미활동을 추천해드려요"
     val aiCallRemaining: Boolean,
     val aiCallRemainingCount: Int?,
-    val unReadNotificationExists: Boolean
+    val unReadNotificationExists: Boolean,
+    val nickname: String
 )
 
 data class InProgressHobbyDomain(

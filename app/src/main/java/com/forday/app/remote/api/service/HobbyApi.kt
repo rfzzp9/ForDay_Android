@@ -82,6 +82,11 @@ interface HobbyApi {
         @Query("hobbyId") hobbyId: Long?
     ): HomeHobbyResponse
 
+    @GET("/api/v2/hobbies/home")
+    suspend fun getHomeHobbyV2(
+        @Query("hobbyId") hobbyId: Long?
+    ): HomeHobbyResponse
+
     @GET("/hobbies/{hobbyId}/activities")
     suspend fun getSpecificRoutineList( // 특정 취미의 활동 목록 조회
         @Path("hobbyId") hobbyId: Long?,
