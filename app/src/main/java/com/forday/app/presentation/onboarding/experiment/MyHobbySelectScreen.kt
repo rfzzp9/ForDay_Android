@@ -67,6 +67,7 @@ data class MyHobbySelectItem(
 
 @Composable
 fun MyHobbySelectRoute(
+    userName: String,
     onNext: () -> Unit,
     viewModel: OnboardingFlowViewModel = hiltViewModel(),
 ) {
@@ -84,6 +85,7 @@ fun MyHobbySelectRoute(
     }
 
     MyHobbySelectScreen(
+        userName = userName,
         isLoading = uiState.isLoading,
         onBackClick = {},
         onNextClick = { selectedHobbies ->

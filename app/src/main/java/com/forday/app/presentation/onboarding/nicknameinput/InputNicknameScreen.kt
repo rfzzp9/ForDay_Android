@@ -86,10 +86,11 @@ data class NicknameScreenDimensions(
 
 @Composable
 fun InputNicknameRoute(
-    onNext: () -> Unit,
+    onNext: (String) -> Unit,
     viewModel: OnboardingFlowViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var submittedNickname by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.logEvent(AnalyticsEvents.NICKNAME_INPUT_SCREEN)
@@ -99,15 +100,16 @@ fun InputNicknameRoute(
     LaunchedEffect(uiState.nicknameRegisterSuccess) {
         if (uiState.nicknameRegisterSuccess) {
             viewModel.saveIsNicknameSet(true)
-            onNext()
+            onNext(submittedNickname)
         }
     }
 
     InputNicknameScreen(
         uiState = uiState,
-        onNext = {
+        onNext = { nickname ->
             viewModel.logEvent(AnalyticsEvents.NICKNAME_REGISTER_CLICK)
-            viewModel.registerNickname(uiState.selectedHobbyName)
+            submittedNickname = nickname
+            viewModel.registerNickname(nickname)
             // ✅ 여기서는 API 호출만! navigation은 LaunchedEffect에서 처리
             Unit
         },
@@ -126,7 +128,7 @@ fun InputNicknameRoute(
 @Composable
 fun InputNicknameScreen(
     uiState: OnboardingUiState = OnboardingUiState(),
-    onNext: () -> Unit = {},
+    onNext: (String) -> Unit = {},
     onCheckDuplicate: (String) -> Unit = {},
     onNicknameChange: () -> Unit = {}
 ) {
@@ -270,7 +272,7 @@ fun InputNicknameScreen(
 
         BottomButton(
             enabled = isNicknameValid,
-            onClick = onNext,
+            onClick = { onNext(nickname) },
             dimensions = dimensions
         )
     }

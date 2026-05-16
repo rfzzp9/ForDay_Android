@@ -22,7 +22,7 @@ fun EntryProviderScope<NavKey>.selectPeriodNavEntry(
             params = backStackEntry.params,
             mode = backStackEntry.mode,
             onNext = {
-                if (backStackEntry.mode == ScreenMode.ONBOARDING) navigator.navigate(OnboardingSuccess)
+                if (backStackEntry.mode == ScreenMode.ONBOARDING) navigator.navigate(OnboardingSuccess())
                 else navigator.goBack()
             },
             onBack = {
