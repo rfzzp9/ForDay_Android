@@ -54,7 +54,8 @@ import com.dayn.forday.R
 import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
-import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbNavigationPolicy
+import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import timber.log.Timber
 
 @Composable
@@ -95,16 +96,18 @@ fun LoginRoute(
                 loginAttempted = false
             }
 
-            state.isOnboardingCompleted == false &&
-                state.onboardingAbVariant == OnboardingAbVariant.NEW -> {
-                Timber.e("@@@@@@@ Navigate to InputNickname for onboarding A/B test")
-                onNavigateToNewOnboardingNickname()
-                loginAttempted = false
-            }
-
             state.isOnboardingCompleted == false -> {
-                Timber.e("@@@@@@@ Navigate to Onboarding")
-                onNavigateToOnboarding()
+                when (OnboardingAbNavigationPolicy.routeAfterIncompleteOnboarding(state.onboardingAbVariant)) {
+                    InputNickname -> {
+                        Timber.e("@@@@@@@ Navigate to InputNickname for onboarding A/B test")
+                        onNavigateToNewOnboardingNickname()
+                    }
+
+                    else -> {
+                        Timber.e("@@@@@@@ Navigate to Onboarding")
+                        onNavigateToOnboarding()
+                    }
+                }
                 loginAttempted = false
             }
 

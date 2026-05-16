@@ -27,11 +27,10 @@ import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.mypage.routinedetail.navigation.RoutineDetail
 import com.forday.app.presentation.onboarding.OnboardingSideEffect
 import com.forday.app.presentation.onboarding.OnboardingViewModel
-import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbNavigationPolicy
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.login.navigation.Login
-import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
@@ -135,11 +134,11 @@ internal fun HandleOnboardingSideEffects(
                     navigator.resetTo(Login)
                 }
                 is OnboardingSideEffect.TermsConsentSuccess -> {
-                    if (onboardingViewModel.uiState.value.onboardingAbVariant == OnboardingAbVariant.NEW) {
-                        navigator.navigate(InputNickname)
-                    } else {
-                        navigator.navigate(SelectHobby)
-                    }
+                    navigator.navigate(
+                        OnboardingAbNavigationPolicy.routeAfterTermsConsent(
+                            onboardingViewModel.uiState.value.onboardingAbVariant
+                        )
+                    )
                 }
                 is OnboardingSideEffect.RequestNotificationPermission -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
