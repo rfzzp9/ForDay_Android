@@ -109,8 +109,7 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 
 enum class SettingsMenuItem(val label: String) {
-    MY_HOBBY_MANAGEMENT("내 취미관리"),
-    ADD_HOBBY("취미 추가"),  // 활동리스트 관리 -> 취미 추가로 변경
+    HOBBY_SETTING("취미설정"),
     ALL_SETTINGS("전체설정")
 }
 
@@ -227,8 +226,7 @@ fun HomeRoute(
             onMoveRecordedRoutine = onMoveRecordedRoutine,
             onSettingsItemClick = { menuItem ->
                 when (menuItem) {
-                    SettingsMenuItem.MY_HOBBY_MANAGEMENT -> onModifyHobby()
-                    SettingsMenuItem.ADD_HOBBY -> onSelectHobby()
+                    SettingsMenuItem.HOBBY_SETTING -> onModifyHobby()
                     SettingsMenuItem.ALL_SETTINGS -> onAllSettingsClick()
                 }
             },
@@ -466,7 +464,7 @@ fun HomeScreen(
                                 }
                             },
                             onSettingClick = {
-                                onSettingsItemClick(SettingsMenuItem.MY_HOBBY_MANAGEMENT)
+                                onSettingsItemClick(SettingsMenuItem.HOBBY_SETTING)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -604,12 +602,7 @@ fun HomeScreen(
                     )
             )
 
-            val inProgressHobbyCount = state.inProgressHobbies.size
-            val settingsMenuItems = remember(inProgressHobbyCount) {
-                SettingsMenuItem.values().filter { item ->
-                    item != SettingsMenuItem.ADD_HOBBY || inProgressHobbyCount <= 1
-                }
-            }
+            val settingsMenuItems = remember { SettingsMenuItem.values().toList() }
             val dropdownTopDp = with(density) { (settingsIconBottomPx - containerTopPx).toDp() } + 8.dp
             SettingsDropdown(
                 items = settingsMenuItems,

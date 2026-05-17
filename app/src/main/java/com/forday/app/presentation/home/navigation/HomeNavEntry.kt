@@ -6,13 +6,13 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.forday.app.core.designsystem.component.navigationbar.BottomBarTab
 import com.forday.app.presentation.home.HomeRoute
+import com.forday.app.presentation.home.hobbysetting.navigation.HomeHobbySetting
 import com.forday.app.presentation.inputhobbyroutines.navigation.InputRoutine
 import com.forday.app.presentation.main.MainNavigationState
 import com.forday.app.presentation.main.MainTabScaffold
 import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.main.toNavKey
 import com.forday.app.presentation.main.toBottomBarTab
-import com.forday.app.presentation.modifyhobby.navigation.ModifyHobby
 import com.forday.app.presentation.modifyroutine.navigation.ModifyRoutine
 import com.forday.app.presentation.mypage.routinedetail.navigation.RoutineDetail
 import com.forday.app.presentation.notification.navigation.Notification
@@ -53,7 +53,7 @@ fun EntryProviderScope<NavKey>.homeNavEntry(
                     Timber.e("@@@@@@#######routineId : $hobbyId")
                     navigator.navigate(RecordRoutine(hobbyId, entryPoint = entryPoint, hobbyName = hobbyName, activityName = activityName))
                 },
-                onModifyHobby = { navigator.navigate(ModifyHobby) },
+                onModifyHobby = { navigator.navigate(HomeHobbySetting) },
                 onAllSettingsClick = { navigator.navigate(Settings) },
                 onNotificationClick = { navigator.navigate(Notification) },
                 onMoveRecordedRoutine = { recordId -> navigator.navigate(RoutineDetail(recordId.toLong())) },
