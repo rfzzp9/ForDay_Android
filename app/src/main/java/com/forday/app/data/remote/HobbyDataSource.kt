@@ -4,6 +4,7 @@ import com.forday.app.data.model.AiRecommendedEntity
 import com.forday.app.data.model.CreateHobbiesEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
+import com.forday.app.data.model.DeleteHobbyEntity
 import com.forday.app.data.model.DeleteRoutineEntity
 import com.forday.app.data.model.HobbyCardAgainEntity
 import com.forday.app.data.model.HobbyCardEntity
@@ -11,6 +12,7 @@ import com.forday.app.data.model.HobbyMainImageEntity
 import com.forday.app.data.model.HobbyRoutineListEntity
 import com.forday.app.data.model.HobbyStickerHistoryEntity
 import com.forday.app.data.model.HomeHobbyEntity
+import com.forday.app.data.model.HomeHobbySettingEntity
 import com.forday.app.data.model.MyHobbyListEntity
 import com.forday.app.data.model.RoutineListEntity
 import com.forday.app.data.model.SearchHobbyMateRoutinesEntity
@@ -26,6 +28,8 @@ import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.RecreateHobbyEntity
 import com.forday.app.remote.model.response.UpdateHobbyDurationResponse
 import com.forday.app.domain.model.CreateHobbyItemDomain
+import com.forday.app.domain.model.HomeHobbySettingHiddenHobbyRequestDomain
+import com.forday.app.domain.model.HomeHobbySettingProgressHobbyRequestDomain
 
 interface HobbyDataSource {
     suspend fun getHobbyCardData(): HobbyCardEntity
@@ -55,11 +59,19 @@ interface HobbyDataSource {
 
     suspend fun getMyHobbyList(hobbyStatus: String?): MyHobbyListEntity
 
+    suspend fun getHomeHobbySettingList(): HomeHobbySettingEntity
+
+    suspend fun updateHomeHobbySettingList(
+        progressHobbyList: List<HomeHobbySettingProgressHobbyRequestDomain>,
+        hiddenHobbyList: List<HomeHobbySettingHiddenHobbyRequestDomain>,
+    ): HomeHobbySettingEntity
+
     suspend fun writeRoutine(routineId: Long, sticker: String, memo: String, imageUrl: String, visibility: String): WriteRoutineEntity
     suspend fun modifyHobbyTime(hobbyId: Long?, minutes: Int): UpdateHobbyTimeEntity
     suspend fun modifyHobbyExecutionCount(hobbyId: Long?, executionCount: Int): UpdateHobbyExecutionCountEntity
     suspend fun modifyHobbyDuration(hobbyId: Long?, goalDays: Boolean): UpdateHobbyDurationEntity
     suspend fun changeHobbyStatus(hobbyId: Long?, hobbyStatus: String): UpdateHobbyStatusEntity
+    suspend fun deleteHobby(hobbyId: Long): DeleteHobbyEntity
     suspend fun getHobbyRoutineList(hobbyId: Long?): HobbyRoutineListEntity
     suspend fun modifyHobbyRoutine(routineId: Long, content: String): UpdateRoutineEntity
     suspend fun deleteHobbyRoutine(routineId: Long): DeleteRoutineEntity

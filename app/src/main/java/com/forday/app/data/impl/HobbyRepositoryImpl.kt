@@ -7,6 +7,7 @@ import com.forday.app.domain.model.CreateHobbiesDomain
 import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
+import com.forday.app.domain.model.DeleteHobbyDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
 import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
@@ -14,6 +15,9 @@ import com.forday.app.domain.model.HobbyMainImageDomain
 import com.forday.app.domain.model.HobbyRoutineListDomain
 import com.forday.app.domain.model.HobbyStickerHistoryDomain
 import com.forday.app.domain.model.HomeHobbyDomain
+import com.forday.app.domain.model.HomeHobbySettingDomain
+import com.forday.app.domain.model.HomeHobbySettingHiddenHobbyRequestDomain
+import com.forday.app.domain.model.HomeHobbySettingProgressHobbyRequestDomain
 import com.forday.app.domain.model.MyHobbyListDomain
 import com.forday.app.domain.model.RoutineListDomain
 import com.forday.app.domain.model.SearchHobbyMateRoutinesDomain
@@ -80,6 +84,18 @@ class HobbyRepositoryImpl @Inject constructor(
     override suspend fun getMyHobbyList(hobbyStatus: String?): MyHobbyListDomain =         // 내 취미 설정 페이지 조회?
         hobbyDataSource.getMyHobbyList(hobbyStatus).toDomain()
 
+    override suspend fun getHomeHobbySettingList(): HomeHobbySettingDomain =
+        hobbyDataSource.getHomeHobbySettingList().toDomain()
+
+    override suspend fun updateHomeHobbySettingList(
+        progressHobbyList: List<HomeHobbySettingProgressHobbyRequestDomain>,
+        hiddenHobbyList: List<HomeHobbySettingHiddenHobbyRequestDomain>,
+    ): HomeHobbySettingDomain =
+        hobbyDataSource.updateHomeHobbySettingList(
+            progressHobbyList = progressHobbyList,
+            hiddenHobbyList = hiddenHobbyList,
+        ).toDomain()
+
     override suspend fun writeRoutine(  // 취미활동 기록하기
         routineId: Long,
         sticker: String,
@@ -109,6 +125,9 @@ class HobbyRepositoryImpl @Inject constructor(
         hobbyStatus: String
     ): UpdateHobbyStatusDomain =
         hobbyDataSource.changeHobbyStatus(hobbyId, hobbyStatus).toDomain()
+
+    override suspend fun deleteHobby(hobbyId: Long): DeleteHobbyDomain =
+        hobbyDataSource.deleteHobby(hobbyId).toDomain()
 
     override suspend fun getHobbyRoutineList(hobbyId: Long?): HobbyRoutineListDomain =
         hobbyDataSource.getHobbyRoutineList(hobbyId).toDomain()
