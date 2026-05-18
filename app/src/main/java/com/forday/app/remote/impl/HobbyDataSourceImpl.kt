@@ -4,6 +4,7 @@ import com.forday.app.data.model.AiRecommendedEntity
 import com.forday.app.data.model.CreateHobbiesEntity
 import com.forday.app.data.model.CreateHobbyEntity
 import com.forday.app.data.model.CreateRoutinesEntity
+import com.forday.app.data.model.DeleteHobbyEntity
 import com.forday.app.data.model.DeleteRoutineEntity
 import com.forday.app.data.model.HobbyCardAgainEntity
 import com.forday.app.data.model.HobbyCardEntity
@@ -11,6 +12,7 @@ import com.forday.app.data.model.HobbyMainImageEntity
 import com.forday.app.data.model.HobbyRoutineListEntity
 import com.forday.app.data.model.HobbyStickerHistoryEntity
 import com.forday.app.data.model.HomeHobbyEntity
+import com.forday.app.data.model.HomeHobbySettingEntity
 import com.forday.app.data.model.MyHobbyListEntity
 import com.forday.app.data.model.RoutineListEntity
 import com.forday.app.data.model.SearchHobbyMateRoutinesEntity
@@ -25,6 +27,8 @@ import com.forday.app.data.model.PreviousAiRecommendEntity
 import com.forday.app.data.model.WriteRoutineEntity
 import com.forday.app.data.remote.HobbyDataSource
 import com.forday.app.domain.model.CreateHobbyItemDomain
+import com.forday.app.domain.model.HomeHobbySettingHiddenHobbyRequestDomain
+import com.forday.app.domain.model.HomeHobbySettingProgressHobbyRequestDomain
 import com.forday.app.remote.api.service.HobbyApi
 import com.forday.app.remote.model.request.CreateHobbiesRequest
 import com.forday.app.remote.model.request.CreateHobbyItemRequest
@@ -33,6 +37,9 @@ import com.forday.app.remote.model.request.CreateRoutinesRequest
 import com.forday.app.remote.model.request.ExtendHobbyRequest
 import com.forday.app.remote.model.request.HobbyIdRequest
 import com.forday.app.remote.model.request.HobbyMainImageRequest
+import com.forday.app.remote.model.request.HomeHobbySettingHiddenHobbyRequest
+import com.forday.app.remote.model.request.HomeHobbySettingProgressHobbyRequest
+import com.forday.app.remote.model.request.HomeHobbySettingRequest
 import com.forday.app.remote.model.request.HobbyStatusRequest
 import com.forday.app.remote.model.request.ModifyHobbyDurationRequest
 import com.forday.app.remote.model.request.ModifyHobbyExecutionCountRequest
@@ -107,6 +114,30 @@ class HobbyDataSourceImpl @Inject constructor(
     override suspend fun getMyHobbyList(hobbyStatus: String?): MyHobbyListEntity =
         hobbyApi.getMyHobbyList(hobbyStatus).toData()
 
+    override suspend fun getHomeHobbySettingList(): HomeHobbySettingEntity =
+        hobbyApi.getHomeHobbySettingList().toData()
+
+    override suspend fun updateHomeHobbySettingList(
+        progressHobbyList: List<HomeHobbySettingProgressHobbyRequestDomain>,
+        hiddenHobbyList: List<HomeHobbySettingHiddenHobbyRequestDomain>,
+    ): HomeHobbySettingEntity =
+        hobbyApi.updateHomeHobbySettingList(
+            HomeHobbySettingRequest(
+                progressHobbyList = progressHobbyList.map {
+                    HomeHobbySettingProgressHobbyRequest(
+                        hobbyId = it.hobbyId,
+                        sequence = it.sequence,
+                    )
+                },
+                hiddenHobbyList = hiddenHobbyList.map {
+                    HomeHobbySettingHiddenHobbyRequest(
+                        hobbyId = it.hobbyId,
+                        sequence = it.sequence,
+                    )
+                },
+            )
+        ).toData()
+
     override suspend fun writeRoutine(
         routineId: Long,
         sticker: String,
@@ -138,6 +169,9 @@ class HobbyDataSourceImpl @Inject constructor(
         hobbyStatus: String
     ): UpdateHobbyStatusEntity =
         hobbyApi.changeHobbyStatus(hobbyId, HobbyStatusRequest(hobbyStatus)).toData()
+
+    override suspend fun deleteHobby(hobbyId: Long): DeleteHobbyEntity =
+        hobbyApi.deleteHobby(hobbyId).toData()
 
     override suspend fun getHobbyRoutineList(hobbyId: Long?): HobbyRoutineListEntity =
         hobbyApi.getHobbyRoutineList(hobbyId).toData()

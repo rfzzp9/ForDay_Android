@@ -27,6 +27,7 @@ import com.forday.app.presentation.allsettings.settings.navigation.Settings
 import com.forday.app.presentation.allsettings.privacypolicy.navigation.PrivacyPolicy
 import com.forday.app.presentation.allsettings.termsofservice.navigation.TermsOfService
 import com.forday.app.presentation.discovery.navigation.Discovery
+import com.forday.app.presentation.home.hobbysetting.navigation.HomeHobbySetting
 import com.forday.app.presentation.home.navigation.Home
 import com.forday.app.presentation.inputhobbyroutines.navigation.InputRoutine
 import com.forday.app.presentation.modifyhobby.navigation.ModifyHobby
@@ -186,6 +187,7 @@ val serializersConfig = SavedStateConfiguration {
             subclass(InputRoutine::class, InputRoutine.serializer())
             subclass(RoutineDetail::class, RoutineDetail.serializer())
             subclass(ModifyHobby::class, ModifyHobby.serializer())
+            subclass(HomeHobbySetting::class, HomeHobbySetting.serializer())
             subclass(ProfileSetting::class, ProfileSetting.serializer())
             subclass(HobbyPhotoSetting::class, HobbyPhotoSetting.serializer())
             subclass(SaveCard::class, SaveCard.serializer())

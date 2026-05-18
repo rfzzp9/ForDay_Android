@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ fun CommonDialog(
     showCloseIcon: Boolean = true,
     primaryButtonText: String = "Button",
     secondaryButtonText: String = "Button",
+    isSecondaryButtonVisible: Boolean = false,
     onPrimaryClick: () -> Unit = {},
     onSecondaryClick: () -> Unit = {},
     onDismiss: () -> Unit = {},
@@ -51,6 +53,7 @@ fun CommonDialog(
                 showCloseIcon = showCloseIcon,
                 primaryButtonText = primaryButtonText,
                 secondaryButtonText = secondaryButtonText,
+                isSecondaryButtonVisible = isSecondaryButtonVisible,
                 onPrimaryClick = onPrimaryClick,
                 onSecondaryClick = onSecondaryClick,
                 onCloseClick = onDismiss
@@ -76,14 +79,14 @@ fun DialogContent(
             .width(312.dp)
             .background(
                 color = ForDayTheme.color.White,
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(16.dp)
             )
-            .padding(vertical = 24.dp)
+            .padding(top = 24.dp, bottom = 18.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -110,20 +113,24 @@ fun DialogContent(
             }
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = bodyText,
                 style = ForDayTheme.typography.label14,
                 color = ForDayTheme.color.Gray800,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Start,
                 modifier = Modifier.fillMaxWidth()
             )
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         Row(
             modifier = Modifier
@@ -136,7 +143,7 @@ fun DialogContent(
                     modifier = Modifier
                         .weight(1f)
                         .height(40.dp)
-                        .clip(RoundedCornerShape(40.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(ForDayTheme.color.Gray03)
                         .clickable { onSecondaryClick() },
                     contentAlignment = Alignment.Center
@@ -154,7 +161,7 @@ fun DialogContent(
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
-                    .clip(RoundedCornerShape(40.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(ForDayTheme.color.Orange01)
                     .clickable { onPrimaryClick() },
                 contentAlignment = Alignment.Center
@@ -179,6 +186,7 @@ fun DialogCard(
     showCloseIcon: Boolean = true,
     primaryButtonText: String = "Button",
     secondaryButtonText: String = "Button",
+    isSecondaryButtonVisible: Boolean = false,
     onPrimaryClick: () -> Unit = {},
     onSecondaryClick: () -> Unit = {},
     onCloseClick: () -> Unit = {}
@@ -189,6 +197,7 @@ fun DialogCard(
         showCloseIcon = showCloseIcon,
         primaryButtonText = primaryButtonText,
         secondaryButtonText = secondaryButtonText,
+        isSecondaryButtonVisible = isSecondaryButtonVisible,
         onPrimaryClick = onPrimaryClick,
         onSecondaryClick = onSecondaryClick,
         onCloseClick = onCloseClick
