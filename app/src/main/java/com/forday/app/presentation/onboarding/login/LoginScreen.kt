@@ -55,6 +55,7 @@ import com.forday.app.core.designsystem.theme.ForDayTheme
 import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.presentation.onboarding.OnboardingViewModel
 import com.forday.app.presentation.onboarding.experiment.OnboardingAbNavigationPolicy
+import com.forday.app.presentation.onboarding.experiment.navigation.MyHobbySelect
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 import timber.log.Timber
 
@@ -64,6 +65,7 @@ fun LoginRoute(
     onNavigateToOnboarding: () -> Unit,
     onNavigateToNickname: () -> Unit,
     onNavigateToNewOnboardingNickname: () -> Unit,
+    onNavigateToNewOnboardingHobbySelect: (String) -> Unit,
     onNavigateToTerms: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
@@ -97,10 +99,21 @@ fun LoginRoute(
             }
 
             state.isOnboardingCompleted == false -> {
-                when (OnboardingAbNavigationPolicy.routeAfterIncompleteOnboarding(state.onboardingAbVariant)) {
+                when (
+                    OnboardingAbNavigationPolicy.routeAfterIncompleteOnboarding(
+                        variant = state.onboardingAbVariant,
+                        isNicknameSet = state.isNicknameSet,
+                        userName = state.userNickname.orEmpty(),
+                    )
+                ) {
                     InputNickname -> {
                         Timber.e("@@@@@@@ Navigate to InputNickname for onboarding A/B test")
                         onNavigateToNewOnboardingNickname()
+                    }
+
+                    is MyHobbySelect -> {
+                        Timber.e("@@@@@@@ Navigate to MyHobbySelect for onboarding A/B test")
+                        onNavigateToNewOnboardingHobbySelect(state.userNickname.orEmpty())
                     }
 
                     else -> {

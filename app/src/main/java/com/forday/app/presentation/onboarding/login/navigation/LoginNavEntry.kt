@@ -5,6 +5,7 @@ import androidx.navigation3.runtime.NavKey
 import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.main.nonTabEntry
 import com.forday.app.presentation.onboarding.OnboardingViewModel
+import com.forday.app.presentation.onboarding.experiment.navigation.MyHobbySelect
 import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.login.LoginRoute
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
@@ -47,6 +48,10 @@ fun EntryProviderScope<NavKey>.loginNavEntry(
             onNavigateToNewOnboardingNickname = {
                 Timber.e("MainFlow(Login) - navigate to InputNickname requested")
                 navigator.resetTo(InputNickname)
+            },
+            onNavigateToNewOnboardingHobbySelect = { userName ->
+                Timber.e("MainFlow(Login) - navigate to MyHobbySelect requested")
+                navigator.resetTo(MyHobbySelect(userName = userName))
             },
             onNavigateToTerms = {
                 Timber.e("MainFlow(Login) - navigate to TermsAgreement requested")
