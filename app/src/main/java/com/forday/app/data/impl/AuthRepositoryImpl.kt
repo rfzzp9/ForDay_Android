@@ -74,6 +74,10 @@ internal class AuthRepositoryImpl @Inject constructor(
                 Log.e("AuthRepository", "kakaoLogin: saveIsNicknameSet success")
                 Timber.d("kakaoLogin: saveIsNicknameSet success")
 
+                userLocalDataSource.saveIsTermsAgreementRequired(loginData.data.isNewUser)
+                Log.e("AuthRepository", "kakaoLogin: saveIsTermsAgreementRequired success")
+                Timber.d("kakaoLogin: saveIsTermsAgreementRequired success")
+
                 userLocalDataSource.saveOnboardingData(
                     loginData.data.onboardingData?.hobbyCardId?.toLong(),
                     loginData.data.onboardingData?.hobbyName,
@@ -124,6 +128,7 @@ internal class AuthRepositoryImpl @Inject constructor(
             // 온보딩/닉네임 상태 저장 (카카오 로그인과 동일)
             userLocalDataSource.saveIsOnboardingCompleted(loginResponse.data.onboardingCompleted)
             userLocalDataSource.saveIsNicknameSet(loginResponse.data.nicknameSet)
+            userLocalDataSource.saveIsTermsAgreementRequired(false)
             userLocalDataSource.saveNickname(loginResponse.data.nickname)
             userLocalDataSource.saveOnboardingData(
                 loginResponse.data.onboardingData?.id,
@@ -155,6 +160,8 @@ internal class AuthRepositoryImpl @Inject constructor(
     override fun getIsNicknameSet(): Flow<Boolean?> =
         userLocalDataSource.getIsNicknameSet()
 
+    override fun getIsTermsAgreementRequired(): Flow<Boolean?> =
+        userLocalDataSource.getIsTermsAgreementRequired()
 
     override suspend fun saveIsOnboardingCompleted(isOnboardingCompleted: Boolean) =
         userLocalDataSource.saveIsOnboardingCompleted(isOnboardingCompleted)
@@ -162,6 +169,9 @@ internal class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun saveIsNicknameSet(isNicknameSet: Boolean) =
         userLocalDataSource.saveIsNicknameSet(isNicknameSet)
+
+    override suspend fun saveIsTermsAgreementRequired(isTermsAgreementRequired: Boolean) =
+        userLocalDataSource.saveIsTermsAgreementRequired(isTermsAgreementRequired)
 
     override fun getHasSeenIntro(): Flow<Boolean> =
         userLocalDataSource.hasSeenIntroFlow
@@ -233,12 +243,14 @@ internal class AuthRepositoryImpl @Inject constructor(
         privateConsent: Boolean,
         recordPushConsent: Boolean
     ): Result<TermsConsentDomain> = runCatching {
-        authDataSource.consentTerms(
+        val termsConsent = authDataSource.consentTerms(
             serviceConsent = serviceConsent,
             ageOver14Consent = ageOver14Consent,
             privateConsent = privateConsent,
             recordPushConsent = recordPushConsent
         ).toDomain()
+        userLocalDataSource.saveIsTermsAgreementRequired(false)
+        termsConsent
     }
 
 }

@@ -20,6 +20,7 @@ data class OnboardingUiState(
     val isNewUser: Boolean? = null,
     val isNicknameSet: Boolean? = null,
     val isOnboardingCompleted: Boolean? = null,
+    val isTermsAgreementRequired: Boolean? = null,
     val userNickname: String? = null,
     val hobbyId: Int? = null,
     val accessToken: String? = null,
