@@ -109,8 +109,8 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 
 enum class SettingsMenuItem(val label: String) {
-    HOBBY_SETTING("취미설정"),
-    ALL_SETTINGS("전체설정")
+    HOBBY_SETTING("취미 설정"),
+    ALL_SETTINGS("전체 설정")
 }
 
 fun getStickerDrawable(stickerUrl: String?): Int {
