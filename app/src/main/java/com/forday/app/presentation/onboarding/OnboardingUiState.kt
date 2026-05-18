@@ -20,6 +20,8 @@ data class OnboardingUiState(
     val isNewUser: Boolean? = null,
     val isNicknameSet: Boolean? = null,
     val isOnboardingCompleted: Boolean? = null,
+    val isTermsAgreementRequired: Boolean? = null,
+    val userNickname: String? = null,
     val hobbyId: Int? = null,
     val accessToken: String? = null,
     val selectedHobbyId: Long? = null,// ✅ 최종 선택된 취미 아이디

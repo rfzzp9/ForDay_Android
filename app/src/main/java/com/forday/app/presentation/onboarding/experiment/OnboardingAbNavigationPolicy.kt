@@ -7,10 +7,17 @@ import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
 import com.forday.app.presentation.onboarding.nicknameinput.navigation.InputNickname
 
 object OnboardingAbNavigationPolicy {
-    fun routeAfterIncompleteOnboarding(variant: OnboardingAbVariant): NavKey =
+    fun routeAfterIncompleteOnboarding(
+        variant: OnboardingAbVariant,
+        isNicknameSet: Boolean? = false,
+        userName: String = "",
+    ): NavKey =
         when (variant) {
             OnboardingAbVariant.OLD -> SelectHobby
-            OnboardingAbVariant.NEW -> InputNickname
+            OnboardingAbVariant.NEW -> {
+                if (isNicknameSet == true) MyHobbySelect(userName = userName)
+                else InputNickname
+            }
         }
 
     fun routeAfterTermsConsent(variant: OnboardingAbVariant): NavKey =

@@ -18,8 +18,10 @@ interface AuthRepository {
     fun getGuestUserId(): Flow<String?>
     fun getIsOnboardingCompleted(): Flow<Boolean?>
     fun getIsNicknameSet(): Flow<Boolean?>
+    fun getIsTermsAgreementRequired(): Flow<Boolean?>
     suspend fun saveIsOnboardingCompleted(isOnboardingCompleted: Boolean)
     suspend fun saveIsNicknameSet(isNicknameSet: Boolean)
+    suspend fun saveIsTermsAgreementRequired(isTermsAgreementRequired: Boolean)
     fun getHasSeenIntro(): Flow<Boolean>
     suspend fun saveHasSeenIntro(hasSeen: Boolean)
     suspend fun removeAccessToken()  // 지우지 말고 로그아웃 시 사용

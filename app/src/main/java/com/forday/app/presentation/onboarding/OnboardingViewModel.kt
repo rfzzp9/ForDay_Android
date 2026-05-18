@@ -16,7 +16,9 @@ import com.forday.app.domain.usecase.GetGuestUserIdUseCase
 import com.forday.app.domain.usecase.GetHasSeenIntroUseCase
 import com.forday.app.domain.usecase.GetIsNicknameSetUseCase
 import com.forday.app.domain.usecase.GetIsOnboardingCompletedUseCase
+import com.forday.app.domain.usecase.GetIsTermsAgreementRequiredUseCase
 import com.forday.app.domain.usecase.GetSocialTypeUseCase
+import com.forday.app.domain.usecase.GetUserNicknameUseCase
 import com.forday.app.domain.usecase.GuestLoginUseCase
 import com.forday.app.domain.usecase.KakaoLoginUseCase
 import com.forday.app.domain.usecase.RemoveOnboardingDataUseCase
@@ -24,10 +26,11 @@ import com.forday.app.domain.usecase.SaveHasSeenIntroUseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
 import com.forday.app.presentation.home.navigation.Home
-import com.forday.app.presentation.onboarding.hobbyselect.navigation.SelectHobby
+import com.forday.app.presentation.onboarding.experiment.OnboardingAbNavigationPolicy
 import com.forday.app.presentation.onboarding.experiment.OnboardingAbVariant
 import com.forday.app.presentation.onboarding.login.navigation.Login
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
+import com.forday.app.presentation.onboarding.termsagreement.navigation.TermsAgreement
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.kakao.sdk.auth.model.OAuthToken
@@ -62,6 +65,8 @@ class OnboardingViewModel @Inject constructor(
     private val getAccessTokenUseCase: GetAccessTokenUseCase,
     private val getIsOnboardingCompletedUseCase: GetIsOnboardingCompletedUseCase,
     private val getIsNicknameSetUseCase: GetIsNicknameSetUseCase,
+    private val getIsTermsAgreementRequiredUseCase: GetIsTermsAgreementRequiredUseCase,
+    private val getUserNicknameUseCase: GetUserNicknameUseCase,
     private val removeOnboardingDataUseCase: RemoveOnboardingDataUseCase,
     private val getHasSeenIntroUseCase: GetHasSeenIntroUseCase,
     private val saveHasSeenIntroUseCase: SaveHasSeenIntroUseCase,
@@ -128,8 +133,15 @@ class OnboardingViewModel @Inject constructor(
                 val route = when {
                     freshState.accessToken == null && freshState.hasSeenIntro == false -> SwipeIntroRoute
                     freshState.accessToken == null -> Login
-                    freshState.isOnboardingCompleted == false -> SelectHobby
+                    freshState.isTermsAgreementRequired == true -> TermsAgreement
                     freshState.isOnboardingCompleted == true && freshState.isNicknameSet == true -> Home
+                    freshState.isOnboardingCompleted == false -> {
+                        OnboardingAbNavigationPolicy.routeAfterIncompleteOnboarding(
+                            variant = freshState.onboardingAbVariant,
+                            isNicknameSet = freshState.isNicknameSet,
+                            userName = freshState.userNickname.orEmpty(),
+                        )
+                    }
                     else -> SelectPeriod(mode = ScreenMode.ONBOARDING)
                 }
 
@@ -148,16 +160,26 @@ class OnboardingViewModel @Inject constructor(
             getAccessTokenUseCase(),
             getIsOnboardingCompletedUseCase(),
             getIsNicknameSetUseCase(),
-        ) { accessToken, isOnboardingCompleted, isNicknameSet ->
-            Triple(accessToken, isOnboardingCompleted, isNicknameSet)
+            getIsTermsAgreementRequiredUseCase(),
+            getUserNicknameUseCase(),
+        ) { accessToken, isOnboardingCompleted, isNicknameSet, isTermsAgreementRequired, userNickname ->
+            OnboardingUserData(
+                accessToken = accessToken,
+                isOnboardingCompleted = isOnboardingCompleted,
+                isNicknameSet = isNicknameSet,
+                isTermsAgreementRequired = isTermsAgreementRequired,
+                userNickname = userNickname,
+            )
         }.catch { throwable ->
             snackbarManager.show(throwable.toUserMessage(UserMessageCategory.AUTH))
-        }.collect { (accessToken, isOnboardingCompleted, isNicknameSet) ->
+        }.collect { userData ->
             _uiState.update {
                 it.copy(
-                    accessToken = accessToken,
-                    isOnboardingCompleted = isOnboardingCompleted,
-                    isNicknameSet = isNicknameSet,
+                    accessToken = userData.accessToken,
+                    isOnboardingCompleted = userData.isOnboardingCompleted,
+                    isNicknameSet = userData.isNicknameSet,
+                    isTermsAgreementRequired = userData.isTermsAgreementRequired,
+                    userNickname = userData.userNickname,
                 )
             }
         }
@@ -247,6 +269,7 @@ class OnboardingViewModel @Inject constructor(
                 isNewUser = null,
                 isNicknameSet = null,
                 isOnboardingCompleted = null,
+                isTermsAgreementRequired = null,
                 errorData = null,
                 error = "",
             )
@@ -386,3 +409,11 @@ class OnboardingViewModel @Inject constructor(
             }
         }
 }
+
+private data class OnboardingUserData(
+    val accessToken: String?,
+    val isOnboardingCompleted: Boolean?,
+    val isNicknameSet: Boolean?,
+    val isTermsAgreementRequired: Boolean?,
+    val userNickname: String?,
+)

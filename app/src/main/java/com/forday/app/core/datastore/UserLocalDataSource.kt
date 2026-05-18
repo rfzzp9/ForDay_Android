@@ -48,6 +48,7 @@ class UserLocalDataSource @Inject constructor(
 
         private val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
         private val IS_NICKNAME_SET = booleanPreferencesKey("is_nickname_set")
+        private val IS_TERMS_AGREEMENT_REQUIRED = booleanPreferencesKey("is_terms_agreement_required")
         private val HAS_SEEN_INTRO = booleanPreferencesKey("has_seen_intro")
 
         private val CREATED_HOBBY_ID = longPreferencesKey("created_hobby_id")
@@ -81,6 +82,7 @@ class UserLocalDataSource @Inject constructor(
     val socialTypeFlow = dataStore.data.map { it[SOCIAL_TYPE] ?: "" }
     val isOnboardingCompletedFlow = dataStore.data.map { it[IS_ONBOARDING_COMPLETED] == true }
     val isNicknameSetFlow = dataStore.data.map { it[IS_NICKNAME_SET] == true }
+    val isTermsAgreementRequiredFlow = dataStore.data.map { it[IS_TERMS_AGREEMENT_REQUIRED] == true }
     val hasSeenIntroFlow = dataStore.data.map { it[HAS_SEEN_INTRO] == true }
 
     suspend fun saveUserNickname(nickname: String) {
@@ -153,6 +155,10 @@ class UserLocalDataSource @Inject constructor(
 
     suspend fun saveIsNicknameSet(isNicknameSet: Boolean) {
         dataStore.edit { it[IS_NICKNAME_SET] = isNicknameSet }
+    }
+
+    suspend fun saveIsTermsAgreementRequired(isTermsAgreementRequired: Boolean) {
+        dataStore.edit { it[IS_TERMS_AGREEMENT_REQUIRED] = isTermsAgreementRequired }
     }
 
     suspend fun saveHasSeenIntro(hasSeen: Boolean) {
@@ -286,6 +292,7 @@ class UserLocalDataSource @Inject constructor(
         dataStore.edit {
             it.remove(IS_ONBOARDING_COMPLETED)
             it.remove(IS_NICKNAME_SET)
+            it.remove(IS_TERMS_AGREEMENT_REQUIRED)
             it.remove(USER_NICKNAME)
             it.remove(KAKAO_USER_ID)
             it.remove(HOBBY_ID_1)
@@ -327,6 +334,12 @@ class UserLocalDataSource @Inject constructor(
     fun getIsNicknameSet(): Flow<Boolean> {
         return dataStore.data.map { preferences ->
             preferences[IS_NICKNAME_SET] == true
+        }
+    }
+
+    fun getIsTermsAgreementRequired(): Flow<Boolean> {
+        return dataStore.data.map { preferences ->
+            preferences[IS_TERMS_AGREEMENT_REQUIRED] == true
         }
     }
 
