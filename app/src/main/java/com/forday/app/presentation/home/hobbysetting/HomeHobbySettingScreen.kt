@@ -61,6 +61,7 @@ private val ColorNeutral800 = Color(0xFF3A3A3A)
 private val ColorNeutral400 = Color(0xFFB5B5B5)
 private val ColorWhite = Color.White
 private const val ACTIVE_HOBBY_LIST_START_INDEX = 2
+private const val MAX_ACTIVE_HOBBY_COUNT = 10
 
 @Composable
 fun HomeHobbySettingRoute(
@@ -147,6 +148,7 @@ fun HomeHobbySettingScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             HobbyTopAppBar(
                 isDeleteMode = state.isDeleteMode,
+                isActiveHobbyLimitReached = state.activeHobbies.size >= MAX_ACTIVE_HOBBY_COUNT,
                 onBackClick = onBackClick,
                 onDeleteClick = onDeleteClick,
                 onAddClick = onAddClick,
@@ -221,6 +223,7 @@ fun HomeHobbySettingScreen(
 @Composable
 private fun HobbyTopAppBar(
     isDeleteMode: Boolean,
+    isActiveHobbyLimitReached: Boolean,
     onBackClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onAddClick: () -> Unit,
@@ -276,7 +279,8 @@ private fun HobbyTopAppBar(
                         ),
                 )
             }
-            Icon(
+            if (isDeleteMode || !isActiveHobbyLimitReached) {
+                Icon(
                 painter = painterResource(id = if (isDeleteMode) R.drawable.ic_close else R.drawable.ic_plus),
                 contentDescription = if (isDeleteMode) "삭제 모드 닫기" else "취미 추가",
                 tint = ColorNeutral800,
@@ -287,7 +291,8 @@ private fun HobbyTopAppBar(
                         indication = null,
                         onClick = if (isDeleteMode) onCloseDeleteModeClick else onAddClick,
                     ),
-            )
+                )
+            }
         }
     }
 }
@@ -322,7 +327,7 @@ private fun HobbySettingList(
     ) {
         item {
             Text(
-                text = "취미는 + - 버튼을 눌러 최대 10개 까지 추가할 수 있어요.\n꾹 눌러서 이동하면 노출 순서를 변경할 수 있어요.",
+                text = "+ - 버튼을 눌러 최대 10개 까지 추가할 수 있어요.\n꾹 눌러서 이동하면 노출 순서를 변경할 수 있어요.",
                 style = TextStyle(
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
@@ -391,6 +396,7 @@ private fun HobbySettingList(
                     onPlus = { onActivateHobby(item) },
                     onDeleteClick = { onDeleteHobbyClick(item) },
                     isDeleteMode = state.isDeleteMode,
+                    isActiveHobbyLimitReached = state.activeHobbies.size >= MAX_ACTIVE_HOBBY_COUNT,
                 )
             }
         }
@@ -480,6 +486,7 @@ private fun HiddenHobbyRow(
     onPlus: () -> Unit,
     onDeleteClick: () -> Unit,
     isDeleteMode: Boolean,
+    isActiveHobbyLimitReached: Boolean,
 ) {
     Row(
         modifier = Modifier
@@ -510,7 +517,7 @@ private fun HiddenHobbyRow(
                 contentDescription = "취미 삭제",
                 onClick = onDeleteClick,
             )
-        } else {
+        } else if (!isActiveHobbyLimitReached) {
             CircleIconButton(
                 iconRes = R.drawable.ic_active,
                 contentDescription = "취미 활성화",
