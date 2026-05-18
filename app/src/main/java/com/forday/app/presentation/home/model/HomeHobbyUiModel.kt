@@ -8,7 +8,8 @@ data class HomeHobbyUiModel(
     val recommendMessage: String,
     val aiCallRemaining: Boolean,
     val aiCallRemainingCount: Int?,
-    val unReadNotificationExists: Boolean = false
+    val unReadNotificationExists: Boolean = false,
+    val nickname: String = ""
 )
 
 data class InProgressHobbyUiModel(

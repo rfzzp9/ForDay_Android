@@ -1,7 +1,6 @@
 package com.forday.app.presentation.home
 
 import androidx.lifecycle.viewModelScope
-import com.forday.app.core.datastore.UserLocalDataSource
 import com.forday.app.core.logger.analytics.AnalyticsEvent
 import com.forday.app.core.logger.analytics.AnalyticsEvents
 import com.forday.app.core.logger.analytics.AnalyticsManager
@@ -14,7 +13,6 @@ import com.forday.app.domain.usecase.GetHomeHobbyUseCase
 import com.forday.app.domain.usecase.GetMyHobbyListUseCase
 import com.forday.app.domain.usecase.GetSpecificRoutineListUseCase
 import com.forday.app.domain.usecase.GetStickersUseCase
-import com.forday.app.domain.usecase.GetUserNicknameUseCase
 import com.forday.app.domain.usecase.WriteRoutineUseCase
 import com.forday.app.presentation.BaseViewModel
 import com.forday.app.presentation.common.SnackbarManager
@@ -46,8 +44,6 @@ class HomeViewModel @Inject constructor(
     private val getStickersUseCase: GetStickersUseCase,  // 스티커판 조회
     private val getAiRecommendedRoutinesUseCase: GetAiRecommendedRoutinesUseCase,  // ai 활동 추천
     private val getAiRecommendedRoutinesAgainUseCase: GetAiRecommendedRoutinesAgainUseCase,  // ai 활동 재조회
-    private val getUserNicknameUseCase: GetUserNicknameUseCase,
-    private val userLocalDataSource: UserLocalDataSource,
     private val createRoutinesUseCase: CreateRoutinesUseCase,  // 취미활동 생성
     private val snackbarManager: SnackbarManager,
 ) : BaseViewModel<HomeSideEffect>() {
@@ -92,6 +88,7 @@ class HomeViewModel @Inject constructor(
                         userSummaryText = uiModel.userSummaryText,
                         recommendMessage = uiModel.recommendMessage,
                         unReadNotificationExists = uiModel.unReadNotificationExists,
+                        nickName = uiModel.nickname,
                         // [참고] 아래 필드들은 현재 API 응답(data)에 없으므로 기존 상태를 유지하거나
                         // 다른 API를 통해 업데이트해야 합니다. 주석 처리하거나 제거하세요.
                         // stickerCnt = ...,
@@ -291,24 +288,6 @@ class HomeViewModel @Inject constructor(
                 _sideEffectChannel.send(HomeSideEffect.CreateRoutinesSuccess("AI 취미활동을 담았어요."))
             }
         }
-
-    fun getUserNickname() = viewModelScope.launch {
-        getUserNicknameUseCase()
-            .catch { throwable ->
-                throwable.printStackTrace()
-                val message = when (throwable) {
-                    is HttpException -> throwable.logAndExtractServerMessage(tag = "getUserNickname")
-                    else -> null
-                }
-                snackbarManager.show(message ?: throwable.toUserMessage())
-            }.collect { data ->
-                _uiState.update { state ->
-                    state.copy(
-                        nickName = data
-                    )
-                }
-            }
-    }
 
     fun logEvent(logEvent: String) {
         analyticsManager.logEvent(logEvent)

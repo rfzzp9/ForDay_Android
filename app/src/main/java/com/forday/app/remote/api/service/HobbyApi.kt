@@ -6,6 +6,7 @@ import com.forday.app.remote.model.request.CreateRoutinesRequest
 import com.forday.app.remote.model.request.ExtendHobbyRequest
 import com.forday.app.remote.model.request.HobbyIdRequest
 import com.forday.app.remote.model.request.HobbyMainImageRequest
+import com.forday.app.remote.model.request.HomeHobbySettingRequest
 import com.forday.app.remote.model.request.HobbyStatusRequest
 import com.forday.app.remote.model.request.ModifyHobbyDurationRequest
 import com.forday.app.remote.model.request.ModifyHobbyExecutionCountRequest
@@ -18,6 +19,7 @@ import com.forday.app.remote.model.response.CreateHobbyResponse
 import com.forday.app.remote.model.response.CreateHobbiesResponse
 import com.forday.app.remote.model.response.PreviousAiRecommendResponse
 import com.forday.app.remote.model.response.CreateRoutinesResponse
+import com.forday.app.remote.model.response.DeleteHobbyResponse
 import com.forday.app.remote.model.response.DeleteRoutineResponse
 import com.forday.app.remote.model.response.HobbyCardAgainResponse
 import com.forday.app.remote.model.response.HobbyCardResponse
@@ -27,6 +29,7 @@ import com.forday.app.remote.model.response.HobbyStickerHistoryResponse
 import com.forday.app.remote.model.response.HobbyStickerHistoryWrapperResponse
 import com.forday.app.remote.model.response.MyHobbyListResponse
 import com.forday.app.remote.model.response.HomeHobbyResponse
+import com.forday.app.remote.model.response.HomeHobbySettingResponse
 import com.forday.app.remote.model.response.RoutineListResponse
 import com.forday.app.remote.model.response.SearchHobbyMateRoutinesResponse
 import com.forday.app.remote.model.response.SetHobbyPeriodResponse
@@ -82,6 +85,11 @@ interface HobbyApi {
         @Query("hobbyId") hobbyId: Long?
     ): HomeHobbyResponse
 
+    @GET("/api/v2/hobbies/home")
+    suspend fun getHomeHobbyV2(
+        @Query("hobbyId") hobbyId: Long?
+    ): HomeHobbyResponse
+
     @GET("/hobbies/{hobbyId}/activities")
     suspend fun getSpecificRoutineList( // 특정 취미의 활동 목록 조회
         @Path("hobbyId") hobbyId: Long?,
@@ -92,6 +100,14 @@ interface HobbyApi {
     suspend fun getMyHobbyList(  // 내 취미 설정 페이지 조회
         @Query("hobbyStatus") hobbyStatus: String?
     ): MyHobbyListResponse
+
+    @GET("/api/v2/hobbies/setting")
+    suspend fun getHomeHobbySettingList(): HomeHobbySettingResponse
+
+    @PUT("/api/v2/hobbies/setting")
+    suspend fun updateHomeHobbySettingList(
+        @Body body: HomeHobbySettingRequest
+    ): HomeHobbySettingResponse
 
     @POST("/hobbies/activities/{activityId}/record")   // 활동 기록하기
     suspend fun writeRoutine(
@@ -123,7 +139,12 @@ interface HobbyApi {
         @Body body: HobbyStatusRequest  // 바꾸고자 하는 취미 상태
     ): UpdateHobbyStatusResponse
 
-    @GET("/hobbies/{hobbyId}/activities/list")  // 활동 리스트 조회
+    @DELETE("/hobbies/{hobbyId}")
+    suspend fun deleteHobby(
+        @Path("hobbyId") hobbyId: Long
+    ): DeleteHobbyResponse
+
+    @GET("/hobbies/{hobbyId}/activities/list")
     suspend fun getHobbyRoutineList(
         @Path("hobbyId") hobbyId: Long?,
     ): HobbyRoutineListResponse

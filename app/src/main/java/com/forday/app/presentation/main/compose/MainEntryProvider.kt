@@ -10,6 +10,7 @@ import com.forday.app.presentation.allsettings.privacypolicy.navigation.privacyP
 import com.forday.app.presentation.allsettings.settings.navigation.settingsNavEntry
 import com.forday.app.presentation.allsettings.termsofservice.navigation.termsOfServiceNavEntry
 import com.forday.app.presentation.discovery.navigation.discoveryNavEntry
+import com.forday.app.presentation.home.hobbysetting.navigation.homeHobbySettingNavEntry
 import com.forday.app.presentation.home.navigation.homeNavEntry
 import com.forday.app.presentation.inputhobbyroutines.AiRoutineItemState
 import com.forday.app.presentation.inputhobbyroutines.navigation.inputRoutineNavEntry
@@ -193,6 +194,7 @@ private fun EntryProviderScope<NavKey>.registerFeatureEntries(
     routineAiRecommendNavEntry(navigator = navigator, onPendingAiRoutineChange = onPendingAiRoutineChange)
     modifyRoutineNavEntry(navigator = navigator)
     modifyHobbyNavEntry(navigator = navigator)
+    homeHobbySettingNavEntry(navigator = navigator)
     routineDetailNavEntry(navigator = navigator, myPageViewModel = myPageViewModel)
     registerNavEntry(navigator = navigator, myPageViewModel = myPageViewModel)
     saveCardNavEntry(navigator = navigator)

@@ -5,6 +5,7 @@ import com.forday.app.domain.model.CreateHobbiesDomain
 import com.forday.app.domain.model.CreateHobbyItemDomain
 import com.forday.app.domain.model.CreateHobbyDomain
 import com.forday.app.domain.model.CreateRoutinesDomain
+import com.forday.app.domain.model.DeleteHobbyDomain
 import com.forday.app.domain.model.DeleteRoutineDomain
 import com.forday.app.domain.model.HobbyCardAgainDomain
 import com.forday.app.domain.model.HobbyCardDomain
@@ -12,6 +13,9 @@ import com.forday.app.domain.model.HobbyMainImageDomain
 import com.forday.app.domain.model.HobbyRoutineListDomain
 import com.forday.app.domain.model.HobbyStickerHistoryDomain
 import com.forday.app.domain.model.HomeHobbyDomain
+import com.forday.app.domain.model.HomeHobbySettingHiddenHobbyRequestDomain
+import com.forday.app.domain.model.HomeHobbySettingDomain
+import com.forday.app.domain.model.HomeHobbySettingProgressHobbyRequestDomain
 import com.forday.app.domain.model.MyHobbyListDomain
 import com.forday.app.domain.model.RoutineListDomain
 import com.forday.app.domain.model.SearchHobbyMateRoutinesDomain
@@ -55,11 +59,19 @@ interface HobbyRepository {
 
     suspend fun getMyHobbyList(hobbyStatus: String?): MyHobbyListDomain
 
+    suspend fun getHomeHobbySettingList(): HomeHobbySettingDomain
+
+    suspend fun updateHomeHobbySettingList(
+        progressHobbyList: List<HomeHobbySettingProgressHobbyRequestDomain>,
+        hiddenHobbyList: List<HomeHobbySettingHiddenHobbyRequestDomain>,
+    ): HomeHobbySettingDomain
+
     suspend fun writeRoutine(routineId: Long, sticker: String, memo: String, imageUrl: String, visibility: String): WriteRoutineDomain
     suspend fun modifyHobbyTime(hobbyId: Long?, minutes: Int): UpdateHobbyTimeDomain
     suspend fun modifyHobbyExecutionCount(hobbyId: Long?, executionCount: Int): UpdateHobbyExecutionCountDomain
     suspend fun modifyHobbyDuration(hobbyId: Long?, goalDays: Boolean): UpdateHobbyDurationDomain
     suspend fun changeHobbyStatus(hobbyId: Long?, hobbyStatus: String): UpdateHobbyStatusDomain
+    suspend fun deleteHobby(hobbyId: Long): DeleteHobbyDomain
     suspend fun getHobbyRoutineList(hobbyId: Long?): HobbyRoutineListDomain
     suspend fun modifyHobbyRoutine(routineId: Long, content: String): UpdateRoutineDomain
     suspend fun deleteHobbyRoutine(routineId: Long): DeleteRoutineDomain

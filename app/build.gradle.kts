@@ -152,6 +152,7 @@ dependencies {
 
     // UI Effects
     implementation(libs.compose.shimmer)
+    implementation(libs.reorderable)
 
     // Firebase
     implementation(platform(libs.firebaseBom))
