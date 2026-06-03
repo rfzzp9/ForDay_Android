@@ -74,8 +74,12 @@ fun HomeHobbySettingRoute(
         viewModel.loadHobbies()
     }
 
-    LaunchedEffect(state.saveCompleted) {
-        if (state.saveCompleted) onBackClick()
+    LaunchedEffect(Unit) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                HomeHobbySettingSideEffect.NavigateBack -> onBackClick()
+            }
+        }
     }
 
     val handleBackClick = {

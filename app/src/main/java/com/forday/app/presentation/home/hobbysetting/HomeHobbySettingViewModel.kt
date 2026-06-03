@@ -27,7 +27,7 @@ class HomeHobbySettingViewModel @Inject constructor(
     private val createHobbiesUseCase: CreateHobbiesUseCase,
     private val deleteHobbyUseCase: DeleteHobbyUseCase,
     private val snackbarManager: SnackbarManager,
-) : BaseViewModel<Unit>() {
+) : BaseViewModel<HomeHobbySettingSideEffect>() {
 
     private val _uiState = MutableStateFlow(HomeHobbySettingUiState())
     val uiState: StateFlow<HomeHobbySettingUiState> = _uiState.toStateIn()
@@ -39,7 +39,7 @@ class HomeHobbySettingViewModel @Inject constructor(
     private var pendingActionAfterSave: PendingActionAfterSave? = null
 
     fun loadHobbies() = viewModelScope.launch {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, saveCompleted = false) }
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         runCatching {
             val data = getHomeHobbySettingListUseCase().data
@@ -272,7 +272,7 @@ class HomeHobbySettingViewModel @Inject constructor(
             )
         }
 
-        _uiState.update { it.copy(isSaving = true, errorMessage = null, saveCompleted = false) }
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
 
         runCatching {
             updateHomeHobbySettingListUseCase(
@@ -293,8 +293,10 @@ class HomeHobbySettingViewModel @Inject constructor(
                     showSaveChangesDialog = false,
                     isDeleteMode = pendingAction == PendingActionAfterSave.ENTER_DELETE_MODE,
                     showAddDialog = pendingAction == PendingActionAfterSave.SHOW_ADD_DIALOG,
-                    saveCompleted = pendingAction == null,
                 )
+            }
+            if (pendingAction == null) {
+                _sideEffectChannel.send(HomeHobbySettingSideEffect.NavigateBack)
             }
         }.onFailure { throwable ->
             pendingActionAfterSave = null
