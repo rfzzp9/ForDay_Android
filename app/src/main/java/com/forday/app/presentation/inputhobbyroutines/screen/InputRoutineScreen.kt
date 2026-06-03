@@ -480,13 +480,6 @@ fun InputRoutineScreen(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AIRecommendationButton(
-                onCreateAiRoutines = onAIRecommendationRoutines,
-                enabled = true,
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    onAiRecommendationButtonTopYChanged(coordinates.positionInRoot().y)
-                }
-            )
             BottomButton2(
                 enabled = hasValidActivities,
                 onCreateRoutines = {
