@@ -21,5 +21,4 @@ data class HomeHobbySettingUiState(
     val showSaveChangesDialog: Boolean = false,
     val showHobbyLimitDialog: Boolean = false,
     val errorMessage: String? = null,
-    val saveCompleted: Boolean = false,
 )
