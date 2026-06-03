@@ -22,8 +22,11 @@ fun EntryProviderScope<NavKey>.selectPeriodNavEntry(
             params = backStackEntry.params,
             mode = backStackEntry.mode,
             onNext = {
-                if (backStackEntry.mode == ScreenMode.ONBOARDING) navigator.navigate(OnboardingSuccess())
-                else navigator.goBack()
+                when (backStackEntry.mode) {
+                    ScreenMode.ONBOARDING -> navigator.navigate(OnboardingSuccess())
+                    ScreenMode.ADD_FROM_HOME -> navigator.popBackStack(5)
+                    ScreenMode.DEFAULT -> navigator.goBack()
+                }
             },
             onBack = {
                 Timber.e("@@@@@@@@@@@@@@ onBack")

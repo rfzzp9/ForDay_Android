@@ -52,6 +52,18 @@ class Navigator(val state: MainNavigationState) {
         handleBack()
     }
 
+    fun popBackStack(count: Int) {
+        val currentStack = state.backStacks[state.topLevelRoute]
+            ?: error("Back stack for ${state.topLevelRoute} doesn't exist")
+
+        repeat(count.coerceAtLeast(0)) {
+            if (currentStack.size > 1) {
+                currentStack.removeLastOrNull()
+            }
+        }
+        state.notifyNavChanged()
+    }
+
     /**
      * 뒤로가기를 실제로 처리했는지 반환합니다.
      *

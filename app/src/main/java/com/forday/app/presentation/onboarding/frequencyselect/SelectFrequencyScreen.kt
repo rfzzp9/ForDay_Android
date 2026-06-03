@@ -115,7 +115,7 @@ fun SelectFrequencyRoute(
         },
         onFrequencySelect = { frequency ->
             viewModel.logEvent(AnalyticsEvents.hobbyWeeklyCount(frequency))
-            if (mode == ScreenMode.ONBOARDING) {
+            if (mode != ScreenMode.DEFAULT) {
                 viewModel.saveFrequency(frequency)
             }
         },

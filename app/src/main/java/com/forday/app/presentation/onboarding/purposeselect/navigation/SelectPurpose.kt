@@ -4,4 +4,7 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object SelectPurpose : NavKey  //취미 목적 선택 화면
+data object SelectPurpose : NavKey
+
+@Serializable
+data object SelectPurposeFromModify : NavKey

@@ -35,7 +35,7 @@ fun EntryProviderScope<NavKey>.selectHobbyFromModifyNavEntry(
 ) {
     nonTabEntry<SelectHobbyFromModify>(backgroundColor = Color(0xFFF9F9F9)) {
         SelectHobbyRoute(
-            onNext = { navigator.navigate(SelectPerTime(mode = ScreenMode.ONBOARDING)) },
+            onNext = { navigator.navigate(SelectPerTime(mode = ScreenMode.ADD_FROM_HOME)) },
             onBack = { navigator.goBack() },
             viewModel = onboardingFlowViewModel,
             fromModifyHobbyOrHome = true

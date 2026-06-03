@@ -173,7 +173,7 @@ fun SubTopAppBar(
                 interactionSource = remember { NoRippleInteractionSource() }
             ) {
                 Icon(
-                    painter = painterResource(id = if (mode == ScreenMode.ONBOARDING) R.drawable.ic_arrow_back else R.drawable.ic_close),
+                    painter = painterResource(id = if (mode != ScreenMode.DEFAULT) R.drawable.ic_arrow_back else R.drawable.ic_close),
                     contentDescription = "뒤로가기",
                     modifier = Modifier.size(24.dp),
                     tint = ForDayTheme.color.Gray800

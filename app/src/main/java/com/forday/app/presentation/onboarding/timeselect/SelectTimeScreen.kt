@@ -71,7 +71,7 @@ import kotlinx.serialization.Serializable
 import timber.log.Timber
 
 @Serializable
-enum class ScreenMode { ONBOARDING, DEFAULT }
+enum class ScreenMode { ONBOARDING, DEFAULT, ADD_FROM_HOME }
 
 // hobbyInfoId에 따라 아이콘 리소스를 반환하는 함수
 fun getHobbyIconResource(hobbyInfoId: Int?): Int {
@@ -105,7 +105,7 @@ fun SelectTimeRoute(
     }
 
     // ONBOARDING 모드에서 selectedMinutes가 null이면 기본값 10을 ViewModel에 저장
-    if (mode == ScreenMode.ONBOARDING && state.selectedMinutes == null) {
+    if (mode != ScreenMode.DEFAULT && state.selectedMinutes == null) {
         viewModel.saveTime(10)
     }
 
@@ -120,7 +120,7 @@ fun SelectTimeRoute(
         onTimeSelected = { minutes ->
             viewModel.logEvent(AnalyticsEvents.selectedTime(minutes))
             // ONBOARDING 모드일 때만 즉시 저장
-            if (mode == ScreenMode.ONBOARDING) {
+            if (mode != ScreenMode.DEFAULT) {
                 viewModel.saveTime(minutes)
             }
         },
@@ -251,7 +251,8 @@ fun SelectTimeScreen(
                                 )
                             }
                         }
-                        ScreenMode.ONBOARDING -> {
+                        ScreenMode.ONBOARDING,
+                        ScreenMode.ADD_FROM_HOME -> {
                             // ONBOARDING 모드: 기존 데이터 사용
 //                        if (currentTime > 0) {
                             hobby?.let {

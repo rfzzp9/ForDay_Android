@@ -7,6 +7,7 @@ import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.main.nonTabEntry
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
+import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurposeFromModify
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.forday.app.presentation.onboarding.timeselect.SelectTimeRoute
 
@@ -18,8 +19,11 @@ fun EntryProviderScope<NavKey>.selectPerTimeNavEntry(
         SelectTimeRoute(
             params = backStackEntry.params,
             onNext = {
-                if (backStackEntry.mode == ScreenMode.ONBOARDING) navigator.navigate(SelectPurpose)
-                else navigator.goBack()
+                when (backStackEntry.mode) {
+                    ScreenMode.ONBOARDING -> navigator.navigate(SelectPurpose)
+                    ScreenMode.ADD_FROM_HOME -> navigator.navigate(SelectPurposeFromModify)
+                    ScreenMode.DEFAULT -> navigator.goBack()
+                }
             },
             onBack = { navigator.goBack() },
             viewModel = onboardingFlowViewModel,

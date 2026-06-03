@@ -47,6 +47,7 @@ import com.forday.app.presentation.onboarding.experiment.navigation.MyHobbySelec
 import com.forday.app.presentation.onboarding.periodselect.navigation.SelectPeriod
 import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurpose
+import com.forday.app.presentation.onboarding.purposeselect.navigation.SelectPurposeFromModify
 import com.forday.app.presentation.onboarding.showpobbies.navigation.OnboardingSuccess
 import com.forday.app.presentation.onboarding.showpobbies.navigation.ShowPobbies
 import com.forday.app.presentation.onboarding.splash.navigation.Splash
@@ -173,6 +174,7 @@ val serializersConfig = SavedStateConfiguration {
             subclass(SelectHobbyFromModify::class, SelectHobbyFromModify.serializer())
             subclass(SelectPerTime::class, SelectPerTime.serializer())
             subclass(SelectPurpose::class, SelectPurpose.serializer())
+            subclass(SelectPurposeFromModify::class, SelectPurposeFromModify.serializer())
             subclass(SelectPerWeek::class, SelectPerWeek.serializer())
             subclass(SelectPeriod::class, SelectPeriod.serializer())
             subclass(OnboardingSuccess::class, OnboardingSuccess.serializer())
