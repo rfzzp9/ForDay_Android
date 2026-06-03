@@ -51,7 +51,7 @@ fun EntryProviderScope<NavKey>.loginNavEntry(
             },
             onNavigateToNewOnboardingHobbySelect = { userName ->
                 Timber.e("MainFlow(Login) - navigate to MyHobbySelect requested")
-                navigator.resetTo(MyHobbySelect(userName = userName))
+                navigator.navigate(MyHobbySelect(userName = userName))
             },
             onNavigateToTerms = {
                 Timber.e("MainFlow(Login) - navigate to TermsAgreement requested")
