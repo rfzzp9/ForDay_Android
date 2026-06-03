@@ -35,7 +35,7 @@ fun OnboardingLayout(
             onBack = onBack
         )
 
-        if (mode == ScreenMode.ONBOARDING) ForDayProgressBar(progress = progress)
+        if (mode != ScreenMode.DEFAULT) ForDayProgressBar(progress = progress)
 
         Box(modifier = Modifier.fillMaxSize()) {
             content()

@@ -7,8 +7,8 @@ import com.forday.app.presentation.main.Navigator
 import com.forday.app.presentation.main.nonTabEntry
 import com.forday.app.presentation.onboarding.OnboardingFlowViewModel
 import com.forday.app.presentation.onboarding.frequencyselect.navigation.SelectPerWeek
-import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 import com.forday.app.presentation.onboarding.purposeselect.SelectPurposeRoute
+import com.forday.app.presentation.onboarding.timeselect.ScreenMode
 
 fun EntryProviderScope<NavKey>.selectPurposeNavEntry(
     navigator: Navigator,
@@ -17,6 +17,14 @@ fun EntryProviderScope<NavKey>.selectPurposeNavEntry(
     nonTabEntry<SelectPurpose>(backgroundColor = Color(0xFFF9F9F9)) {
         SelectPurposeRoute(
             onNext = { navigator.navigate(SelectPerWeek(mode = ScreenMode.ONBOARDING)) },
+            onBack = { navigator.goBack() },
+            viewModel = onboardingFlowViewModel
+        )
+    }
+
+    nonTabEntry<SelectPurposeFromModify>(backgroundColor = Color(0xFFF9F9F9)) {
+        SelectPurposeRoute(
+            onNext = { navigator.navigate(SelectPerWeek(mode = ScreenMode.ADD_FROM_HOME)) },
             onBack = { navigator.goBack() },
             viewModel = onboardingFlowViewModel
         )

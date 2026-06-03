@@ -18,8 +18,11 @@ fun EntryProviderScope<NavKey>.selectPerWeekNavEntry(
         SelectFrequencyRoute(
             params = backStackEntry.params,
             onNext = {
-                if (backStackEntry.mode == ScreenMode.ONBOARDING) navigator.navigate(SelectPeriod(mode = ScreenMode.ONBOARDING))
-                else navigator.goBack()
+                when (backStackEntry.mode) {
+                    ScreenMode.ONBOARDING -> navigator.navigate(SelectPeriod(mode = ScreenMode.ONBOARDING))
+                    ScreenMode.ADD_FROM_HOME -> navigator.navigate(SelectPeriod(mode = ScreenMode.ADD_FROM_HOME))
+                    ScreenMode.DEFAULT -> navigator.goBack()
+                }
             },
             onBack = { navigator.goBack() },
             viewModel = onboardingFlowViewModel,

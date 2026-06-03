@@ -126,8 +126,10 @@ fun SelectJourneyDaysRoute(
                     }
                     viewModel.modifyHobbyGoalDays(params!!.hobbyId.toLong(), goalDays)
                 } else {
-                    viewModel.logEvent(AnalyticsEvents.ONBOARDING_SUCCESS)
-                    viewModel.saveIsOnboardingCompleted(true)
+                    if (mode == ScreenMode.ONBOARDING) {
+                        viewModel.logEvent(AnalyticsEvents.ONBOARDING_SUCCESS)
+                        viewModel.saveIsOnboardingCompleted(true)
+                    }
                     viewModel.createHobby(
                         state.selectedHobbyId,
                         state.selectedHobbyName,
@@ -139,6 +141,8 @@ fun SelectJourneyDaysRoute(
                 }
                 delay(400L)                                     // ✅ 공통 2초 지연
                 if (mode == ScreenMode.DEFAULT) {
+                    onNext()
+                } else if (mode == ScreenMode.ADD_FROM_HOME) {
                     onNext()
                 } else {
                     if (state.isNicknameSet == true) {
@@ -152,7 +156,7 @@ fun SelectJourneyDaysRoute(
         onJourneyModeSelect = { journeyMode ->
             viewModel.logEvent(AnalyticsEvents.selectedJourneyDate(journeyMode.toString()))
             // ONBOARDING 모드일 때만 즉시 저장
-            if (mode == ScreenMode.ONBOARDING) {
+            if (mode != ScreenMode.DEFAULT) {
                 viewModel.selectJourneyMode(journeyMode)
             }
         },
